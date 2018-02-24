@@ -2,6 +2,8 @@
 
 void sensorSetup() {
   app_name = "Sensors";
+  syslog.appName(app_name);
+
   bme280Status = bme.begin(0x76);
   logString = "BME280 ";
   if (bme280Status) {
@@ -14,7 +16,7 @@ void sensorSetup() {
                     Adafruit_BME280::SAMPLING_X1, // humidity
                     Adafruit_BME280::FILTER_OFF   );
   } else {
-    logString = logString + " NOT";
+    logString = logString + "NOT ";
   }
   logString = logString + "found";
   mqttLog(logString);
@@ -75,6 +77,7 @@ void sendData() {
 
   temperature = 1000;
   humidity    = 1000;
+  dewpoint    = 1000;
   pressure    = 0;
   sealevel    = 0;
 
@@ -142,7 +145,7 @@ void sendData() {
   }
   // End SHT-31
 
-  
+
   // Start BME280
   if (! bme280Status) {
     logString = "Retrying BME280";
@@ -254,30 +257,80 @@ void sendData() {
   if (temperature != 1000) {
     mqttSend(String("temperature/celsius"),   String(temperature), false);
   } else {
-    mqttSend(String("temperature/celsius"),   String("nan"), false);
+    mqttSend(String("temperature/celsius"),   strNaN,        false);
   }
 
   if (humidity != 1000) {
     mqttSend(String("humidity/percentage"),   String(humidity), false);
   } else {
-    mqttSend(String("humidity/percentage"),   String("nan"), false);
+    mqttSend(String("humidity/percentage"),   strNaN,        false);
+  }
+
+  if ( (temperature != 1000) && (humidity != 1000) ) {
+    dewpoint = 5351/(5351/(temperature + 273.15) - log(humidity/100)) - 273.15;
+    mqttSend(String("dewpoint/celsius"),      String(dewpoint), false);
+  } else {
+    mqttSend(String("dewpoint/celsius"),      strNaN,        false);
   }
 
   if (pressure != 0) {
     mqttSend(String("pressure/hpa"),          String(pressure), false);
     mqttSend(String("pressure-sealevel/hpa"), String(sealevel), false);
   } else {
-    mqttSend(String("pressure/hpa"),          String("nan"), false);
-    mqttSend(String("pressure-sealevel/hpa"), String("nan"), false);
+    mqttSend(String("pressure/hpa"),          strNaN,        false);
+    mqttSend(String("pressure-sealevel/hpa"), strNaN,        false);
   }
 
-  if ( (temperature != 1000) && (humidity != 1000) ) {
-    float dewpoint = 5351/(5351/(temperature + 273.15) - log(humidity/100)) - 273.15;
-    mqttSend(String("dewpoint/celsius"),      String(dewpoint), false);
+}
+
+String httpSensorData() {
+  String httpData = "<table>";
+  String trStart = "<tr><td>";
+  String tdBreak = "</td><td>";
+  String trEnd   = "</td></tr>";
+
+  httpData += trStart + "Temperature:" + tdBreak;
+  if (temperature != 1000) {
+    httpData += String(temperature) + " C";
   } else {
-    mqttSend(String("dewpoint/celsius"),      String("nan"), false);
+    httpData += "-";
   }
+  httpData += trEnd;
 
+  httpData += trStart + "Humidity:" + tdBreak;
+  if (humidity != 1000) {
+    httpData += String(humidity) + " %";
+  } else {
+    httpData += "-";
+  }
+  httpData += trEnd;
+
+  httpData += trStart + "Dew point:" + tdBreak;
+  if (dewpoint != 1000) {
+    httpData += String(dewpoint) + " C";
+  } else {
+    httpData += "-";
+  }
+  httpData += trEnd;
+
+  httpData += trStart + "Pressure:" + tdBreak;
+  if (pressure != 0) {
+    httpData += String(pressure) + " hPa";
+  } else {
+    httpData += "-";
+  }
+  httpData += trEnd;
+
+  httpData += trStart + "Pressure (sea level):" + tdBreak;
+  if (sealevel != 0) {
+    httpData += String(sealevel) + " hPa";
+  } else {
+    httpData += "-";
+  }
+  httpData += trEnd;
+
+  httpData += "</table>";
+  return httpData;
 }
 
 #endif

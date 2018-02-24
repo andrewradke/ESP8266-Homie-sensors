@@ -63,6 +63,23 @@ void rezero() {
   mqttSend(String("$config/offset"), String(offset), true);
 }
 
+
+String httpSensorData() {
+  String httpData = "<table>";
+  String trStart = "<tr><td>";
+  String tdBreak = "</td><td>";
+  String trEnd   = "</td></tr>";
+
+  httpData += trStart + "Weight:" + tdBreak;
+  httpData += String(weight) + " g";
+  httpData += trEnd;
+
+  httpData += "</table>";
+  return httpData;
+}
+
+
+
 void calibrate() {
   app_name = "Sensors";
   logString = "Calibrating";

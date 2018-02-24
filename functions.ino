@@ -97,14 +97,11 @@ void printConfig() {
   mqttSend(String(cfgStr + "mqtt_server"), String(mqtt_server), true);
   mqttSend(String(cfgStr + "mqtt_port"), String(mqtt_port), true);
   mqttSend(String(cfgStr + "mqtt_name"), String(mqtt_name), true);
+  mqttSend(String(cfgStr + "mqtt_interval"), String(mqtt_interval), true);
 
-#ifdef USESYSLOG
-  mqttSend(String(cfgStr + "syslog"), String("true"), true);
+  mqttSend(String(cfgStr + "use_syslog"), String(use_syslog), true);
   mqttSend(String(cfgStr + "host_name"), String(host_name), true);
   mqttSend(String(cfgStr + "syslog_server"), String(syslog_server), true);
-#else
-  mqttSend(String(cfgStr + "syslog"), String("false"), true);
-#endif
 
 // #################### printSensorConfig() is defined in each sensor file as appropriate
   printSensorConfig(cfgStr);
@@ -132,20 +129,16 @@ void saveConfigCallback () {
 
 void saveConfig() {
   app_name = "CFG";
-#ifdef USESYSLOG
   syslog.appName(app_name);
-#endif
-  logString = "Saving";
-  printMessage(logString, true);
-#ifdef USESYSLOG
-  syslog.log(LOG_INFO, logString);
-#endif
+
+  logString = "Saving config";
+  mqttLog(logString);
 
   DynamicJsonBuffer jsonBuffer;
   JsonObject& json = jsonBuffer.createObject();
 
+  json["use_staticip"]  = use_staticip;
 
-#ifdef STATICIP
   JsonArray& json_ip = json.createNestedArray("ip_address");
   json_ip.add(ip[0]);
   json_ip.add(ip[1]);
@@ -166,20 +159,19 @@ void saveConfig() {
   json_dns.add(dns_ip[1]);
   json_dns.add(dns_ip[2]);
   json_dns.add(dns_ip[3]);
-#endif
 
+  json["mqtt_server"]   = mqtt_server;
+  json["mqtt_port"]     = mqtt_port;
+  json["mqtt_name"]     = mqtt_name;
+  json["mqtt_tls"]      = mqtt_tls;
+  json["mqtt_auth"]     = mqtt_auth;
+  json["mqtt_user"]     = mqtt_user;
+  json["mqtt_passwd"]   = mqtt_passwd;
+  json["mqtt_interval"] = mqtt_interval;
 
-  json["mqtt_server"] = mqtt_server;
-  json["mqtt_port"]   = mqtt_port;
-  json["mqtt_name"]   = mqtt_name;
-  json["mqtt_user"]   = mqtt_user;
-  json["mqtt_passwd"] = mqtt_passwd;
-
-
-#ifdef USESYSLOG
-  json["host_name"]   = host_name;
+  json["use_syslog"]    = use_syslog;
+  json["host_name"]     = host_name;
   json["syslog_server"] = syslog_server;
-#endif
 
   sensorExportJSON(json);
 
@@ -187,13 +179,14 @@ void saveConfig() {
   if (!configFile) {
     logString = "Failed to open config file for writing.";
     printMessage(logString, true);
-#ifdef USESYSLOG
-    syslog.log(LOG_ERR, logString);
-#endif
+    if (use_syslog) {
+      syslog.log(LOG_ERR, logString);
+    }
   }
 
   dmesg();
   json.printTo(Serial);
+  Serial.println();
   json.printTo(configFile);
   configFile.close();
 }  //end saveConfig
@@ -201,9 +194,8 @@ void saveConfig() {
 
 void loadConfig() {
   app_name = "CFG";
-#ifdef USESYSLOG
   syslog.appName(app_name);
-#endif
+
   //read configuration from FS json
   logString = "Mounting FS...";
   printMessage(logString, true);
@@ -228,32 +220,9 @@ void loadConfig() {
         Serial.println();
 #endif
         if (json.success()) {
-          if (json["mqtt_server"].is<const char*>()) {
-            strcpy(mqtt_server, json["mqtt_server"]);
+          if (json["use_staticip"].is<bool>()) {
+            use_staticip = json["use_staticip"];
           }
-          if (json["mqtt_port"].is<const char*>()) {
-            strcpy(mqtt_port,   json["mqtt_port"]);
-          }
-          if (json["mqtt_name"].is<const char*>()) {
-            strcpy(mqtt_name,   json["mqtt_name"]);
-          }
-          if (json["mqtt_user"].is<const char*>()) {
-            strcpy(mqtt_user,   json["mqtt_user"]);
-          }
-          if (json["mqtt_passwd"].is<const char*>()) {
-            strcpy(mqtt_passwd,   json["mqtt_passwd"]);
-          }
-
-#ifdef USESYSLOG
-          if (json["host_name"].is<const char*>()) {
-            strcpy(host_name,   json["host_name"]);
-          }
-          if (json["syslog_server"].is<const char*>()) {
-            strcpy(syslog_server, json["syslog_server"]);
-          }
-#endif
-
-#ifdef STATICIP
           if (json["ip_address"].is<JsonArray&>()) {
             ip[0]        = json["ip_address"][0];
             ip[1]        = json["ip_address"][1];
@@ -278,7 +247,44 @@ void loadConfig() {
             dns_ip[2]    = json["dns_server"][2];
             dns_ip[3]    = json["dns_server"][3];
           }
-#endif
+
+
+          if (json["mqtt_server"].is<const char*>()) {
+            strcpy(mqtt_server,   json["mqtt_server"]);
+          }
+          if (json["mqtt_port"].is<const char*>()) {
+            strcpy(mqtt_port,     json["mqtt_port"]);
+          }
+          if (json["mqtt_name"].is<const char*>()) {
+            strcpy(mqtt_name,     json["mqtt_name"]);
+          }
+          if (json["mqtt_tls"].is<bool>()) {
+            mqtt_tls = json["mqtt_tls"];
+          }
+          if (json["mqtt_auth"].is<bool>()) {
+            mqtt_auth = json["mqtt_auth"];
+          }
+          if (json["mqtt_user"].is<const char*>()) {
+            strcpy(mqtt_user,     json["mqtt_user"]);
+          }
+          if (json["mqtt_passwd"].is<const char*>()) {
+            strcpy(mqtt_passwd,   json["mqtt_passwd"]);
+          }
+          if (json["mqtt_interval"].is<int>()) {
+            mqtt_interval = json["mqtt_interval"];
+          }
+
+
+          if (json["use_syslog"].is<bool>()) {
+            use_syslog = json["use_syslog"];
+          }
+          if (json["host_name"].is<const char*>()) {
+            strcpy(host_name,     json["host_name"]);
+          }
+          if (json["syslog_server"].is<const char*>()) {
+            strcpy(syslog_server, json["syslog_server"]);
+          }
+
           sensorImportJSON(json);
         } else {
           logString = "Corrupted json config file.";
@@ -301,9 +307,8 @@ void loadConfig() {
 
 void updateConfig(String key, String value) {
   app_name = "CFG";
-#ifdef USESYSLOG
   syslog.appName(app_name);
-#endif
+
   if ( key == "ssid" ) {
     ssid = value;
   } else if ( key == "psk" ) {
@@ -331,17 +336,14 @@ void updateConfig(String key, String value) {
   } else if ( key == "mqtt_passwd" ) {
     value.toCharArray(mqtt_passwd, 33);
 
-#ifdef USESYSLOG
   } else if ( key == "host_name" ) {
     value.toCharArray(host_name, 21);
   } else if ( key == "syslog_server" ) {
     value.toCharArray(syslog_server, 40);
-#endif
 
   } else if (! sensorUpdateConfig(key, value)) {
     logString = String("UNKNOWN config parameter: " + key);
     app_name = "CFG";
-    printMessage(logString, true);
     mqttLog(logString);
     return;
   }
@@ -349,9 +351,8 @@ void updateConfig(String key, String value) {
 
 void runAction(String key, String value) {
   app_name = "SYS";
-#ifdef USESYSLOG
   syslog.appName(app_name);
-#endif
+
   if ( key == "reboot" ) {
     logString = "Received reboot command.";
     mqttLog(logString);
@@ -371,9 +372,8 @@ void runAction(String key, String value) {
 
 void updateFirmware(String url) {
   app_name = "SYS";
-#ifdef USESYSLOG
   syslog.appName(app_name);
-#endif
+
   logString = String("Firmware upgrade requested: ");
   logString = logString + url;
   mqttLog(logString);
@@ -402,4 +402,14 @@ void updateFirmware(String url) {
 }
 
 
-
+void setupSyslog() {
+    // Setup syslog
+    logString = "Syslog server: " + String(syslog_server);
+    printMessage(logString, true);
+  
+    syslog.server(syslog_server, 514);
+    syslog.deviceHostname(host_name);
+    syslog.defaultPriority(LOG_KERN);
+    // Send log messages up to LOG_INFO severity
+    syslog.logMask(LOG_UPTO(LOG_INFO));
+}

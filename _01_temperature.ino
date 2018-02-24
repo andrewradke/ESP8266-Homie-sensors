@@ -1,20 +1,15 @@
 #if FWTYPE == 1      // esp8266-temperature-sensor
 
 void sensorSetup() {
-  return;
 }
 
 void  printSensorConfig(String cfgStr) {
-  return;
 }
 
 void sensorImportJSON(JsonObject& json) {
 }
 
 void sensorExportJSON(JsonObject& json) {
-}
-
-bool updateConfig(String key, String value) {
 }
 
 bool sensorUpdateConfig(String key, String value) {
@@ -39,6 +34,24 @@ void sendData() {
 #endif
     mqttTime = currentTime - (1000 * (mqtt_interval - 1 ) );                       // only wait 1 second before trying again when measurement failed
   }
+}
+
+String httpSensorData() {
+  String httpData = "<table>";
+  String trStart = "<tr><td>";
+  String tdBreak = "</td><td>";
+  String trEnd   = "</td></tr>";
+
+  httpData += trStart + "Temperature:" + tdBreak;
+  if (temperature != 1000) {
+    httpData += String(temperature) + " C";
+  } else {
+    httpData += "-";
+  }
+  httpData += trEnd;
+
+  httpData += "</table>";
+  return httpData;
 }
 
 float getTemperature() {

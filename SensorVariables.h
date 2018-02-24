@@ -31,11 +31,11 @@ float    sensor_value = 42.0;
 #elif FWTYPE == 1
 
 char fwname[40] =    "esp8266-temperature-sensor";
-#define ONEWIRE_PIN  D4
+#define ONEWIRE_PIN  2          // WeMos D1 Mini D4
 char nodes[100] =    "temperature:celsius";
 #include <OneWire.h>
-OneWire ds(ONEWIRE_PIN); // Setup of the 1-wire bus
-float    temperature  = 1000;
+OneWire ds(ONEWIRE_PIN);        // Setup of the 1-wire bus
+float   temperature  = 1000;
 
 
 // ************* esp8266-flow-counter *************
@@ -44,7 +44,7 @@ float    temperature  = 1000;
 char fwname[40] =    "esp8266-flow-counter";
 // #define PULSENUM  7.5        // YF-S201C
 #define PULSENUM     1.0        // YF-G1
-#define PULSE_PIN    D6         // Arduino pin tied to pulse output of the sensor.
+#define PULSE_PIN    12         // WeMos D1 Mini D6
 char nodes[100] =    "counter:counter,litres:litres,lph:lph";
 volatile long flow_counter = 0; // Measures flow meter pulses
 unsigned long flow_hz      = 0; // Measures last seconds flow
@@ -58,7 +58,7 @@ const float   litrerate    = 60 * PULSENUM;
 #elif FWTYPE == 3
 
 char fwname[40] =    "esp8266-switch";
-#define SWITCH_PIN   D6         // Arduino pin tied to gate switch sensor.
+#define SWITCH_PIN   12         // WeMos D1 Mini D6
 char nodes[100] =    "switch:switch";
 bool          switchOpen     = false;
 bool          switchPrevOpen = false;
@@ -68,15 +68,20 @@ bool          switchPrevOpen = false;
 #elif FWTYPE == 4
 
 char fwname[40] =    "esp8266-depth-sensor";
-#define TRIGGER_PIN  D1         // Arduino pin tied to trigger pin on the ultrasonic sensor.
-#define ECHO_PIN     D2         // Arduino pin tied to echo pin on the ultrasonic sensor.
+#define TRIGGER_PIN  5          // WeMos D1 Mini D1
+#define ECHO_PIN     4          // WeMos D1 Mini D2
 #define MAX_DISTANCE 400        // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
-char nodes[100] =    "distance:cm";
+char nodes[100] =    "distance:cm,depth:cm";
 #include <NewPing.h>            // https://bitbucket.org/teckel12/arduino-new-ping/downloads
 #define US_ROUNDTRIP_CM 58      // 58uS per cm distance at around 20-25 C
 #define ONE_PIN_ENABLED false
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 unsigned int uS = 0;
+
+uint16_t      distance = 0;
+uint16_t      depth    = 0;
+uint16_t      maxdepth = 0;
+byte          readings = 10;
 
 
 // ************* esp8266-pressure-sensor *************
@@ -116,9 +121,9 @@ float pressureRanges[5] = {1, 1, 1, 1};
 #elif FWTYPE == 6
 
 char fwname[40] =    "esp8266-loadcell";
-#define PIN_SCALE_DOUT D0
-#define PIN_SCALE_SCK  D5
-#define PIN_SCALE_PDWN D6
+#define PIN_SCALE_DOUT 16     // WeMos D1 Mini D0
+#define PIN_SCALE_SCK  14     // WeMos D1 Mini D5
+#define PIN_SCALE_PDWN 12     // WeMos D1 Mini D6
 char nodes[100] =    "weight:grams";
 #include <HX711.h>                // https://github.com/bogde/HX711
 HX711 hx711;
@@ -139,8 +144,8 @@ char nodes[100] =    "voltage:volts,pressure:psi,counter:counter,litres:litres,l
 
 // D4 = GPIO2
 // D7 = GPIO13
-#define PULSE_PIN      2
-#define SWITCH_PIN     12
+#define PULSE_PIN      2      // WeMos D1 Mini D4
+#define SWITCH_PIN     12     // WeMos D1 Mini D6
 
 #ifdef USEI2CADC
 #include <Wire.h>
@@ -184,17 +189,23 @@ bool          switchPrevOpen = false;
 char fwname[40] =    "esp8266-bme280";
 char nodes[100] =    "temperature:celsius,humidity:percentage,pressure:hpa,pressure-sealevel:hpa";
 
+float    temperature  = 1000;
+uint16_t humidity     = 1000;
+float    dewpoint     = 1000;
+float    pressure     = 0;
+float    sealevel     = 0;
+float    elevation    = 0;
+
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 // SDO is connected to GND so address is 0x76 instead of 0x77
 // #define BME280_ADDRESS  (0x76) This needs to be changed in the library
 Adafruit_BME280 bme; // I2C
-float    temperature  = 1000;
-uint16_t humidity     = 1000;
-float    pressure     = 0;
-float    sealevel     = 0;
-float    elevation    = 0;
+float    temperature2 = 1000;
+uint16_t humidity2    = 1000;
+float    pressure2    = 0;
+float    sealevel2    = 0;
 bool     bme280Status = 0;
 bool     bme280Error  = 0;
 int      bme280ErrorT = 0;
@@ -219,13 +230,17 @@ int      bme280ErrorP = 0;
 char fwname[40] =    "esp8266-sht31";
 char nodes[100] =    "temperature:celsius,humidity:percentage";
 
+float    temperature  = 1000;
+float    humidity     = 1000;
+float    dewpoint     = 1000;
+
 #include <Wire.h>
 #include <Adafruit_SHT31.h>
 
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
-float    temperature  = 1000;
-float    humidity     = 1000;
+float    temperature1 = 1000;
+float    humidity1    = 1000;
 bool     sht31Status  = 0;
 bool     sht31Error   = 0;
 int      sht31ErrorT  = 0;
@@ -240,6 +255,7 @@ char nodes[100] =    "temperature:celsius,humidity:percentage,dewpoint:celsius,p
 
 float    temperature  = 1000;
 float    humidity     = 1000;
+float    dewpoint     = 1000;
 float    pressure     = 0;
 float    sealevel     = 0;
 float    elevation    = 0;

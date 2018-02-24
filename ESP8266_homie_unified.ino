@@ -22,11 +22,10 @@
  **********************************************************************/
 
 
-#define FWTYPE     10
-#define FWVERSION  "0.9.6"
+#define FWTYPE     3
+#define FWVERSION  "0.9.7"
 #define FWPASSWORD "yuruga08"
 //#define STATICIP
-#define USESYSLOG
 //#define USESTARTUPDELAY
 //#define USESSD1306                // SSD1306 OLED display
 #define USEI2CADC
@@ -44,6 +43,8 @@
 #include <WiFiManager.h>          // https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
+#include <ESP8266mDNS.h>
+#include <ESP8266WebServer.h>
 
 #include <ArduinoJson.h>          // https://github.com/bblanchon/ArduinoJson
 #include <PubSubClient.h>         // http://pubsubclient.knolleary.net/
@@ -66,15 +67,14 @@ WiFiClient espClient;
 
 
 
-#ifdef USESYSLOG
 #include <Syslog.h>               // https://github.com/arcao/Syslog
 #include <WiFiUdp.h>
+bool     use_syslog        = false;
 char     host_name[21]     = "";
 char     syslog_server[41] = "syslog.home.deepport.net";
 uint16_t loglevel          = LOG_NOTICE;
 WiFiUDP  udpClient;
 Syslog   syslog(udpClient, SYSLOG_PROTO_IETF);
-#endif
 char     *app_name          = ""; // printMessage will use this too so it's always declared
 
 
@@ -97,13 +97,15 @@ uint16_t displaySleep = 30;       // Seconds before the display goes to sleep
 #define CONFIG_PIN 13
 
 
-// ########### Variables ############
-#include "Variables.h"
+// ########### Sensor Variables ############
+#include "SensorVariables.h"
 
 
 
 //define the default MQTT values here, if there are different values in config.json, they are overwritten.
 char mqtt_server[41]   = "mqtt.home.deepport.net";
+bool mqtt_tls          = false;
+bool mqtt_auth         = false;
 #ifdef USETLS
 char mqtt_port[6]      = "8883";
 #else
@@ -113,7 +115,7 @@ char mqtt_name[21];
 char mqtt_user[21];
 char mqtt_passwd[33];
 int  mqtt_interval     = 5;         // interval in seconds between updates
-
+const String strNaN    = "nan";
 
 int  error_count_log   = 2;         // How many errors need to be encountered for a sensor before it's logged, if it's more or less don't log
 
@@ -129,23 +131,39 @@ char pubTopic[50];
 PubSubClient mqttClient(espClient);
 
 
+/// The HTTP server
+ESP8266WebServer httpServer(80);
+String httpHeader;                    //defined during setup once hostname is known
+String httpFooter = "</body></html>";
+String httpData;
+String tableStart = "<table>";
+String tableEnd   = "</table>";
+String trStart    = "<tr><td>";
+String tdBreak    = "</td><td>";
+String trEnd      = "</td></tr>";
 
 
-#ifdef STATICIP
+bool rebootRequired = false;
+
+
+bool      use_staticip = false;
 char dns_server[16] = "192.168.1.3";
 IPAddress ip(192, 168, 1, 99);
 IPAddress dns_ip(192, 168, 1, 3);
 IPAddress subnet(255, 255, 255, 0);
 IPAddress gateway(192, 168, 1, 254);
-#endif
 
 
 String ssid = "";
 String psk = "";
+char*  www_username = "admin";
+char*  www_password = "esp8266";
 
-unsigned long currentTime  = 0;
-unsigned long cloopTime    = 0;
-unsigned long mqttTime     = 0;
+
+unsigned long currentTime     = 0;
+unsigned long cloopTime       = 0;
+unsigned long mqttTime        = 0;
+unsigned long mqttConnectTime = 0;
 
 
 
@@ -223,8 +241,8 @@ void setup() {
   }
 
 
-
   loadConfig();
+
 
 #ifdef DEBUG
   dmesg();
@@ -267,28 +285,21 @@ void setup() {
     logString += " Resetting configuration.";
     printMessage(logString, true);
 
+    // set config save notify callback
+    wifiManager.setSaveConfigCallback(saveConfigCallback);
 
-#ifdef STATICIP
     byte oct1 = dns_ip[0];
     byte oct2 = dns_ip[1];
     byte oct3 = dns_ip[2];
     byte oct4 = dns_ip[3];
     sprintf(dns_server, "%d.%d.%d.%d", oct1, oct2, oct3, oct4);
     WiFiManagerParameter custom_dns_server("dnsserver", "DNS server", dns_server, 16);
-#endif
 
-
-    // set config save notify callback
-    wifiManager.setSaveConfigCallback(saveConfigCallback);
-
-
-#ifdef STATICIP
     // set static ip
     wifiManager.setSTAStaticIPConfig(ip, gateway, subnet);
     WiFiManagerParameter dns_server_text("DNS server:");
     wifiManager.addParameter(&dns_server_text);
     wifiManager.addParameter(&custom_dns_server);
-#endif
 
     WiFiManagerParameter mqtt_server_text("MQTT server:");
     wifiManager.addParameter(&mqtt_server_text);
@@ -315,12 +326,10 @@ void setup() {
     WiFiManagerParameter custom_mqtt_passwd("mqtt_passwd", "MQTT password", mqtt_passwd, 32);
     wifiManager.addParameter(&custom_mqtt_passwd);
 
-#ifdef USESYSLOG
     WiFiManagerParameter syslog_server_text("syslog server:");
     wifiManager.addParameter(&syslog_server_text);
     WiFiManagerParameter custom_syslog_server("syslog_server", "syslog server", syslog_server, 40);
     wifiManager.addParameter(&custom_syslog_server);
-#endif
 
 
 // #################### any extra WM config #defined in variables.h
@@ -329,10 +338,10 @@ WMADDCONFIG
 #endif
 
 
-#ifdef STATICIP
-    WiFiManagerParameter ip_address_text("IP, gateway, netmask:");
-    wifiManager.addParameter(&ip_address_text);
-#endif
+    if (use_staticip) {
+      WiFiManagerParameter ip_address_text("IP, gateway, netmask:");
+      wifiManager.addParameter(&ip_address_text);
+    }
 
 
 #ifdef USESSD1306
@@ -367,13 +376,13 @@ WMADDCONFIG
 
 
     //read updated parameters
-#ifdef STATICIP
-    strcpy(dns_server,  custom_dns_server.getValue());
-    dns_ip.fromString(dns_server);
-    ip        = WiFi.localIP();
-    subnet    = WiFi.subnetMask();
-    gateway   = WiFi.gatewayIP();
-#endif
+    if (use_staticip) {
+      strcpy(dns_server,  custom_dns_server.getValue());
+      dns_ip.fromString(dns_server);
+      ip        = WiFi.localIP();
+      subnet    = WiFi.subnetMask();
+      gateway   = WiFi.gatewayIP();
+    }
 
     strcpy(mqtt_server,   custom_mqtt_server.getValue());
     strcpy(mqtt_port,     custom_mqtt_port.getValue());
@@ -381,10 +390,8 @@ WMADDCONFIG
     strcpy(mqtt_user,     custom_mqtt_user.getValue());
     strcpy(mqtt_passwd,   custom_mqtt_passwd.getValue());
 
-#ifdef USESYSLOG
     strcpy(host_name,     custom_mqtt_name.getValue());     // use the MQTT name as the hostname
     strcpy(syslog_server, custom_syslog_server.getValue());
-#endif
 
 
 // #################### any extra WM config #defined in variables.h
@@ -415,23 +422,15 @@ WMGETCONFIG
     }
   }
 
-#ifdef STATICIP
-  // WiFi.setDNS(dns_server); // This doesn't work with the ESP8266 so reconfigure everything
-  WiFi.config(ip, gateway, subnet, dns_ip);
-#endif
+  if (use_staticip) {
+    // WiFi.setDNS(dns_server); // This doesn't work with the ESP8266 so reconfigure everything
+    WiFi.config(ip, gateway, subnet, dns_ip);
+  }
 
 
-#ifdef USESYSLOG
-  // Setup syslog
-  logString = "Syslog server: " + String(syslog_server);
-  printMessage(logString, true);
-
-  syslog.server(syslog_server, 514);
-  syslog.deviceHostname(host_name);
-  syslog.defaultPriority(LOG_KERN);
-  // Send log messages up to LOG_INFO severity
-  syslog.logMask(LOG_UPTO(LOG_INFO));
-#endif
+  if (use_syslog) {
+    setupSyslog();
+  }
 
 
   ssid = WiFi.SSID();
@@ -441,20 +440,24 @@ WMGETCONFIG
   app_name = "WIFI";
   logString = "Connected";
   printMessage(logString, true);
-#ifdef USESYSLOG
-  syslog.appName(app_name);
-  syslog.log(LOG_INFO, logString);
-#endif
 
+  if (use_syslog) {
+    syslog.appName(app_name);
+    syslog.log(LOG_INFO, logString);
+  }
 
   app_name = "NET";
-  logString = "IP address: " + IPtoString(WiFi.localIP());
+  if (use_staticip) {
+    logString = "Static";
+  } else {
+    logString = "DHCP";
+  }
+  logString += " IP address: " + IPtoString(WiFi.localIP());
   printMessage(logString, true);
-#ifdef USESYSLOG
-  syslog.appName(app_name);
-  syslog.log(LOG_INFO, logString);
-#endif
-
+  if (use_syslog) {
+    syslog.appName(app_name);
+    syslog.log(LOG_INFO, logString);
+  }
 
   dmesg();
   Serial.print("Subnet mask: ");
@@ -463,18 +466,31 @@ WMGETCONFIG
   Serial.print("Gateway:     ");
   Serial.println(WiFi.gatewayIP());
 
-#ifdef STATICIP
-  dmesg();
-  Serial.print("DNS Server:  ");
-  Serial.println(dns_server);
-#endif
+  if (use_staticip) {
+    dmesg();
+    Serial.print("DNS Server:  ");
+    Serial.println(dns_server);
+  }
 
 
-#ifdef USESYSLOG
-  syslog.appName("SYS");
-  logString = String(fwname) + " v" + FWVERSION;;
-  syslog.log(LOG_INFO, logString);
-#endif
+  if (use_syslog) {
+    syslog.appName("SYS");
+    logString = String(fwname) + " v" + FWVERSION;;
+    syslog.log(LOG_INFO, logString);
+  }
+
+
+  logString = "Starting web server";
+  printMessage(logString, true);
+  httpHeader = "<html><head><title>" + String(host_name) + ": " + String(fwname) + "</title></head><body><h1>" + String(host_name) + "</h1><h2>" + String(fwname) + "</h2>";
+  httpHeader += "<p><a href='/'>Home</a> | <a href='/config'>Configure</a> | <a href='/firmware'>Update firmware</a> | <a href='/system'>System</a> | <a href='/reboot'>Reboot</a></p>";
+
+  httpSetup();
+  httpServer.begin();
+  MDNS.begin(host_name);
+  MDNS.addService("http", "tcp", 80);
+  logString = "Web server available by http://" + String(host_name) + ".local/";
+  printMessage(logString, true);
 
 
 #ifdef USETLS
@@ -501,9 +517,9 @@ WMGETCONFIG
     Serial.println("Failed to load root CA certificate!");
     logString = "Failed to load root CA certificate! Cannot continue.";
     printMessage(logString, true);
-#ifdef USESYSLOG
-    syslog.log(LOG_INFO, logString);
-#endif
+    if (use_syslog) {
+      syslog.log(LOG_INFO, logString);
+    }
     while (true) {
       yield();
     }
@@ -518,18 +534,17 @@ WMGETCONFIG
   app_name = "MQTT";
   logString = String("topic: " + baseTopic);
   printMessage(logString, true);
-#ifdef USESYSLOG
-  syslog.appName(app_name);
-  syslog.log(LOG_INFO, logString);
-#endif
+  if (use_syslog) {
+    syslog.appName(app_name);
+    syslog.log(LOG_INFO, logString);
+  }
 
 
   logString = "server: " + String(mqtt_server) + ':' + String(mqtt_port);
   printMessage(logString, true);
-#ifdef USESYSLOG
-  syslog.log(LOG_INFO, logString);
-#endif
-
+  if (use_syslog) {
+    syslog.log(LOG_INFO, logString);
+  }
 
   mqttClient.setServer(mqtt_server, atoi( mqtt_port ));
   mqttClient.setCallback(mqttCallback);
@@ -551,37 +566,57 @@ WMGETCONFIG
   app_name = "SYS";
   logString = "Startup complete.";
   printMessage(logString, true);
-#ifdef USESYSLOG
-  syslog.appName(app_name);
-  syslog.log(LOG_INFO, logString);
-#endif
+  if (use_syslog) {
+    syslog.appName(app_name);
+    syslog.log(LOG_INFO, logString);
+  }
 
 
   printSystem();
 
-#ifdef USESYSLOG
-  // The delays are needed to give time for each packet to be sent. Otherwise a few of the later ones can end up being lost
+  // The delays are needed to give time for each syslog packet to be sent. Otherwise a few of the later ones can end up being lost
   logString = "Flash size: " + String(realSize/1048576.0) + " MB";
-  syslog.log(LOG_INFO, logString);
-  delay(1);
+  printMessage(logString, true);
+  if (use_syslog) {
+    syslog.log(LOG_INFO, logString);
+    delay(1);
+  }
   logString = "Flash size config: " + String(ideSize/1048576.0) + " MB";
-  syslog.log(LOG_INFO, logString);
-  delay(1);
+  printMessage(logString, true);
+  if (use_syslog) {
+    syslog.log(LOG_INFO, logString);
+    delay(1);
+  }
   logString = "Program Size: " + String(ESP.getSketchSize() / 1024) + " kB";
-  syslog.log(LOG_INFO, logString);
-  delay(1);
+  printMessage(logString, true);
+  if (use_syslog) {
+    syslog.log(LOG_INFO, logString);
+    delay(1);
+  }
   logString = "Free Program Space: " + String(ESP.getFreeSketchSpace() / 1024) + " kB";
-  syslog.log(LOG_INFO, logString);
-  delay(1);
+  printMessage(logString, true);
+  if (use_syslog) {
+    syslog.log(LOG_INFO, logString);
+    delay(1);
+  }
   logString = "Free Memory: " + String(ESP.getFreeHeap() / 1024) + " kB";
-  syslog.log(LOG_INFO, logString);
-  delay(1);
+  printMessage(logString, true);
+  if (use_syslog) {
+    syslog.log(LOG_INFO, logString);
+    delay(1);
+  }
   logString = "ESP Chip Id: " + String(ESP.getChipId());
-  syslog.log(LOG_INFO, logString);
-  delay(1);
+  printMessage(logString, true);
+  if (use_syslog) {
+    syslog.log(LOG_INFO, logString);
+    delay(1);
+  }
   logString = "Flash Chip Id: " + String(ESP.getFlashChipId());
-  syslog.log(LOG_INFO, logString);
-#endif
+  printMessage(logString, true);
+  if (use_syslog) {
+    syslog.log(LOG_INFO, logString);
+    delay(1);
+  }
 
 
 #ifdef DEBUG
@@ -593,7 +628,9 @@ WMGETCONFIG
 ////////////////////////////////////// main loop ///////////////////////////////////////
 
 void loop() {
-  
+
+  httpServer.handleClient();
+
 #ifdef USESSD1306
   if ( digitalRead(CONFIG_PIN) == LOW ) {
     if ( millis() > (prevDisplay + (displaySleep * 1000) ) ) {  // if the display is sleeping redraw it.
@@ -624,18 +661,19 @@ void loop() {
     app_name = "WIFI";
     logString = "Connected";
     printMessage(logString, true);
-#ifdef USESYSLOG
-    syslog.appName(app_name);
-    syslog.log(LOG_INFO, logString);
-#endif
+    if (use_syslog) {
+      syslog.appName(app_name);
+      syslog.log(LOG_INFO, logString);
+    }
   }
 
 
+  currentTime = millis();
   if (!mqttClient.connected()) {
-    Serial.print('x');
-    mqttConnect();
-    delay(250);
-    reconnected = true;
+    if ( currentTime >= (mqttConnectTime + 1000 ) ) {
+      mqttConnectTime = currentTime;             // Updates mqttConnectTime
+      mqttConnect();
+    }
   }
 
 

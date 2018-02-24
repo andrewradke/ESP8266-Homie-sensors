@@ -81,5 +81,34 @@ void sendData() {
   }
 }
 
-#endif
+String httpSensorData() {
+  String httpData = "<table>";
+  String trStart = "<tr><td>";
+  String tdBreak = "</td><td>";
+  String trEnd   = "</td></tr>";
 
+  float adsA, pressure;
+  int i;
+  for (i = 0; i < 4; i = i + 1) {
+    if ( pressureRanges[i] != 0 ) {
+      tmpString = String("analog");
+      tmpString = String(tmpString + i);
+      adsA = ads1115.readADC_SingleEnded(i) * 0.0001875;
+
+      httpData += trStart + tmpString + " voltage:" + tdBreak;
+      httpData += String(adsA) + " V";
+      httpData += trEnd;
+
+      pressure = (adsA - 0.5) / 4 * pressureRanges[i];
+
+      httpData += trStart + tmpString + " pressure:" + tdBreak;
+      httpData += String(pressure) + " psi";
+      httpData += trEnd;
+    }
+  }
+
+  httpData += "</table>";
+  return httpData;
+}
+
+#endif

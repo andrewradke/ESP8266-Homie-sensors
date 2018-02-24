@@ -174,6 +174,9 @@ void sendData() {
   if (dir_reading <= 15) {                // No errors reported
     mqttSend(String("wind_direction/degrees"),   String(wind_dir),     false);
     mqttSend(String("gust_direction/degrees"),   String(gust_dir),     false);
+  } else {
+    mqttSend(String("wind_direction/degrees"),   strNaN,            false);
+    mqttSend(String("gust_direction/degrees"),   strNaN,            false);
   }
   mqttSend(String("wind_speed/kph"),             String(wind_speed),   false);
   mqttSend(String("gust_speed/kph"),             String(gust_speed),   false);
@@ -190,6 +193,45 @@ void rain () {                     // Interrupt function
 }
 void wind () {                     // Interrupt function
   wind_counter++;
+}
+
+String httpSensorData() {
+  String httpData = tableStart;
+
+  httpData += trStart + "Rain:" + tdBreak;
+  httpData += String(rain_mm) + " mm";
+  httpData += trEnd;
+
+  httpData += trStart + "Rain counter:" + tdBreak;
+  httpData += String(rain_counter);
+  httpData += trEnd;
+
+  httpData += trStart + "Wind direction:" + tdBreak;
+  if (dir_reading <= 15) {
+    httpData += String(wind_dir) + " deg";
+  } else {
+    httpData += "-";
+  }
+  httpData += trEnd;
+
+  httpData += trStart + "Wind speed:" + tdBreak;
+  httpData += String(wind_speed) + " kph";
+  httpData += trEnd;
+
+  httpData += trStart + "Gust direction:" + tdBreak;
+  if (dir_reading <= 15) {
+    httpData += String(gust_dir) + " deg";
+  } else {
+    httpData += "-";
+  }
+  httpData += trEnd;
+
+  httpData += trStart + "Gust speed:" + tdBreak;
+  httpData += String(gust_speed) + " kph";
+  httpData += trEnd;
+
+  httpData += tableEnd;
+  return httpData;
 }
 
 #endif

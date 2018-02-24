@@ -7,7 +7,6 @@ void sensorSetup() {
 }
 
 void  printSensorConfig(String cfgStr) {
-  return;
 }
 
 void sensorImportJSON(JsonObject& json) {
@@ -40,6 +39,28 @@ void sendData() {
   mqttSend(String("counter/counter"), String(flow_counter), false);
   mqttSend(String("litres/counter"),  String(litres),       false);
   mqttSend(String("lph/lph"),         String(l_hour),       false);
+}
+
+String httpSensorData() {
+  String httpData = "<table>";
+  String trStart = "<tr><td>";
+  String tdBreak = "</td><td>";
+  String trEnd   = "</td></tr>";
+
+  httpData += trStart + "Flow counter:" + tdBreak;
+  httpData += String(flow_counter);
+  httpData += trEnd;
+
+  httpData += trStart + "Litres:" + tdBreak;
+  httpData += String(litres) + " l";
+  httpData += trEnd;
+
+  httpData += trStart + "Flow rate:" + tdBreak;
+  httpData += String(l_hour) + " lph";
+  httpData += trEnd;
+
+  httpData += "</table>";
+  return httpData;
 }
 
 void flow () {                     // Interrupt function

@@ -15,13 +15,15 @@ void mqttSend(String topic, String data, bool retain) {
     tmpString.toCharArray(output, OUT_STR_MAX);
   
     mqttClient.publish(pubTopic, output, retain);
+/*
   } else {
     logString = "not connected. Can't send data.";
     printMessage(logString, true);
-#ifdef USESYSLOG
-    syslog.appName(app_name);
-    syslog.log(LOG_INFO, data);
-#endif    
+    if (use_syslog) {
+      syslog.appName(app_name);
+      syslog.log(LOG_INFO, data);
+    }
+*/
   }
 }
 
@@ -29,10 +31,10 @@ void mqttSend(String topic, String data, bool retain) {
 void mqttLog(String data) {
   mqttSend(String("$log"), data, false);
   printMessage(logString, true);
-#ifdef USESYSLOG
-  syslog.appName(app_name);
-  syslog.log(LOG_INFO, data);
-#endif
+  if (use_syslog) {
+    syslog.appName(app_name);
+    syslog.log(LOG_INFO, data);
+  }
 }
 
 
@@ -40,7 +42,7 @@ void mqttConnect() {
   app_name = "MQTT";
   syslog.appName(app_name);
   // Loop until we're reconnected
-  while (!mqttClient.connected()) {
+  if (!mqttClient.connected()) {
     // Attempt to connect
 
     tmpString = String(baseTopic + "$online");
@@ -57,9 +59,9 @@ void mqttConnect() {
 #endif
       logString = "Connected";
       printMessage(logString, true);
-#ifdef USESYSLOG
-      syslog.log(LOG_INFO, logString);
-#endif
+      if (use_syslog) {
+        syslog.log(LOG_INFO, logString);
+      }
 
 #ifdef USETLS
       // Verify validity of server's certificate before doing anything else
@@ -72,9 +74,9 @@ void mqttConnect() {
         tlsOkay = false;
       }
       printMessage(logString, true);
-#ifdef USESYSLOG
-      syslog.log(LOG_INFO, logString);
-#endif
+      if (use_syslog) {
+        syslog.log(LOG_INFO, logString);
+      }
 
       if (! tlsOkay) {
         delay(1000);
@@ -95,29 +97,26 @@ void mqttConnect() {
       tmpString.toCharArray(subTopic, 40);
 
       printMessage(logString, true);
-#ifdef USESYSLOG
-      syslog.log(LOG_INFO, logString);
-#endif
+      if (use_syslog) {
+        syslog.log(LOG_INFO, logString);
+      }
       mqttClient.subscribe(subTopic);
 
     } else {
-      logString = "Failed to connect to MQTT, rc=" + String(mqttClient.state()) + ". Trying again in 1 second";
+      logString = "Failed to connect to MQTT, rc=" + String(mqttClient.state());
       printMessage(logString, true);
-#ifdef USESYSLOG
-      syslog.log(LOG_INFO, logString);
-#endif
-      delay(1000);                // Wait 1 seconds before retrying
+      if (use_syslog) {
+        syslog.log(LOG_INFO, logString);
+      }
     }
   }
-
 }
 
 /// The MQTT callback function for received messages
 void mqttCallback(char* subTopic, byte* payload, unsigned int length) {
   app_name = "MQTT";
-#ifdef USESYSLOG
   syslog.appName(app_name);
-#endif
+
   String mqttSubString = "";
   String mqttSubCmd    = "";
   String mqttSubKey    = "";
@@ -194,9 +193,9 @@ void mqttCommand(String cmd, String key, String value) {
   } else if ( cmd == "reboot" ) {
     logString = "Received reboot command.";
     printMessage(logString, true);
-#ifdef USESYSLOG
-    syslog.log(LOG_INFO, logString);
-#endif
+    if (use_syslog) {
+      syslog.log(LOG_INFO, logString);
+    }
     mqttSend(String("$online"), String("false"), true);
     ESP.restart();
   } else {

@@ -5,7 +5,6 @@
  * variables.h should also has a template section at the top to copy for includes, variables and WiFiManager config
  */
 
-
 void sensorSetup() {
 }
 
@@ -47,4 +46,17 @@ void sendData() {
   mqttSend(String("sensor/number"),   String(sensor_value), false);
 }
 
+String httpSensorData() {
+  String httpData = "<table>";
+  String trStart = "<tr><td>";
+  String tdBreak = "</td><td>";
+  String trEnd   = "</td></tr>";
+
+  httpData += trStart + "Sensor:" + tdBreak;
+  httpData += String(sensor_value) + " units";
+  httpData += trEnd;
+
+  httpData += "</table>";
+  return httpData;
+}
 #endif

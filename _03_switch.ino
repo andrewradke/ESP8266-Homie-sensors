@@ -27,8 +27,8 @@ bool sensorRunAction(String key, String value) {
 
 void calcData() {
   switchCheck();                                  // This is driven by interrupts but this will catch any state change that may have been missed
-  if ( gateOpen != gatePrevOpen ) {               // Send the state *immediately* if it has changed, it can be sent again later without problems
-    if (gateOpen) {
+  if ( switchOpen != switchPrevOpen ) {           // Send the state *immediately* if it has changed, it can be sent again later without problems
+    if (switchOpen) {
       tmpString = "open";
     } else {
       tmpString = "closed";
@@ -49,6 +49,25 @@ void sendData() {
 
 void switchCheck () {               // Interrupt function
   switchOpen = digitalRead(SWITCH_PIN);
+}
+
+
+String httpSensorData() {
+  String httpData = "<table>";
+  String trStart = "<tr><td>";
+  String tdBreak = "</td><td>";
+  String trEnd   = "</td></tr>";
+
+  httpData += trStart + "Switch:" + tdBreak;
+  if (switchOpen) {
+    httpData += "open";
+  } else {
+    httpData += "closed";
+  }
+  httpData += trEnd;
+
+  httpData += "</table>";
+  return httpData;
 }
 
 #endif

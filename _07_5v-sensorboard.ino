@@ -98,4 +98,42 @@ void switchCheck () {               // Interrupt function
   switchOpen = digitalRead(SWITCH_PIN);
 }
 
+String httpSensorData() {
+  String httpData = "<table>";
+  String trStart = "<tr><td>";
+  String tdBreak = "</td><td>";
+  String trEnd   = "</td></tr>";
+
+  httpData += trStart + "Voltage:" + tdBreak;
+  httpData += String(voltage) + " V";
+  httpData += trEnd;
+
+  httpData += trStart + "Pressure:" + tdBreak;
+  httpData += String(pressure) + " psi";
+  httpData += trEnd;
+
+  httpData += trStart + "Flow counter:" + tdBreak;
+  httpData += String(flow_counter);
+  httpData += trEnd;
+
+  httpData += trStart + "Litres:" + tdBreak;
+  httpData += String(litres) + " l";
+  httpData += trEnd;
+
+  httpData += trStart + "Flow rate:" + tdBreak;
+  httpData += String(l_hour) + " lph";
+  httpData += trEnd;
+
+  httpData += trStart + "Switch:" + tdBreak;
+  if (switchOpen) {
+    httpData += "open";
+  } else {
+    httpData += "closed";
+  }
+  httpData += trEnd;
+
+  httpData += "</table>";
+  return httpData;
+}
+
 #endif
