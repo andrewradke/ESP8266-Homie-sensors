@@ -21,8 +21,10 @@
   #define ADS1115_CONVERSIONDELAY         (9)
  **********************************************************************/
 
+// Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
-#define FWTYPE     3
+
+#define FWTYPE     5
 #define FWVERSION  "0.9.7"
 #define FWPASSWORD "yuruga08"
 //#define STATICIP
@@ -51,7 +53,11 @@
 
 
 #ifdef USETLS
+// Accurate time is needed to be able to verify security certificates
 #include <time.h>
+char     ntp_server1[41] = "0.pool.ntp.org";
+char     ntp_server2[41] = "1.pool.ntp.org";
+
 #include <WiFiClientSecure.h>
 // Root certificate used by mqtt.home.deepport.net.
 // Defined in "CACert" tab.
@@ -71,7 +77,7 @@ WiFiClient espClient;
 #include <WiFiUdp.h>
 bool     use_syslog        = false;
 char     host_name[21]     = "";
-char     syslog_server[41] = "syslog.home.deepport.net";
+char     syslog_server[41] = "syslog.local";
 uint16_t loglevel          = LOG_NOTICE;
 WiFiUDP  udpClient;
 Syslog   syslog(udpClient, SYSLOG_PROTO_IETF);
@@ -103,7 +109,7 @@ uint16_t displaySleep = 30;       // Seconds before the display goes to sleep
 
 
 //define the default MQTT values here, if there are different values in config.json, they are overwritten.
-char mqtt_server[41]   = "mqtt.home.deepport.net";
+char mqtt_server[41]   = "mqtt.local";
 bool mqtt_tls          = false;
 bool mqtt_auth         = false;
 #ifdef USETLS
@@ -133,14 +139,21 @@ PubSubClient mqttClient(espClient);
 
 /// The HTTP server
 ESP8266WebServer httpServer(80);
-String httpHeader;                    //defined during setup once hostname is known
 String httpFooter = "</body></html>";
 String httpData;
 String tableStart = "<table>";
 String tableEnd   = "</table>";
 String trStart    = "<tr><td>";
-String tdBreak    = "</td><td>";
 String trEnd      = "</td></tr>";
+String tdBreak    = "</td><td>";
+String thStart    = "<tr><th>";
+String thEnd      = "</th></tr>";
+String thBreak    = "</th><th>";
+bool   lock = false;                // This bool is used to control device lockout 
+String httpUser   = "admin";
+String httpPasswd = "esp8266";
+unsigned long logincld = millis(), reqmillis = millis(), tempign = millis(); // First 2 timers are for lockout and last one is inactivity timer
+uint8_t trycount = 0;                                                        // trycount will be our buffer for remembering how many failed login attempts there have been
 
 
 bool rebootRequired = false;
@@ -156,8 +169,6 @@ IPAddress gateway(192, 168, 1, 254);
 
 String ssid = "";
 String psk = "";
-char*  www_username = "admin";
-char*  www_password = "esp8266";
 
 
 unsigned long currentTime     = 0;
@@ -191,7 +202,7 @@ void setup() {
 #endif
 
   Serial.begin(SERIALSPEED);        // Open serial monitor at SERIALSPEED baud to see results.
-  delay(100);                       // Give the serial port time to setup
+  delay(200);                       // Give the serial port time to setup
 
 
   pinMode(CONFIG_PIN, INPUT_PULLUP);
@@ -482,10 +493,14 @@ WMGETCONFIG
 
   logString = "Starting web server";
   printMessage(logString, true);
-  httpHeader = "<html><head><title>" + String(host_name) + ": " + String(fwname) + "</title></head><body><h1>" + String(host_name) + "</h1><h2>" + String(fwname) + "</h2>";
-  httpHeader += "<p><a href='/'>Home</a> | <a href='/config'>Configure</a> | <a href='/firmware'>Update firmware</a> | <a href='/system'>System</a> | <a href='/reboot'>Reboot</a></p>";
 
   httpSetup();
+
+   // These 3 lines tell esp to collect User-Agent and Cookie in http header when request is made 
+  const char * headerkeys[] = {"User-Agent","Cookie"} ;
+  size_t headerkeyssize = sizeof(headerkeys)/sizeof(char*);
+  httpServer.collectHeaders(headerkeys, headerkeyssize );
+
   httpServer.begin();
   MDNS.begin(host_name);
   MDNS.addService("http", "tcp", 80);
@@ -499,7 +514,7 @@ WMGETCONFIG
   logString = "Setting time using SNTP";
   printMessage(logString, true);
 
-  configTime(8 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+  configTime(8 * 3600, 0, ntp_server1, ntp_server2);
   time_t now = time(nullptr);
   while (now < 8 * 3600 * 2) {
     delay(500);
@@ -512,9 +527,8 @@ WMGETCONFIG
   printMessage(logString, true);
 
   // Load root certificate in DER format into WiFiClientSecure object
-  bool res = espClient.setCACert_P(caCert, caCertLen);
-  if (!res) {
-    Serial.println("Failed to load root CA certificate!");
+  bool result = espClient.setCACert_P(caCert, caCertLen);
+  if (!result) {
     logString = "Failed to load root CA certificate! Cannot continue.";
     printMessage(logString, true);
     if (use_syslog) {
@@ -630,6 +644,22 @@ WMGETCONFIG
 void loop() {
 
   httpServer.handleClient();
+
+  if (lock && abs(millis() - logincld) > 300000) {
+    lock = false;
+    trycount = 0;
+    logincld = millis(); // After 5 minutes is passed unlock the system
+  }
+  if (!lock && abs(millis() - logincld) > 60000) {
+    trycount = 0;
+    logincld = millis();
+    // After minute is passed without bad entries, reset trycount
+  }
+  if (abs(millis() - tempign) > 120000) {
+    gencookie();
+    tempign = millis();
+    // if there is no activity from loged on user, generate a new cookie. This is more secure than adding expiry to the cookie header
+  } 
 
 #ifdef USESSD1306
   if ( digitalRead(CONFIG_PIN) == LOW ) {

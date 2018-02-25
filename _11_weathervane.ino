@@ -9,17 +9,33 @@ void sensorSetup() {
 }
 
 void  printSensorConfig(String cfgStr) {
-  return;
+  mqttSend(String(cfgStr + "kphPerPulse"), String(kphPerPulse), true);
+  mqttSend(String(cfgStr + "mmPerPulse"),  String(mmPerPulse),  true);
 }
 
 void sensorImportJSON(JsonObject& json) {
+  if (json["kphPerPulse"].is<float>()) {
+    kphPerPulse     = json["kphPerPulse"];
+  }
+  if (json["mmPerPulse"].is<float>()) {
+    mmPerPulse      = json["mmPerPulse"];
+  }
 }
 
 void sensorExportJSON(JsonObject& json) {
+  json["kphPerPulse"] = kphPerPulse;
+  json["mmPerPulse"]  = mmPerPulse;
 }
 
 bool sensorUpdateConfig(String key, String value) {
-  return false;
+  if ( key == "kphPerPulse" ) {
+    kphPerPulse = value.toFloat();
+  } else if ( key == "mmPerPulse" ) {
+    mmPerPulse  = value.toFloat();
+  } else {
+    return false;
+  }
+  return true;
 }
 
 bool sensorRunAction(String key, String value) {
@@ -133,13 +149,13 @@ void calcData() {
 #endif
 
     }
-    wind_speed = (sum_speed / (float) readings) * WINDPULSE;  // Calculated to kph
-    wind_dir   = (sum_dirs  / (float) readings) * 22.5;       // Each position on the wind vane is 22.5 degrees
+    wind_speed = (sum_speed / (float) readings) * kphPerPulse;  // Calculated to kph
+    wind_dir   = (sum_dirs  / (float) readings) * 22.5;         // Each position on the wind vane is 22.5 degrees
 
 
 #ifdef USEALLGUSTS
     // Report the gusts as the max speeds
-    gust_speed = max_speed * WINDPULSE;
+    gust_speed = max_speed * kphPerPulse;
     gust_dir   = max_dir * 22.5;
 
 #else
@@ -150,7 +166,7 @@ void calcData() {
     if (wind_speed > 29.632) {                // over 16 knots
       if ((max_speed - min_speed) > 16.668) { // more than 9 knots difference
         // We've got a gust to report
-        gust_speed = max_speed * WINDPULSE;
+        gust_speed = max_speed * kphPerPulse;
         gust_dir   = max_dir * 22.5;
         logString = "Wind gust: " + String(gust_speed) + " kph, " + String(gust_dir) + " degrees";
         mqttLog(logString);
@@ -168,7 +184,7 @@ void calcData() {
 }
 
 void sendData() {
-  rain_mm = rain_counter * RAINPULSE;
+  rain_mm = rain_counter * mmPerPulse;
   mqttSend(String("rain/mm"),                    String(rain_mm),      false);
   mqttSend(String("rain_counter/counter"),       String(rain_counter), false);
   if (dir_reading <= 15) {                // No errors reported
@@ -232,6 +248,28 @@ String httpSensorData() {
 
   httpData += tableEnd;
   return httpData;
+}
+
+String httpSensorSetup() {
+  String httpData;
+  httpData += trStart + "Wind KPH per pulse:" + tdBreak + htmlInput("text",     "kphPerPulse", String(kphPerPulse)) + trEnd;
+  httpData += trStart + "mm rain per pulse:"  + tdBreak + htmlInput("text",     "mmPerPulse",  String(mmPerPulse))  + trEnd;
+  return httpData;
+}
+
+String httpSensorConfig() {
+  if (httpServer.hasArg("kphPerPulse")) {
+    tmpString = String(kphPerPulse);
+    if (httpServer.arg("kphPerPulse") != tmpString) {
+      kphPerPulse = httpServer.arg("kphPerPulse").toFloat();
+    }
+  }
+  if (httpServer.hasArg("mmPerPulse")) {
+    tmpString = String(mmPerPulse);
+    if (httpServer.arg("mmPerPulse") != tmpString) {
+      mmPerPulse = httpServer.arg("mmPerPulse").toFloat();
+    }
+  }
 }
 
 #endif

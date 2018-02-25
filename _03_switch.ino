@@ -70,4 +70,13 @@ String httpSensorData() {
   return httpData;
 }
 
+String httpSensorSetup() {
+  String httpData;
+  httpData += trStart + "No config items." + tdBreak + trEnd;
+  return httpData;
+}
+
+String httpSensorConfig() {
+}
+
 #endif

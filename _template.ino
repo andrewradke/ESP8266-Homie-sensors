@@ -47,16 +47,27 @@ void sendData() {
 }
 
 String httpSensorData() {
-  String httpData = "<table>";
-  String trStart = "<tr><td>";
-  String tdBreak = "</td><td>";
-  String trEnd   = "</td></tr>";
-
+  String httpData = tableStart;
   httpData += trStart + "Sensor:" + tdBreak;
   httpData += String(sensor_value) + " units";
   httpData += trEnd;
-
-  httpData += "</table>";
+  httpData += tableEnd;
   return httpData;
 }
+
+String httpSensorSetup() {
+  String httpData;
+  httpData += trStart + "Config item:" + tdBreak + htmlInput("text", "config_item", config_item) + trEnd;
+  return httpData;
+}
+
+String httpSensorConfig() {
+  if (httpServer.hasArg("config_item")) {
+    tmpString = String(config_item);
+    if (httpServer.arg("config_item") != tmpString) {
+      kphPerPulse = httpServer.arg("config_item").toFloat();
+    }
+  }
+}
+
 #endif

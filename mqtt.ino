@@ -52,11 +52,15 @@ void mqttConnect() {
 
     mqttClient.disconnect();
 
-#ifdef USEMQTTAUTH
-    if (mqttClient.connect(mqtt_name, mqtt_user, mqtt_passwd, pubTopic, 0, true, output)) {   // Connect with a will of $online set to false
-#else
-    if (mqttClient.connect(mqtt_name, pubTopic, 0, true, output)) {   // Connect with a will of $online set to false
-#endif
+    bool mqttResult;
+    // Connect with a will of $online set to false (from output set above)
+    if (mqtt_auth) {
+      mqttResult = mqttClient.connect(mqtt_name, mqtt_user, mqtt_passwd, pubTopic, 0, true, output);
+    } else {
+      mqttResult = mqttClient.connect(mqtt_name, pubTopic, 0, true, output);
+    }
+
+    if (mqttResult) {
       logString = "Connected";
       printMessage(logString, true);
       if (use_syslog) {

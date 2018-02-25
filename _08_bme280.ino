@@ -244,4 +244,19 @@ String httpSensorData() {
   return httpData;
 }
 
+String httpSensorSetup() {
+  String httpData;
+  httpData += trStart + "Elevation (m):" + tdBreak + htmlInput("text", "elevation", String(elevation)) + trEnd;
+  return httpData;
+}
+
+String httpSensorConfig() {
+  if (httpServer.hasArg("elevation")) {
+    tmpString = String(elevation);
+    if (httpServer.arg("elevation") != tmpString) {
+      elevation = httpServer.arg("elevation").toFloat();
+    }
+  }
+}
+
 #endif

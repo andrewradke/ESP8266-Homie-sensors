@@ -93,6 +93,8 @@ void printConfig() {
 #else
   mqttSend(String(cfgStr + "static_ip"), String("false"), true);
 #endif
+  mqttSend(String(cfgStr + "ntp_server1"), String(ntp_server1), true);
+  mqttSend(String(cfgStr + "ntp_server2"), String(ntp_server2), true);
 
   mqttSend(String(cfgStr + "mqtt_server"), String(mqtt_server), true);
   mqttSend(String(cfgStr + "mqtt_port"), String(mqtt_port), true);
@@ -160,6 +162,9 @@ void saveConfig() {
   json_dns.add(dns_ip[2]);
   json_dns.add(dns_ip[3]);
 
+  json["ntp_server1"]   = ntp_server1;
+  json["ntp_server2"]   = ntp_server2;
+
   json["mqtt_server"]   = mqtt_server;
   json["mqtt_port"]     = mqtt_port;
   json["mqtt_name"]     = mqtt_name;
@@ -172,6 +177,9 @@ void saveConfig() {
   json["use_syslog"]    = use_syslog;
   json["host_name"]     = host_name;
   json["syslog_server"] = syslog_server;
+
+  json["httpUser"]      = httpUser;
+  json["httpPasswd"]    = httpPasswd;
 
   sensorExportJSON(json);
 
@@ -248,6 +256,13 @@ void loadConfig() {
             dns_ip[3]    = json["dns_server"][3];
           }
 
+          if (json["ntp_server1"].is<const char*>()) {
+            strcpy(ntp_server1, json["ntp_server1"]);
+          }
+          if (json["ntp_server2"].is<const char*>()) {
+            strcpy(ntp_server2, json["ntp_server2"]);
+          }
+
 
           if (json["mqtt_server"].is<const char*>()) {
             strcpy(mqtt_server,   json["mqtt_server"]);
@@ -283,6 +298,13 @@ void loadConfig() {
           }
           if (json["syslog_server"].is<const char*>()) {
             strcpy(syslog_server, json["syslog_server"]);
+          }
+
+          if (json["httpUser"].is<const char*>()) {
+            httpUser = json["httpUser"].as<String>();
+          }
+          if (json["httpPasswd"].is<const char*>()) {
+            httpPasswd = json["httpPasswd"].as<String>();
           }
 
           sensorImportJSON(json);
@@ -324,6 +346,10 @@ void updateConfig(String key, String value) {
   } else if ( key == "gateway" ) {
     gateway.fromString(value);
 #endif
+  } else if ( key == "ntp_server1" ) {
+    value.toCharArray(ntp_server1, 40);
+  } else if ( key == "ntp_server2" ) {
+    value.toCharArray(ntp_server2, 40);
 
   } else if ( key == "mqtt_server" ) {
     value.toCharArray(mqtt_server, 40);

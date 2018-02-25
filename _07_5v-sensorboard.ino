@@ -136,4 +136,19 @@ String httpSensorData() {
   return httpData;
 }
 
+String httpSensorSetup() {
+  String httpData;
+  httpData += trStart + "Pressure range:" + tdBreak + htmlInput("text", "pressureRange", String(pressureRange)) + trEnd;
+  return httpData;
+}
+
+String httpSensorConfig() {
+  if (httpServer.hasArg("pressureRange")) {
+    tmpString = String(pressureRange);
+    if (httpServer.arg("pressureRange") != tmpString) {
+      pressureRange = httpServer.arg("pressureRange").toFloat();
+    }
+  }
+}
+
 #endif

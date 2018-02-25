@@ -50,8 +50,9 @@ volatile long flow_counter = 0; // Measures flow meter pulses
 unsigned long flow_hz      = 0; // Measures last seconds flow
 unsigned int  l_hour;           // Calculated litres/hour
 float         litres       = 0;
-const float   flowrate     = 60 / PULSENUM;
-const float   litrerate    = 60 * PULSENUM;
+float         pulsesPerLitre = 1;   // YF-G1 = 1, YF-S201C = 7.5
+float         flowrate     = 60 / pulsesPerLitre;
+float         litrerate    = 60 * pulsesPerLitre;
 
 
 // ************* esp8266-switch *************
@@ -80,7 +81,7 @@ unsigned int uS = 0;
 
 uint16_t      distance = 0;
 uint16_t      depth    = 0;
-uint16_t      maxdepth = 0;
+float         maxdepth = 0;
 byte          readings = 10;
 
 
@@ -165,8 +166,9 @@ volatile long flow_counter = 0; // Measures flow meter pulses
 unsigned long flow_hz      = 0; // Measures last seconds flow
 unsigned int  l_hour;           // Calculated litres/hour
 float         litres       = 0;
-const float   flowrate     = 60 / PULSENUM;
-const float   litrerate    = 60 * PULSENUM;
+float         pulsesPerLitre = 1;   // YF-G1 = 1, YF-S201C = 7.5
+float         flowrate     = 60 / pulsesPerLitre;
+float         litrerate    = 60 * pulsesPerLitre;
 
 bool          switchOpen     = false;
 bool          switchPrevOpen = false;
@@ -303,8 +305,8 @@ int      bme280ErrorP = 0;
 
 char fwname[40] =    "esp8266-weathervane";
 
-#define RAINPULSE      0.2794        // mm per pulse
-#define WINDPULSE      2.4           // kph per pulse per second
+float kphPerPulse = 2.4;             // kph per pulse per second
+float mmPerPulse  = 0.2794;          // mm per pulse
 
 #define RAINGAUGE_PIN  12            // pin tied to the pulse output of the rain gauge
 #define ANEMOMETER_PIN 14            // pin tied to the pulse output of the anemometer

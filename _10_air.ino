@@ -24,19 +24,18 @@ void sensorSetup() {
   sht31Status = sht31.begin(0x44);   // Set to 0x45 for alternate i2c addr
   logString = "SHT-31 initialised";
   mqttLog(logString);
-/*
   // The library always returns true for begin() so it's not much point checking the returned value
   logString = "SHT-31 ";
-  if (! sht31Status) {
-    logString = logString + " NOT";
-    sht31Error = true;
+  uint16_t sht31State = sht31.readStatus();
+  if (sht31State == 65535) {          // returns 65535 if no sensor (no I2C device at all?) found
+    logString   = logString + "NOT ";
+    sht31Error  = true;
+    sht31Status = false;
   }
   logString = logString + "found";
   mqttLog(logString);
-*/
 /*
   // The library always returns 0x8010 so this is pretty useless too
-  uint16_t sht31State = sht31.readStatus();
   logString = "SHT-31 status: 0x" + String(sht31State, HEX);
   mqttLog(logString);
 */
@@ -83,19 +82,22 @@ void sendData() {
 
   // Start SHT-31
   if (! sht31Status) {
-    Serial.println("Retrying SHT-31");
+    logString = "Retrying SHT-31";
+    mqttLog(logString);
     sht31Status  = sht31.begin();
-    if (sht31Status) {
+    uint16_t sht31State = sht31.readStatus();
+    if (sht31State != 65535) {          // returns 65535 if no sensor (no I2C device at all?) found
       logString = "SHT-31 found";
-      sht31Error = true;
+      sht31Error = false;
+      sht31Status = true;
       mqttLog(logString);
+    } else {
+      sht31Status = false;
     }
-
   } else {
 
     temperature1 = sht31.readTemperature();
     humidity1    = sht31.readHumidity();
-
 
     // Start temperature
     // The lowest recorded temperature is -88C and the highest is 58C so if it's outside this then it's a false reading
@@ -176,7 +178,6 @@ void sendData() {
 //  The following equation is from https://www.sandhurstweather.org.uk/barometric.pdf
     sealevel2    = pressure2 / exp(-elevation/((temperature2 + 273.15)*29.263));
 
-
     // Start temperature
     // The lowest recorded temperature is -88C and the highest is 58C so if it's outside this then it's a false reading
     if ( temperature2 > -100 && temperature2 < 65) {
@@ -201,7 +202,6 @@ void sendData() {
     }
     // End temperature
 
-
     // Start humidity
     // 100% humidity means the humidity sensor has gotten wet and is no longer useful
     if ( humidity2 > 0 && humidity2 < 100) {
@@ -225,7 +225,6 @@ void sendData() {
       }
     }
     // End humidity
-
 
     // Start pressure
     // The lowest recorded pressure is 870hpa and the highest is 1085 so if it's outside this then it's a false reading
@@ -331,6 +330,21 @@ String httpSensorData() {
 
   httpData += "</table>";
   return httpData;
+}
+
+String httpSensorSetup() {
+  String httpData;
+  httpData += trStart + "Elevation (m):" + tdBreak + htmlInput("text", "elevation", String(elevation)) + trEnd;
+  return httpData;
+}
+
+String httpSensorConfig() {
+  if (httpServer.hasArg("elevation")) {
+    tmpString = String(elevation);
+    if (httpServer.arg("elevation") != tmpString) {
+      elevation = httpServer.arg("elevation").toFloat();
+    }
+  }
 }
 
 #endif

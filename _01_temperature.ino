@@ -32,6 +32,7 @@ void sendData() {
     dmesg();
     Serial.println("No valid temperature returned.");
 #endif
+    mqttSend(String("temperature/celsius"), strNaN, false);
     mqttTime = currentTime - (1000 * (mqtt_interval - 1 ) );                       // only wait 1 second before trying again when measurement failed
   }
 }
@@ -52,6 +53,15 @@ String httpSensorData() {
 
   httpData += "</table>";
   return httpData;
+}
+
+String httpSensorSetup() {
+  String httpData;
+  httpData += trStart + "No config items." + tdBreak + trEnd;
+  return httpData;
+}
+
+String httpSensorConfig() {
 }
 
 float getTemperature() {

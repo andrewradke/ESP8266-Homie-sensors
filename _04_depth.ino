@@ -8,7 +8,7 @@ void  printSensorConfig(String cfgStr) {
 }
 
 void sensorImportJSON(JsonObject& json) {
-  if (json["maxdepth"].is<int>()) {
+  if (json["maxdepth"].is<float>()) {
     maxdepth     = json["maxdepth"];
   }
 }
@@ -19,7 +19,7 @@ void sensorExportJSON(JsonObject& json) {
 
 bool sensorUpdateConfig(String key, String value) {
   if ( key == "maxdepth" ) {
-    maxdepth = value.toInt();
+    maxdepth = value.toFloat();
   } else {
     return false;
   }
@@ -45,6 +45,8 @@ void sendData() {
     dmesg();
     Serial.println("No valid ping result returned.");
 #endif
+    mqttSend(String("distance/cm"), strNaN, false);
+    mqttSend(String("depth/cm"),    strNaN, false);
     mqttTime = currentTime - (1000 * (mqtt_interval - 1 ) ); // only wait 1 second before trying again when measurement failed
   }
 }
@@ -73,6 +75,21 @@ String httpSensorData() {
 
   httpData += "</table>";
   return httpData;
+}
+
+String httpSensorSetup() {
+  String httpData;
+  httpData += trStart + "Maximum depth:" + tdBreak + htmlInput("text",     "maxdepth", String(maxdepth)) + trEnd;
+  return httpData;
+}
+
+String httpSensorConfig() {
+  if (httpServer.hasArg("maxdepth")) {
+    tmpString = String(maxdepth);
+    if (httpServer.arg("maxdepth") != tmpString) {
+      maxdepth = httpServer.arg("maxdepth").toFloat();
+    }
+  }
 }
 
 #endif

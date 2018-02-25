@@ -7,16 +7,28 @@ void sensorSetup() {
 }
 
 void  printSensorConfig(String cfgStr) {
+  mqttSend(String(cfgStr + "pulsesPerLitre"), String(pulsesPerLitre), true);
 }
 
 void sensorImportJSON(JsonObject& json) {
+  if (json["pulsesPerLitre"].is<float>()) {
+    pulsesPerLitre     = json["pulsesPerLitre"];
+    flowrate     = 60 / pulsesPerLitre;
+    litrerate    = 60 * pulsesPerLitre;
+  }
 }
 
 void sensorExportJSON(JsonObject& json) {
+  json["pulsesPerLitre"] = pulsesPerLitre;
 }
 
 bool sensorUpdateConfig(String key, String value) {
-  return false;
+  if ( key == "pulsesPerLitre" ) {
+    pulsesPerLitre = value.toFloat();
+  } else {
+    return false;
+  }
+  return true;
 }
 
 bool sensorRunAction(String key, String value) {
@@ -61,6 +73,23 @@ String httpSensorData() {
 
   httpData += "</table>";
   return httpData;
+}
+
+String httpSensorSetup() {
+  String httpData;
+  httpData += trStart + "Pulses per litre:" + tdBreak + htmlInput("text",     "pulsesPerLitre", String(pulsesPerLitre)) + trEnd;
+  return httpData;
+}
+
+String httpSensorConfig() {
+  if (httpServer.hasArg("pulsesPerLitre")) {
+    tmpString = String(pulsesPerLitre);
+    if (httpServer.arg("pulsesPerLitre") != tmpString) {
+      pulsesPerLitre = httpServer.arg("pulsesPerLitre").toFloat();
+      flowrate     = 60 / pulsesPerLitre;
+      litrerate    = 60 * pulsesPerLitre;
+    }
+  }
 }
 
 void flow () {                     // Interrupt function

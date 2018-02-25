@@ -78,6 +78,28 @@ String httpSensorData() {
   return httpData;
 }
 
+String httpSensorSetup() {
+  String httpData;
+  httpData += trStart + "offset:" + tdBreak + htmlInput("text",     "offset", String(offset)) + trEnd;
+  httpData += trStart + "scale:"  + tdBreak + htmlInput("text",     "scale",  String(scale))  + trEnd;
+  return httpData;
+}
+
+String httpSensorConfig() {
+  if (httpServer.hasArg("offset")) {
+    tmpString = String(offset);
+    if (httpServer.arg("offset") != tmpString) {
+      offset = httpServer.arg("offset").toFloat();
+    }
+  }
+  if (httpServer.hasArg("scale")) {
+    tmpString = String(scale);
+    if (httpServer.arg("scale") != tmpString) {
+      scale = httpServer.arg("scale").toFloat();
+    }
+  }
+}
+
 
 
 void calibrate() {
