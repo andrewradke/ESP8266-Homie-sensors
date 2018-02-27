@@ -122,8 +122,8 @@ void sendData() {
     // End temperature
 
     // Start humidity
-    // 100% humidity means the humidity sensor has gotten wet and is no longer useful
-    if ( humidity1 > 0 && humidity1 < 100) {
+    // 100% humidity seems to be acceptable on a SHT-31
+    if ( humidity1 > 0 && humidity1 <= 100) {
 
       humidity = humidity1;
 

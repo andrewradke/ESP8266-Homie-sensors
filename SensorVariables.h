@@ -132,18 +132,18 @@ unsigned long offset   = 1296368;
 byte          readings = 5;
 
 
-// ************* esp8266-5v-sensorboard *************
+// ************* esp8266-watermeter *************
 #elif FWTYPE == 7
 
-char fwname[40] =    "esp8266-5v-sensorboard";
+char fwname[40] =    "esp8266-watermeter";
 char nodes[100] =    "voltage:volts,pressure:psi,counter:counter,litres:litres,lph:lph,switch:switch";
 
 #define USEI2CADC
 
 // D4 = GPIO2
 // D7 = GPIO13
-#define PULSE_PIN      2      // WeMos D1 Mini D4
-#define SWITCH_PIN     12     // WeMos D1 Mini D6
+#define PULSE_PIN      12     // WeMos D1 Mini D6
+#define SWITCH_PIN     14     // WeMos D1 Mini D5
 
 #ifdef USEI2CADC
 #include <Wire.h>

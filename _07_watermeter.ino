@@ -1,4 +1,4 @@
-#if FWTYPE == 7      // esp8266-5v-sensorboard
+#if FWTYPE == 7      // esp8266-watermeter
 
 void sensorSetup() {
 #ifdef USEI2CADC

@@ -8,7 +8,7 @@
    4  esp8266-depth-sensor
    5  esp8266-pressure-sensor
    6  esp8266-loadcell
-   7  esp8266-5v-sensorboard
+   7  esp8266-watermeter
    8  esp8266-bme280
    9  esp8266-sht31
    10 esp8266-air
@@ -24,7 +24,7 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     5
+#define FWTYPE     7
 #define FWVERSION  "0.9.8"
 #define FWPASSWORD "yuruga08"
 //#define USESSD1306                // SSD1306 OLED display
@@ -495,7 +495,8 @@ WMGETCONFIG
   logString = "Web server available by http://" + String(host_name) + ".local/";
   printMessage(logString, true);
 
-
+mqtt_tls          = true;
+mqtt_auth         = true;
   if (mqtt_tls) {
     mqttClient.setClient(espSecureClient);
 
