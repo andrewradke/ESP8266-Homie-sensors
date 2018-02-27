@@ -703,15 +703,16 @@ void loop() {
   mqttClient.loop();  // Check for incoming messages
 
 
-  currentTime = millis();
-
 
   ////////////////////////////////////// calculate data ///////////////////////////////////////
+  currentTime = millis();
   calcData();
+
 
 
   ////////////////////////////////////// send data ///////////////////////////////////////
   // Every mqtt_interval seconds send the current data to the MQTT broker
+  currentTime = millis();
   if ( currentTime >= (mqttTime + (1000 * mqtt_interval ) ) ) {
     mqttTime = currentTime;                      // Updates mqttTime
     sendData();
@@ -723,5 +724,18 @@ void loop() {
 
     int signal = WiFi.RSSI();
     mqttSend(String("$signal"), String(signal), true);
+  }
+
+
+  ////////////////////////////////////// check the watchdog ///////////////////////////////////////
+  currentTime = millis();
+  if ( currentTime >= (watchdog + (1000 * mqtt_watchdog ) ) ) {
+    logString = "No MQTT data in " + String(mqtt_watchdog) + " seconds. Rebooting.";
+    printMessage(logString, true);
+
+    delay(3000);
+    //reboot and try again, or maybe put it to deep sleep
+    ESP.restart();
+    delay(5000);
   }
 }

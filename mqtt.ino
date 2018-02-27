@@ -14,7 +14,8 @@ void mqttSend(String topic, String data, bool retain) {
     tmpString = String(data);
     tmpString.toCharArray(output, OUT_STR_MAX);
   
-    mqttClient.publish(pubTopic, output, retain);
+    if (mqttClient.publish(pubTopic, output, retain))
+      watchdog = millis();    // feed the watchdog
 /*
   } else {
     logString = "not connected. Can't send data.";
@@ -126,6 +127,9 @@ void mqttCallback(char* subTopic, byte* payload, unsigned int length) {
   String mqttSubKey    = "";
   String mqttSubValue  = "";
   char checkTopic[40];
+
+  watchdog = millis();    // feed the watchdog
+
 #ifdef DEBUG
   dmesg();
   Serial.print("Message arrived [");
