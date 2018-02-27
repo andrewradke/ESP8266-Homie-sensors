@@ -67,30 +67,30 @@ void mqttConnect() {
         syslog.log(LOG_INFO, logString);
       }
 
-#ifdef USETLS
-      // Verify validity of server's certificate before doing anything else
-      logString = "server certificate ";
-      if (espClient.verifyCertChain(mqtt_server)) {
-        logString = logString + "verified";
-        tlsOkay = true;
-      } else {
-        logString = "ERROR: " + logString + "verification failed! Rebooting...";
-        tlsOkay = false;
+      if (mqtt_tls) {
+        // Verify validity of server's certificate before doing anything else
+        logString = "server certificate ";
+        if (espSecureClient.verifyCertChain(mqtt_server)) {
+          logString = logString + "verified";
+          tlsOkay = true;
+        } else {
+          logString = "ERROR: " + logString + "verification failed! Rebooting...";
+          tlsOkay = false;
+        }
+        printMessage(logString, true);
+        if (use_syslog) {
+          syslog.log(LOG_INFO, logString);
+        }
+  
+        if (! tlsOkay) {
+          delay(1000);
+          // reconnecting will cause certificate verification to fail so reboot to start clean
+          ESP.restart();
+          delay(5000);
+      
+          while (1);   // Do NOT send any other message!!! The certificate is invalid and it could be a security risk
+        }
       }
-      printMessage(logString, true);
-      if (use_syslog) {
-        syslog.log(LOG_INFO, logString);
-      }
-
-      if (! tlsOkay) {
-        delay(1000);
-        // reconnecting will cause certificate verification to fail so reboot to start clean
-        ESP.restart();
-        delay(5000);
-    
-        while (1);   // Do NOT send any other message!!! The certificate is invalid and it could be a security risk
-      }
-#endif
 
       // Publush $online as true with pubTopic still correct from will above
       mqttSend(String("$online"), String("true"), true);

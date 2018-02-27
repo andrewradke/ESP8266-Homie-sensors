@@ -42,8 +42,6 @@ float   temperature  = 1000;
 #elif FWTYPE == 2
 
 char fwname[40] =    "esp8266-flow-counter";
-// #define PULSENUM  7.5        // YF-S201C
-#define PULSENUM     1.0        // YF-G1
 #define PULSE_PIN    12         // WeMos D1 Mini D6
 char nodes[100] =    "counter:counter,litres:litres,lph:lph";
 volatile long flow_counter = 0; // Measures flow meter pulses
@@ -140,8 +138,7 @@ byte          readings = 5;
 char fwname[40] =    "esp8266-5v-sensorboard";
 char nodes[100] =    "voltage:volts,pressure:psi,counter:counter,litres:litres,lph:lph,switch:switch";
 
-// #define PULSENUM  7.5        // YF-S201C
-#define PULSENUM     1.0        // YF-G1
+#define USEI2CADC
 
 // D4 = GPIO2
 // D7 = GPIO13

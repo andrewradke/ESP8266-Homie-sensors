@@ -25,14 +25,9 @@
 
 
 #define FWTYPE     5
-#define FWVERSION  "0.9.7"
+#define FWVERSION  "0.9.8"
 #define FWPASSWORD "yuruga08"
-//#define STATICIP
-//#define USESTARTUPDELAY
 //#define USESSD1306                // SSD1306 OLED display
-#define USEI2CADC
-#define USETLS
-#define USEMQTTAUTH
 
 
 //#define DEBUG
@@ -52,7 +47,6 @@
 #include <PubSubClient.h>         // http://pubsubclient.knolleary.net/
 
 
-#ifdef USETLS
 // Accurate time is needed to be able to verify security certificates
 #include <time.h>
 char     ntp_server1[41] = "0.pool.ntp.org";
@@ -63,14 +57,11 @@ char     ntp_server2[41] = "1.pool.ntp.org";
 // Defined in "CACert" tab.
 extern const unsigned char caCert[] PROGMEM;
 extern const unsigned int caCertLen;
-WiFiClientSecure espClient;
 bool tlsOkay = false;
 
-#else
-WiFiClient espClient;
 
-#endif
-
+WiFiClientSecure espSecureClient;
+WiFiClient       espClient;
 
 
 #include <Syslog.h>               // https://github.com/arcao/Syslog
@@ -112,15 +103,13 @@ uint16_t displaySleep = 30;       // Seconds before the display goes to sleep
 char mqtt_server[41]   = "mqtt.local";
 bool mqtt_tls          = false;
 bool mqtt_auth         = false;
-#ifdef USETLS
-char mqtt_port[6]      = "8883";
-#else
 char mqtt_port[6]      = "1883";
-#endif
 char mqtt_name[21];
 char mqtt_user[21];
 char mqtt_passwd[33];
 int  mqtt_interval     = 5;         // interval in seconds between updates
+int  mqtt_watchdog     = 60;        // seconds with mqtt data before watchdog reboots device
+unsigned long watchdog = millis();  // timer to keep last watchdog packet
 const String strNaN    = "nan";
 
 int  error_count_log   = 2;         // How many errors need to be encountered for a sensor before it's logged, if it's more or less don't log
@@ -134,7 +123,8 @@ String baseTopic;
 char pubTopic[50];
 
 /// The MQTT client
-PubSubClient mqttClient(espClient);
+//PubSubClient mqttClient(espSecureClient);
+PubSubClient mqttClient;
 
 
 /// The HTTP server
@@ -159,12 +149,12 @@ uint8_t trycount = 0;                                                        // 
 bool rebootRequired = false;
 
 
-bool      use_staticip = false;
-char dns_server[16] = "192.168.1.3";
-IPAddress ip(192, 168, 1, 99);
-IPAddress dns_ip(192, 168, 1, 3);
+bool      use_staticip   = false;
+char      dns_server[16] = "192.168.0.1";
+IPAddress ip(192, 168, 0, 99);
+IPAddress dns_ip(192, 168, 0, 1);
 IPAddress subnet(255, 255, 255, 0);
-IPAddress gateway(192, 168, 1, 254);
+IPAddress gateway(192, 168, 0, 1);
 
 
 String ssid = "";
@@ -265,17 +255,15 @@ void setup() {
 #endif
 
 
-#ifdef USESTARTUPDELAY
   if ( digitalRead(CONFIG_PIN) == HIGH ) {  // If the config pin IS grounded then skip this
     // Back off for between 0 and 5 seconds before starting Wifi
-    // This reduces the sudden current draw when too many sensors start at once
+    // This reduces the sudden current draw when too many sensors start at once or lots of data packets at exactly the same time
     long startupDelay = random(1000);
     logString = "Startup random delay: " + String(startupDelay);
     printMessage(logString, true);
 
     delay( startupDelay );
   }
-#endif
 
   //WiFiManager
   //Local intialization in setup() only. Once its business is done, there is no need to keep it around
@@ -508,37 +496,42 @@ WMGETCONFIG
   printMessage(logString, true);
 
 
-#ifdef USETLS
-  // Synchronize time useing SNTP. This is necessary to verify that
-  // the TLS certificates offered by the server are currently valid.
-  logString = "Setting time using SNTP";
-  printMessage(logString, true);
+  if (mqtt_tls) {
+    mqttClient.setClient(espSecureClient);
 
-  configTime(8 * 3600, 0, ntp_server1, ntp_server2);
-  time_t now = time(nullptr);
-  while (now < 8 * 3600 * 2) {
-    delay(500);
-    Serial.print(".");
-    now = time(nullptr);
-  }
-  struct tm timeinfo;
-  gmtime_r(&now, &timeinfo);
-  logString = "Time: " + String(asctime(&timeinfo));
-  printMessage(logString, true);
-
-  // Load root certificate in DER format into WiFiClientSecure object
-  bool result = espClient.setCACert_P(caCert, caCertLen);
-  if (!result) {
-    logString = "Failed to load root CA certificate! Cannot continue.";
+    // Synchronize time useing SNTP. This is necessary to verify that
+    // the TLS certificates offered by the server are currently valid.
+    logString = "Setting time using SNTP";
     printMessage(logString, true);
-    if (use_syslog) {
-      syslog.log(LOG_INFO, logString);
+  
+    configTime(8 * 3600, 0, ntp_server1, ntp_server2);
+    time_t now = time(nullptr);
+    while (now < 8 * 3600 * 2) {
+      delay(500);
+      Serial.print(".");
+      now = time(nullptr);
     }
-    while (true) {
-      yield();
+    struct tm timeinfo;
+    gmtime_r(&now, &timeinfo);
+    logString = "Time: " + String(asctime(&timeinfo));
+    printMessage(logString, true);
+  
+    // Load root certificate in DER format into WiFiClientSecure object
+    bool result = espSecureClient.setCACert_P(caCert, caCertLen);
+    if (!result) {
+      logString = "Failed to load root CA certificate! Cannot continue.";
+      printMessage(logString, true);
+      if (use_syslog) {
+        syslog.log(LOG_INFO, logString);
+      }
+      while (true) {
+        yield();
+      }
     }
+  } else {
+    mqttClient.setClient(espClient);
   }
-#endif
+
 
   /// The MQTT baseTopic
   baseTopic = String(mqtt_name);

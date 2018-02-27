@@ -188,12 +188,12 @@ void httpSetup() {
       if (httpServer.hasArg("staticip")) {
         if (httpServer.arg("staticip") == "true") {
           if (! use_staticip) {
-            rebootRequired = true;      // Changing to a static IP requires a reboot
+            rebootRequired = true;        // Changing to a static IP requires a reboot
             use_staticip = true;
           }
         } else {
           if (use_staticip) {
-            rebootRequired = true;      // Changing to a static IP requires a reboot
+            rebootRequired = true;        // Changing to a static IP requires a reboot
             use_staticip = false;
           }
         }
@@ -203,7 +203,7 @@ void httpSetup() {
         tmpip.fromString(httpServer.arg("ip_address"));
         if (ip != tmpip) {
           if (use_staticip)
-            rebootRequired = true;      // Changing IP requires a reboot
+            rebootRequired = true;        // Changing IP requires a reboot
           ip = tmpip;
         }
       }
@@ -211,7 +211,7 @@ void httpSetup() {
         tmpip.fromString(httpServer.arg("subnet"));
         if (subnet != tmpip) {
           if (use_staticip)
-            rebootRequired = true;      // Changing subnet requires a reboot
+            rebootRequired = true;        // Changing subnet requires a reboot
           subnet = tmpip;
         }
       }
@@ -219,7 +219,7 @@ void httpSetup() {
         tmpip.fromString(httpServer.arg("gateway"));
         if (gateway != tmpip) {
           if (use_staticip)
-            rebootRequired = true;      // Changing gateway IP requires a reboot
+            rebootRequired = true;        // Changing gateway IP requires a reboot
           gateway = tmpip;
         }
       }
@@ -227,21 +227,21 @@ void httpSetup() {
         tmpip.fromString(httpServer.arg("dns_ip"));
         if (dns_ip != tmpip) {
           if (use_staticip)
-            rebootRequired = true;      // Changing DNS server requires a reboot
+            rebootRequired = true;        // Changing DNS server requires a reboot
           dns_ip = tmpip;
         }
       }
       if (httpServer.hasArg("ntp_server1")) {
         tmpString = String(ntp_server1);
         if (httpServer.arg("ntp_server1") != tmpString) {
-          rebootRequired = true;        // Changing NTP servers requires a reboot
+          rebootRequired = true;          // Changing NTP servers requires a reboot
           httpServer.arg("ntp_server1").toCharArray(ntp_server1, 40);
         }
       }
       if (httpServer.hasArg("ntp_server2")) {
         tmpString = String(ntp_server2);
         if (httpServer.arg("ntp_server2") != tmpString) {
-          rebootRequired = true;        // Changing NTP servers requires a reboot
+          rebootRequired = true;          // Changing NTP servers requires a reboot
           httpServer.arg("ntp_server2").toCharArray(ntp_server2, 40);
         }
       }
@@ -249,15 +249,17 @@ void httpSetup() {
       if (httpServer.hasArg("mqtt_server")) {
         tmpString = String(mqtt_server);
         if (httpServer.arg("mqtt_server") != tmpString) {
-          mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
           httpServer.arg("mqtt_server").toCharArray(mqtt_server, 40);
+          mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+          mqttClient.setServer(mqtt_server, atoi( mqtt_port ));
         }
       }
       if (httpServer.hasArg("mqtt_port")) {
         tmpString = String(mqtt_port);
         if (httpServer.arg("mqtt_port") != tmpString) {
-          mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
           httpServer.arg("mqtt_port").toCharArray(mqtt_port, 5);
+          mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+          mqttClient.setServer(mqtt_server, atoi( mqtt_port ));
         }
       }
       if (httpServer.hasArg("mqtt_name")) {
@@ -270,12 +272,13 @@ void httpSetup() {
       if (httpServer.hasArg("mqtt_tls")) {
         if (httpServer.arg("mqtt_tls") == "on") {
           if (!mqtt_tls) {
-            mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+            rebootRequired = true;        // Enabling TLS requires a reboot, as the server certificate verification will fail and force a reboot otherwise
             mqtt_tls = true;
           }
         } else {
           if (mqtt_tls) {
-            mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+            mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
+            mqttClient.setClient(espClient);
             mqtt_tls = false;
           }
         }
@@ -288,12 +291,12 @@ void httpSetup() {
       if (httpServer.hasArg("mqtt_auth")) {
         if (httpServer.arg("mqtt_auth") == "on") {
           if (!mqtt_auth) {
-            mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+            mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
             mqtt_auth = true;
           }
         } else {
           if (mqtt_auth) {
-            mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+            mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
             mqtt_auth = false;
           }
         }
@@ -320,6 +323,16 @@ void httpSetup() {
 
       if (httpServer.hasArg("mqtt_interval"))
         mqtt_interval = httpServer.arg("mqtt_interval").toInt();
+
+      if (httpServer.hasArg("mqtt_watchdog")) {
+        mqtt_watchdog = httpServer.arg("mqtt_watchdog").toInt();
+        if (mqtt_watchdog <= mqtt_interval) {
+          mqtt_watchdog = mqtt_interval + 1;
+        }
+        if (mqtt_watchdog < 60) {
+          mqtt_watchdog = 60;
+        }
+      }
 
       if (httpServer.hasArg("syslog_server"))
         httpServer.arg("syslog_server").toCharArray(syslog_server, 40);
@@ -365,6 +378,7 @@ void httpSetup() {
     httpData += trStart + "Username:"           + tdBreak + htmlInput("text",     "mqtt_user",     mqtt_user)     + trEnd;
     httpData += trStart + "Password:"           + tdBreak + htmlInput("text",     "mqtt_passwd",   mqtt_passwd)   + trEnd;
     httpData += trStart + "Data interval (s):"  + tdBreak + htmlInput("text",     "mqtt_interval", String(mqtt_interval)) + trEnd;
+    httpData += trStart + "MQTT watchdog (s):"  + tdBreak + htmlInput("text",     "mqtt_watchdog", String(mqtt_watchdog)) + trEnd;
 
     httpData += thStart + "<b>Syslog:</b>" + thBreak + thEnd;
 

@@ -73,36 +73,42 @@ void printMessage(String message, bool oled) {
 
 
 void printConfig() {
-  mqttSend(String("$online"), String("true"), true);
-  mqttSend(String("$fwname"), String(fwname), true);
-  mqttSend(String("$fwversion"), String(FWVERSION), true);
-  mqttSend(String("$name"), String(mqtt_name), true);
-  mqttSend(String("$nodes"), String(nodes), true);
-  mqttSend(String("$localip"), IPtoString(WiFi.localIP()), true);
+  mqttSend(String("$online"),                String("true"), true);
+  mqttSend(String("$fwname"),                String(fwname), true);
+  mqttSend(String("$fwversion"),             String(FWVERSION), true);
+  mqttSend(String("$name"),                  String(mqtt_name), true);
+  mqttSend(String("$nodes"),                 String(nodes), true);
+  mqttSend(String("$localip"),               IPtoString(WiFi.localIP()), true);
 
   String cfgStr = String("$config/");
 
-  mqttSend(String(cfgStr + "ssid"), String(ssid), true);
+  mqttSend(String(cfgStr + "ssid"),          String(ssid), true);
 
-#ifdef STATICIP
-  mqttSend(String(cfgStr + "static_ip"), String("true"), true);
-  mqttSend(String(cfgStr + "ip_address"), IPtoString(ip), true);
-  mqttSend(String(cfgStr + "subnet"), IPtoString(subnet), true);
-  mqttSend(String(cfgStr + "gateway"), IPtoString(gateway), true);
-  mqttSend(String(cfgStr + "dns_server"), IPtoString(dns_ip), true);
-#else
-  mqttSend(String(cfgStr + "static_ip"), String("false"), true);
-#endif
-  mqttSend(String(cfgStr + "ntp_server1"), String(ntp_server1), true);
-  mqttSend(String(cfgStr + "ntp_server2"), String(ntp_server2), true);
+  if (use_staticip) {
+    mqttSend(String(cfgStr + "static_ip"),   String("true"), true);
+    mqttSend(String(cfgStr + "ip_address"),  IPtoString(ip), true);
+    mqttSend(String(cfgStr + "subnet"),      IPtoString(subnet), true);
+    mqttSend(String(cfgStr + "gateway"),     IPtoString(gateway), true);
+    mqttSend(String(cfgStr + "dns_server"),  IPtoString(dns_ip), true);
+  } else {
+    mqttSend(String(cfgStr + "static_ip"),   String("false"), true);
+    mqttSend(String(cfgStr + "ip_address"),  "", true);
+    mqttSend(String(cfgStr + "subnet"),      "", true);
+    mqttSend(String(cfgStr + "gateway"),     "", true);
+    mqttSend(String(cfgStr + "dns_server"),  "", true);
+  }
 
-  mqttSend(String(cfgStr + "mqtt_server"), String(mqtt_server), true);
-  mqttSend(String(cfgStr + "mqtt_port"), String(mqtt_port), true);
-  mqttSend(String(cfgStr + "mqtt_name"), String(mqtt_name), true);
+  mqttSend(String(cfgStr + "ntp_server1"),   String(ntp_server1), true);
+  mqttSend(String(cfgStr + "ntp_server2"),   String(ntp_server2), true);
+
+  mqttSend(String(cfgStr + "mqtt_server"),   String(mqtt_server), true);
+  mqttSend(String(cfgStr + "mqtt_port"),     String(mqtt_port), true);
+  mqttSend(String(cfgStr + "mqtt_name"),     String(mqtt_name), true);
   mqttSend(String(cfgStr + "mqtt_interval"), String(mqtt_interval), true);
+  mqttSend(String(cfgStr + "mqtt_watchdog"), String(mqtt_watchdog), true);
 
-  mqttSend(String(cfgStr + "use_syslog"), String(use_syslog), true);
-  mqttSend(String(cfgStr + "host_name"), String(host_name), true);
+  mqttSend(String(cfgStr + "use_syslog"),    String(use_syslog), true);
+  mqttSend(String(cfgStr + "host_name"),     String(host_name), true);
   mqttSend(String(cfgStr + "syslog_server"), String(syslog_server), true);
 
 // #################### printSensorConfig() is defined in each sensor file as appropriate
@@ -173,6 +179,7 @@ void saveConfig() {
   json["mqtt_user"]     = mqtt_user;
   json["mqtt_passwd"]   = mqtt_passwd;
   json["mqtt_interval"] = mqtt_interval;
+  json["mqtt_watchdog"] = mqtt_watchdog;
 
   json["use_syslog"]    = use_syslog;
   json["host_name"]     = host_name;
@@ -288,6 +295,9 @@ void loadConfig() {
           if (json["mqtt_interval"].is<int>()) {
             mqtt_interval = json["mqtt_interval"];
           }
+          if (json["mqtt_watchdog"].is<int>()) {
+            mqtt_watchdog = json["mqtt_watchdog"];
+          }
 
 
           if (json["use_syslog"].is<bool>()) {
@@ -336,7 +346,6 @@ void updateConfig(String key, String value) {
   } else if ( key == "psk" ) {
     psk = value;
 
-#ifdef STATICIP
   } else if ( key == "ip_address" ) {
     ip.fromString(value);
   } else if ( key == "dns_server" ) {
@@ -345,7 +354,6 @@ void updateConfig(String key, String value) {
     subnet.fromString(value);
   } else if ( key == "gateway" ) {
     gateway.fromString(value);
-#endif
   } else if ( key == "ntp_server1" ) {
     value.toCharArray(ntp_server1, 40);
   } else if ( key == "ntp_server2" ) {
