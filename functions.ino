@@ -188,6 +188,9 @@ void saveConfig() {
   json["httpUser"]      = httpUser;
   json["httpPasswd"]    = httpPasswd;
 
+  configured            = true;
+  json["configured"]    = configured;
+
   sensorExportJSON(json);
 
   File configFile = SPIFFS.open("/config.json", "w");
@@ -315,6 +318,10 @@ void loadConfig() {
           }
           if (json["httpPasswd"].is<const char*>()) {
             httpPasswd = json["httpPasswd"].as<String>();
+          }
+
+          if (json["configured"].is<bool>()) {
+            configured = json["configured"];
           }
 
           sensorImportJSON(json);

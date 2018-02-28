@@ -43,7 +43,7 @@ void mqttConnect() {
   app_name = "MQTT";
   syslog.appName(app_name);
   // Loop until we're reconnected
-  if (!mqttClient.connected()) {
+  if (!mqttClient.connected() && configured) {
     // Attempt to connect
 
     tmpString = String(baseTopic + "$online");

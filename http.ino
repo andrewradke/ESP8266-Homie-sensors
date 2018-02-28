@@ -28,6 +28,7 @@ void httpSetup() {
         httpServer.sendHeader("Set-Cookie","c=" + sessioncookie);
         httpServer.send(301);
         trycount = 0;                                 // With good headers in mind, reset the trycount buffer
+        httpLogin = true;
         return;
       }
 
@@ -64,6 +65,7 @@ void httpSetup() {
     httpServer.sendHeader("Location","/login");
     httpServer.sendHeader("Cache-Control","no-cache");
     httpServer.send(301);
+    httpLogin = false;
     return;
   });
 

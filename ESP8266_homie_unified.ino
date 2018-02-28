@@ -24,7 +24,7 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     7
+#define FWTYPE     3
 #define FWVERSION  "0.9.8"
 #define FWPASSWORD "yuruga08"
 //#define USESSD1306                // SSD1306 OLED display
@@ -142,6 +142,7 @@ String thBreak    = "</th><th>";
 bool   lock = false;                // This bool is used to control device lockout 
 String httpUser   = "admin";
 String httpPasswd = "esp8266";
+bool   httpLogin  = false;
 unsigned long logincld = millis(), reqmillis = millis(), tempign = millis(); // First 2 timers are for lockout and last one is inactivity timer
 uint8_t trycount = 0;                                                        // trycount will be our buffer for remembering how many failed login attempts there have been
 
@@ -176,6 +177,7 @@ String tmpString;
 String logString;     // This can be used by MQTT logging as well
 
 
+bool   configured = false;
 
 ////////////////////////////////////// setup ///////////////////////////////////////
 
@@ -287,61 +289,10 @@ void setup() {
     // set config save notify callback
     wifiManager.setSaveConfigCallback(saveConfigCallback);
 
-    byte oct1 = dns_ip[0];
-    byte oct2 = dns_ip[1];
-    byte oct3 = dns_ip[2];
-    byte oct4 = dns_ip[3];
-    sprintf(dns_server, "%d.%d.%d.%d", oct1, oct2, oct3, oct4);
-    WiFiManagerParameter custom_dns_server("dnsserver", "DNS server", dns_server, 16);
-
-    // set static ip
-    wifiManager.setSTAStaticIPConfig(ip, gateway, subnet);
-    WiFiManagerParameter dns_server_text("DNS server:");
-    wifiManager.addParameter(&dns_server_text);
-    wifiManager.addParameter(&custom_dns_server);
-
-    WiFiManagerParameter mqtt_server_text("MQTT server:");
-    wifiManager.addParameter(&mqtt_server_text);
-    WiFiManagerParameter custom_mqtt_server("mqtt_server", "MQTT server", mqtt_server, 40);
-    wifiManager.addParameter(&custom_mqtt_server);
-
-    WiFiManagerParameter mqtt_port_text("MQTT server port:");
-    wifiManager.addParameter(&mqtt_port_text);
-    WiFiManagerParameter custom_mqtt_port("mqtt_port", "MQTT port", mqtt_port, 5);
-    wifiManager.addParameter(&custom_mqtt_port);
-
-    WiFiManagerParameter mqtt_name_text("MQTT name:");
-    wifiManager.addParameter(&mqtt_name_text);
-    WiFiManagerParameter custom_mqtt_name("mqtt_name", "MQTT name", mqtt_name, 20);
-    wifiManager.addParameter(&custom_mqtt_name);
-
-    WiFiManagerParameter mqtt_user_text("MQTT user:");
-    wifiManager.addParameter(&mqtt_user_text);
-    WiFiManagerParameter custom_mqtt_user("mqtt_user", "MQTT user", mqtt_user, 20);
-    wifiManager.addParameter(&custom_mqtt_user);
-
-    WiFiManagerParameter mqtt_passwd_text("MQTT password:");
-    wifiManager.addParameter(&mqtt_passwd_text);
-    WiFiManagerParameter custom_mqtt_passwd("mqtt_passwd", "MQTT password", mqtt_passwd, 32);
-    wifiManager.addParameter(&custom_mqtt_passwd);
-
-    WiFiManagerParameter syslog_server_text("syslog server:");
-    wifiManager.addParameter(&syslog_server_text);
-    WiFiManagerParameter custom_syslog_server("syslog_server", "syslog server", syslog_server, 40);
-    wifiManager.addParameter(&custom_syslog_server);
-
-
-// #################### any extra WM config #defined in variables.h
-#ifdef WMADDCONFIG
-WMADDCONFIG
-#endif
-
-
-    if (use_staticip) {
-      WiFiManagerParameter ip_address_text("IP, gateway, netmask:");
-      wifiManager.addParameter(&ip_address_text);
-    }
-
+    WiFiManagerParameter host_name_text("device name:");
+    wifiManager.addParameter(&host_name_text);
+    WiFiManagerParameter custom_host_name("host_name", "device name", host_name, 20);
+    wifiManager.addParameter(&custom_host_name);
 
 #ifdef USESSD1306
     display.clearDisplay();
@@ -373,31 +324,8 @@ WMADDCONFIG
       delay(5000);
     }
 
-
-    //read updated parameters
-    if (use_staticip) {
-      strcpy(dns_server,  custom_dns_server.getValue());
-      dns_ip.fromString(dns_server);
-      ip        = WiFi.localIP();
-      subnet    = WiFi.subnetMask();
-      gateway   = WiFi.gatewayIP();
-    }
-
-    strcpy(mqtt_server,   custom_mqtt_server.getValue());
-    strcpy(mqtt_port,     custom_mqtt_port.getValue());
-    strcpy(mqtt_name,     custom_mqtt_name.getValue());
-    strcpy(mqtt_user,     custom_mqtt_user.getValue());
-    strcpy(mqtt_passwd,   custom_mqtt_passwd.getValue());
-
-    strcpy(host_name,     custom_mqtt_name.getValue());     // use the MQTT name as the hostname
-    strcpy(syslog_server, custom_syslog_server.getValue());
-
-
-// #################### any extra WM config #defined in variables.h
-#ifdef WMGETCONFIG
-WMGETCONFIG
-#endif
-
+    strcpy(host_name, custom_host_name.getValue());
+    configured = false;       // We want the next startup to wait for configuration via the web interface
 
     //save the custom parameters to FS
     if (shouldSaveConfig) {
@@ -650,6 +578,7 @@ void loop() {
     // After minute is passed without bad entries, reset trycount
   }
   if (abs(millis() - tempign) > 120000) {
+    httpLogin = false;
     gencookie();
     tempign = millis();
     // if there is no activity from loged on user, generate a new cookie. This is more secure than adding expiry to the cookie header
@@ -730,7 +659,7 @@ void loop() {
 
   ////////////////////////////////////// check the watchdog ///////////////////////////////////////
   currentTime = millis();
-  if ( currentTime >= (watchdog + (1000 * mqtt_watchdog ) ) ) {
+  if ( currentTime >= (watchdog + (1000 * mqtt_watchdog ) ) && ! httpLogin) {
     logString = "No MQTT data in " + String(mqtt_watchdog) + " seconds. Rebooting.";
     printMessage(logString, true);
 
