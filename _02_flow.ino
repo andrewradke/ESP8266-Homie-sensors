@@ -54,11 +54,7 @@ void sendData() {
 }
 
 String httpSensorData() {
-  String httpData = "<table>";
-  String trStart = "<tr><td>";
-  String tdBreak = "</td><td>";
-  String trEnd   = "</td></tr>";
-
+  String httpData = tableStart;
   httpData += trStart + "Flow counter:" + tdBreak;
   httpData += String(flow_counter);
   httpData += trEnd;
@@ -71,7 +67,7 @@ String httpSensorData() {
   httpData += String(l_hour) + " lph";
   httpData += trEnd;
 
-  httpData += "</table>";
+  httpData += tableEnd;
   return httpData;
 }
 

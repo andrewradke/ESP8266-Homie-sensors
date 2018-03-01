@@ -66,9 +66,9 @@ void calcData() {
   switchCheck();                                  // This is driven by interrupts but this will catch any state change that may have been missed
   if ( switchOpen != switchPrevOpen ) {           // Send the state *immediately* if it has changed, it can be sent again later without problems
     if (switchOpen) {
-      tmpString = "open";
+      tmpString = String(switchOpenNoun);
     } else {
-      tmpString = "closed";
+      tmpString = String(switchClosedNoun);
     }
     mqttSend(String("switch/switch"), tmpString, false);
     switchPrevOpen = switchOpen;
@@ -83,9 +83,9 @@ void sendData() {
   mqttSend(String("lph/lph"),         String(l_hour),       false);
 
   if (switchOpen) {
-    tmpString = "open";
+    tmpString = String(switchOpenNoun);
   } else {
-    tmpString = "closed";
+    tmpString = String(switchClosedNoun);
   }
   mqttSend(String("switch/switch"), tmpString, false);
 }
@@ -99,10 +99,7 @@ void switchCheck () {               // Interrupt function
 }
 
 String httpSensorData() {
-  String httpData = "<table>";
-  String trStart = "<tr><td>";
-  String tdBreak = "</td><td>";
-  String trEnd   = "</td></tr>";
+  String httpData = tableStart;
 
   httpData += trStart + "Voltage:" + tdBreak;
   httpData += String(voltage) + " V";
@@ -126,13 +123,13 @@ String httpSensorData() {
 
   httpData += trStart + "Switch:" + tdBreak;
   if (switchOpen) {
-    httpData += "open";
+    tmpString = String(switchOpenNoun);
   } else {
-    httpData += "closed";
+    tmpString = String(switchClosedNoun);
   }
   httpData += trEnd;
 
-  httpData += "</table>";
+  httpData += tableEnd;
   return httpData;
 }
 

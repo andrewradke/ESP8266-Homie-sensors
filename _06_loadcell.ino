@@ -54,7 +54,7 @@ void sendData() {
 }
 
 void rezero() {
-  app_name = "Sensors";
+  strncpy_P (app_name, app_name_sensors, sizeof(app_name_sensors) );
   logString = "Re-zeroing";
   mqttLog(logString);
 
@@ -65,16 +65,11 @@ void rezero() {
 
 
 String httpSensorData() {
-  String httpData = "<table>";
-  String trStart = "<tr><td>";
-  String tdBreak = "</td><td>";
-  String trEnd   = "</td></tr>";
-
+  String httpData = tableStart;
   httpData += trStart + "Weight:" + tdBreak;
   httpData += String(weight) + " g";
   httpData += trEnd;
-
-  httpData += "</table>";
+  httpData += tableEnd;
   return httpData;
 }
 
@@ -103,7 +98,7 @@ String httpSensorConfig() {
 
 
 void calibrate() {
-  app_name = "Sensors";
+  strncpy_P (app_name, app_name_sensors, sizeof(app_name_sensors) );
   logString = "Calibrating";
   mqttLog(logString);
 

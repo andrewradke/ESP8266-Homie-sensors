@@ -38,6 +38,7 @@ OneWire ds(ONEWIRE_PIN);        // Setup of the 1-wire bus
 float   temperature  = 1000;
 
 
+
 // ************* esp8266-flow-counter *************
 #elif FWTYPE == 2
 
@@ -48,9 +49,10 @@ volatile long flow_counter = 0; // Measures flow meter pulses
 unsigned long flow_hz      = 0; // Measures last seconds flow
 unsigned int  l_hour;           // Calculated litres/hour
 float         litres       = 0;
-float         pulsesPerLitre = 1;   // YF-G1 = 1, YF-S201C = 7.5
+float         pulsesPerLitre = 1;   // YF-G1 = 1, YF-S201C = 7.5z
 float         flowrate     = 60 / pulsesPerLitre;
 float         litrerate    = 60 * pulsesPerLitre;
+
 
 
 // ************* esp8266-switch *************
@@ -61,6 +63,11 @@ char fwname[40] =    "esp8266-switch";
 char nodes[100] =    "switch:switch";
 bool          switchOpen     = false;
 bool          switchPrevOpen = false;
+
+const char switchOpenNoun[]   = "open";
+const char switchClosedNoun[] = "closed";
+const char switchNodeVerb[]   = "switch/switch";
+
 
 
 // ************* esp8266-depth-sensor *************
@@ -83,37 +90,16 @@ float         maxdepth = 0;
 byte          readings = 10;
 
 
+
 // ************* esp8266-pressure-sensor *************
 #elif FWTYPE == 5
 
 char fwname[40] =    "esp8266-pressure-sensor";
-char nodes[100] =    "analog0:pressure,analog1:pressure,analog2:pressure,analog3:pressure";
+char nodes[100] =    "pressure0:pressure,pressure1:pressure,pressure2:pressure,pressure3:pressure";
 #include <Adafruit_ADS1015.h>
 Adafruit_ADS1115 ads1115;
 float pressureRanges[5] = {1, 1, 1, 1};
 
-#define WMADDCONFIG \
-    WiFiManagerParameter pressure_text("Pressure ranges:"); \
-    wifiManager.addParameter(&pressure_text); \
-    char pressureRange[8]; \
-    dtostrf(pressureRanges[0], 6, 2, pressureRange); \
-    WiFiManagerParameter custom_pressureRange0("A0pressure", "A0 max pressure", pressureRange, 8); \
-    wifiManager.addParameter(&custom_pressureRange0); \
-    dtostrf(pressureRanges[1], 6, 2, pressureRange); \
-    WiFiManagerParameter custom_pressureRange1("A1pressure", "A1 max pressure", pressureRange, 8); \
-    wifiManager.addParameter(&custom_pressureRange1); \
-    dtostrf(pressureRanges[2], 6, 2, pressureRange); \
-    WiFiManagerParameter custom_pressureRange2("A2pressure", "A2 max pressure", pressureRange, 8); \
-    wifiManager.addParameter(&custom_pressureRange2); \
-    dtostrf(pressureRanges[3], 6, 2, pressureRange); \
-    WiFiManagerParameter custom_pressureRange3("A3pressure", "A3 max pressure", pressureRange, 8); \
-    wifiManager.addParameter(&custom_pressureRange3);
-
-#define WMGETCONFIG \
-    pressureRanges[0] = atof(custom_pressureRange0.getValue()); \
-    pressureRanges[1] = atof(custom_pressureRange1.getValue()); \
-    pressureRanges[2] = atof(custom_pressureRange2.getValue()); \
-    pressureRanges[3] = atof(custom_pressureRange3.getValue());
 
 
 // ************* esp8266-loadcell *************
@@ -130,6 +116,7 @@ float         weight;
 float         scale    = 440.24;
 unsigned long offset   = 1296368;
 byte          readings = 5;
+
 
 
 // ************* esp8266-watermeter *************
@@ -170,16 +157,8 @@ float         litrerate    = 60 * pulsesPerLitre;
 bool          switchOpen     = false;
 bool          switchPrevOpen = false;
 
-#define WMADDCONFIG \
-    char pressureRangeStr[8]; \
-    dtostrf(pressureRange, 6, 2, pressureRangeStr); \
-    WiFiManagerParameter pressure_text("Pressure range:"); \
-    wifiManager.addParameter(&pressure_text); \
-    WiFiManagerParameter custom_pressureRange("pressure", "Pressure range", pressureRangeStr, 8); \
-    wifiManager.addParameter(&custom_pressureRange);
-
-#define WMGETCONFIG \
-    pressureRange = atof(custom_pressureRange.getValue());
+const char switchOpenNoun[]   = "open";
+const char switchClosedNoun[] = "closed";
 
 
 // ************* esp8266-bme280 *************
@@ -211,16 +190,6 @@ int      bme280ErrorT = 0;
 int      bme280ErrorH = 0;
 int      bme280ErrorP = 0;
 
-#define WMADDCONFIG \
-  char elevationStr[8]; \
-  dtostrf(elevation, 6, 2, elevationStr); \
-  WiFiManagerParameter pressure_text("Elevation:"); \
-  wifiManager.addParameter(&pressure_text); \
-  WiFiManagerParameter custom_elevation("elevation", "Elevation", elevationStr, 8); \
-  wifiManager.addParameter(&custom_elevation);
-
-#define WMGETCONFIG \
-    elevation     = atof(custom_elevation.getValue());
 
 
 // ************* esp8266-sht31 *************
@@ -244,6 +213,8 @@ bool     sht31Status  = 0;
 bool     sht31Error   = 0;
 int      sht31ErrorT  = 0;
 int      sht31ErrorH  = 0;
+
+
 
 
 // ************* esp8266-air *************
@@ -286,16 +257,8 @@ int      bme280ErrorT = 0;
 int      bme280ErrorH = 0;
 int      bme280ErrorP = 0;
 
-#define WMADDCONFIG \
-  char elevationStr[8]; \
-  dtostrf(elevation, 6, 2, elevationStr); \
-  WiFiManagerParameter pressure_text("Elevation:"); \
-  wifiManager.addParameter(&pressure_text); \
-  WiFiManagerParameter custom_elevation("elevation", "Elevation", elevationStr, 8); \
-  wifiManager.addParameter(&custom_elevation);
 
-#define WMGETCONFIG \
-    elevation     = atof(custom_elevation.getValue());
+
 
 // ************* esp8266-weathervane *************
 #elif FWTYPE == 11
@@ -329,6 +292,8 @@ uint8_t          wind_speeds[WIND_SECS]; // Array of last two minutes of wind sp
 uint8_t          wind_dirs[WIND_SECS];   // Array of last two minutes of wind direction to calculate average from
 uint16_t         wind_array_pos = 0;     // Current position in the array
 bool             wind_array_full = false;
+
+
 
 // ************* UNKNOWN SENSOR TYPE *************
 #else

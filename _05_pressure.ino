@@ -82,10 +82,7 @@ void sendData() {
 }
 
 String httpSensorData() {
-  String httpData = "<table>";
-  String trStart = "<tr><td>";
-  String tdBreak = "</td><td>";
-  String trEnd   = "</td></tr>";
+  String httpData = tableStart;
 
   float adsA, pressure;
   for (byte i = 0; i < 4; i = i + 1) {
@@ -104,7 +101,7 @@ String httpSensorData() {
     }
   }
 
-  httpData += "</table>";
+  httpData += tableEnd;
   return httpData;
 }
 

@@ -24,9 +24,9 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     3
-#define FWVERSION  "0.9.8"
-#define FWPASSWORD "yuruga08"
+#define FWTYPE     2
+#define FWVERSION  "0.9.9"
+#define FWPASSWORD "esp8266"
 //#define USESSD1306                // SSD1306 OLED display
 
 
@@ -47,10 +47,14 @@
 #include <PubSubClient.h>         // http://pubsubclient.knolleary.net/
 
 
+// ########### String constants ############
+#include "String_Consts.h"
+
+
 // Accurate time is needed to be able to verify security certificates
 #include <time.h>
-char     ntp_server1[41] = "0.pool.ntp.org";
-char     ntp_server2[41] = "1.pool.ntp.org";
+char     ntp_server1[41];
+char     ntp_server2[41];
 
 #include <WiFiClientSecure.h>
 // Root certificate used by mqtt.home.deepport.net.
@@ -68,11 +72,11 @@ WiFiClient       espClient;
 #include <WiFiUdp.h>
 bool     use_syslog        = false;
 char     host_name[21]     = "";
-char     syslog_server[41] = "syslog.local";
+char     syslog_server[41];
 uint16_t loglevel          = LOG_NOTICE;
 WiFiUDP  udpClient;
 Syslog   syslog(udpClient, SYSLOG_PROTO_IETF);
-char     *app_name          = ""; // printMessage will use this too so it's always declared
+char     app_name[10];     // printMessage will use this too so it's always declared
 
 
 #ifdef USESSD1306
@@ -100,7 +104,7 @@ uint16_t displaySleep = 30;       // Seconds before the display goes to sleep
 
 
 //define the default MQTT values here, if there are different values in config.json, they are overwritten.
-char mqtt_server[41]   = "mqtt.local";
+char mqtt_server[41];
 bool mqtt_tls          = false;
 bool mqtt_auth         = false;
 char mqtt_port[6]      = "1883";
@@ -129,19 +133,19 @@ PubSubClient mqttClient;
 
 /// The HTTP server
 ESP8266WebServer httpServer(80);
-String httpFooter = "</body></html>";
+const String httpFooter = "</body></html>";
+const String tableStart = "<table>";
+const String tableEnd   = "</table>";
+const String trStart    = "<tr><td>";
+const String trEnd      = "</td></tr>";
+const String tdBreak    = "</td><td>";
+const String thStart    = "<tr><th>";
+const String thEnd      = "</th></tr>";
+const String thBreak    = "</th><th>";
 String httpData;
-String tableStart = "<table>";
-String tableEnd   = "</table>";
-String trStart    = "<tr><td>";
-String trEnd      = "</td></tr>";
-String tdBreak    = "</td><td>";
-String thStart    = "<tr><th>";
-String thEnd      = "</th></tr>";
-String thBreak    = "</th><th>";
 bool   lock = false;                // This bool is used to control device lockout 
-String httpUser   = "admin";
-String httpPasswd = "esp8266";
+String httpUser;
+String httpPasswd;
 bool   httpLogin  = false;
 unsigned long logincld = millis(), reqmillis = millis(), tempign = millis(); // First 2 timers are for lockout and last one is inactivity timer
 uint8_t trycount = 0;                                                        // trycount will be our buffer for remembering how many failed login attempts there have been
@@ -151,7 +155,6 @@ bool rebootRequired = false;
 
 
 bool      use_staticip   = false;
-char      dns_server[16] = "192.168.0.1";
 IPAddress ip(192, 168, 0, 99);
 IPAddress dns_ip(192, 168, 0, 1);
 IPAddress subnet(255, 255, 255, 0);
@@ -200,8 +203,18 @@ void setup() {
   pinMode(CONFIG_PIN, INPUT_PULLUP);
 
 
+// Load all the defaults into memory
+  memcpy( ntp_server1, default_ntp_server1, 41);
+  memcpy( ntp_server2, default_ntp_server2, 41);
+  memcpy( syslog_server, default_syslog_server, 41);
+  memcpy( mqtt_server, default_mqtt_server, 41);
+
+  httpUser   = String(FPSTR(default_httpUser));
+  httpPasswd = String(FPSTR(default_httpPasswd));
+
+
 #ifdef USESSD1306
-  Serial.print("Configuring OLED...");
+  Serial.print( F("Configuring OLED..."));
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3C (for the 128x64)
   display.setTextSize(1);
   display.clearDisplay();
@@ -217,22 +230,21 @@ void setup() {
 
   Serial.println();
 
-  app_name = "SYS";
+  strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
   logString = String(fwname) + " v" + FWVERSION + " booting.";
   printMessage(logString, true);
-  app_name = "NET";
+  strncpy_P (app_name, app_name_net, sizeof(app_name_net) );
   logString = "Connecting to '" + String(WiFi.SSID()) + "'";
   printMessage(logString, true);
 
 
-
   uint32_t realSize = ESP.getFlashChipRealSize();
-  uint32_t ideSize = ESP.getFlashChipSize();
+  uint32_t ideSize  = ESP.getFlashChipSize();
   if (ideSize != realSize) {
     logString = "Flash size config wrong. IDE: " + String(ideSize/1048576.0) + " MB, real: " + String(realSize/1048576.0) + " MB";
     printMessage(logString, true);
     if (ideSize >= realSize) {
-      logString = "\nFlash too small!\nCANNOT BOOT\n";
+      logString = String(F("\nFlash too small!\nCANNOT BOOT\n"));
       printMessage(logString, true);
       bool ledState = 0;
       while (1) {
@@ -315,7 +327,7 @@ void setup() {
     wifiManager.setTimeout(300);
 
     if (!wifiManager.startConfigPortal(fwname, FWPASSWORD)) {
-      logString = "Failed to connect and hit timeout. Rebooting.";
+      logString = String(F("Failed to connect and hit timeout. Rebooting."));
       printMessage(logString, true);
 
       delay(3000);
@@ -339,7 +351,7 @@ void setup() {
     // fetches ssid and password and tries to connect
     // if it does not connect it starts an access point with the ssid set to fwname
     if (!wifiManager.autoConnect(fwname, FWPASSWORD)) {
-      logString = "Failed to connect within timeout. Rebooting.";
+      logString = String(F("Failed to connect within timeout. Rebooting."));
       printMessage(logString, true);
 
       delay(1000);
@@ -350,7 +362,7 @@ void setup() {
   }
 
   if (use_staticip) {
-    // WiFi.setDNS(dns_server); // This doesn't work with the ESP8266 so reconfigure everything
+    // WiFi.setDNS(dns_ip); // This doesn't work with the ESP8266 so reconfigure everything
     WiFi.config(ip, gateway, subnet, dns_ip);
   }
 
@@ -364,7 +376,7 @@ void setup() {
   psk = WiFi.psk();
 
   //if you get here you have connected to the WiFi
-  app_name = "WIFI";
+  strncpy_P (app_name, app_name_wifi, sizeof(app_name_wifi) );
   logString = "Connected";
   printMessage(logString, true);
 
@@ -373,7 +385,7 @@ void setup() {
     syslog.log(LOG_INFO, logString);
   }
 
-  app_name = "NET";
+  strncpy_P (app_name, app_name_net, sizeof(app_name_net) );
   if (use_staticip) {
     logString = "Static";
   } else {
@@ -386,28 +398,25 @@ void setup() {
     syslog.log(LOG_INFO, logString);
   }
 
-  dmesg();
-  Serial.print("Subnet mask: ");
-  Serial.println(WiFi.subnetMask());
-  dmesg();
-  Serial.print("Gateway:     ");
-  Serial.println(WiFi.gatewayIP());
+  logString = "Subnet mask: " + IPtoString(WiFi.subnetMask());
+  printMessage(logString, true);
+  logString = "Gateway: " + IPtoString(WiFi.gatewayIP());
+  printMessage(logString, true);
 
   if (use_staticip) {
-    dmesg();
-    Serial.print("DNS Server:  ");
-    Serial.println(dns_server);
+    logString = "DNS Server: " + IPtoString(dns_ip);
+    printMessage(logString, true);
   }
 
 
   if (use_syslog) {
-    syslog.appName("SYS");
+    strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
     logString = String(fwname) + " v" + FWVERSION;;
     syslog.log(LOG_INFO, logString);
   }
 
 
-  logString = "Starting web server";
+  logString = String(F("Starting web server"));
   printMessage(logString, true);
 
   httpSetup();
@@ -423,8 +432,6 @@ void setup() {
   logString = "Web server available by http://" + String(host_name) + ".local/";
   printMessage(logString, true);
 
-mqtt_tls          = true;
-mqtt_auth         = true;
   if (mqtt_tls) {
     mqttClient.setClient(espSecureClient);
 
@@ -432,7 +439,7 @@ mqtt_auth         = true;
     // the TLS certificates offered by the server are currently valid.
     logString = "Setting time using SNTP";
     printMessage(logString, true);
-  
+
     configTime(8 * 3600, 0, ntp_server1, ntp_server2);
     time_t now = time(nullptr);
     while (now < 8 * 3600 * 2) {
@@ -448,7 +455,7 @@ mqtt_auth         = true;
     // Load root certificate in DER format into WiFiClientSecure object
     bool result = espSecureClient.setCACert_P(caCert, caCertLen);
     if (!result) {
-      logString = "Failed to load root CA certificate! Cannot continue.";
+      logString = String(F("Failed to load root CA certificate! Cannot continue."));
       printMessage(logString, true);
       if (use_syslog) {
         syslog.log(LOG_INFO, logString);
@@ -467,7 +474,7 @@ mqtt_auth         = true;
   baseTopic = String("homie/" + baseTopic);
   baseTopic = String(baseTopic + '/');
 
-  app_name = "MQTT";
+  strncpy_P (app_name, app_name_mqtt, sizeof(app_name_mqtt) );
   logString = String("topic: " + baseTopic);
   printMessage(logString, true);
   if (use_syslog) {
@@ -499,7 +506,7 @@ mqtt_auth         = true;
   printConfig();
 
 
-  app_name = "SYS";
+  strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
   logString = "Startup complete.";
   printMessage(logString, true);
   if (use_syslog) {
@@ -611,7 +618,7 @@ void loop() {
     reconnected = true;
   }
   if (reconnected == true) {
-    app_name = "WIFI";
+    strncpy_P (app_name, app_name_wifi, sizeof(app_name_wifi) );
     logString = "Connected";
     printMessage(logString, true);
     if (use_syslog) {

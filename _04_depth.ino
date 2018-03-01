@@ -52,11 +52,7 @@ void sendData() {
 }
 
 String httpSensorData() {
-  String httpData = "<table>";
-  String trStart = "<tr><td>";
-  String tdBreak = "</td><td>";
-  String trEnd   = "</td></tr>";
-
+  String httpData = tableStart;
   httpData += trStart + "Distance:" + tdBreak;
   if ( uS != 0 ) {
     httpData += String(distance) + " cm";
@@ -73,7 +69,7 @@ String httpSensorData() {
   }
   httpData += trEnd;
 
-  httpData += "</table>";
+  httpData += tableEnd;
   return httpData;
 }
 

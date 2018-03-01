@@ -1,7 +1,7 @@
 #if FWTYPE == 9      // esp8266-sht31
 
 void sensorSetup() {
-  app_name = "Sensors";
+  strncpy_P (app_name, app_name_sensors, sizeof(app_name_sensors) );
   sht31Status = sht31.begin(0x44);   // Set to 0x45 for alternate i2c addr
   logString = "SHT-31 initialised";
   mqttLog(logString);
@@ -44,7 +44,7 @@ void calcData() {
 }
 
 void sendData() {
-  app_name = "Sensors";
+  strncpy_P (app_name, app_name_sensors, sizeof(app_name_sensors) );
 
   temperature = 1000;
   humidity    = 1000;
@@ -139,10 +139,7 @@ void sendData() {
 }
 
 String httpSensorData() {
-  String httpData = "<table>";
-  String trStart = "<tr><td>";
-  String tdBreak = "</td><td>";
-  String trEnd   = "</td></tr>";
+  String httpData = tableStart;
 
   httpData += trStart + "Temperature:" + tdBreak;
   if (temperature != 1000) {
@@ -168,7 +165,7 @@ String httpSensorData() {
   }
   httpData += trEnd;
 
-  httpData += "</table>";
+  httpData += tableEnd;
   return httpData;
 }
 

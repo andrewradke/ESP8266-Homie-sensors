@@ -16,21 +16,12 @@ void mqttSend(String topic, String data, bool retain) {
   
     if (mqttClient.publish(pubTopic, output, retain))
       watchdog = millis();    // feed the watchdog
-/*
-  } else {
-    logString = "not connected. Can't send data.";
-    printMessage(logString, true);
-    if (use_syslog) {
-      syslog.appName(app_name);
-      syslog.log(LOG_INFO, data);
-    }
-*/
   }
 }
 
 
 void mqttLog(String data) {
-  mqttSend(String("$log"), data, false);
+  mqttSend(String(FPSTR(mqttstr_log)), data, false);
   printMessage(logString, true);
   if (use_syslog) {
     syslog.appName(app_name);
@@ -40,13 +31,13 @@ void mqttLog(String data) {
 
 
 void mqttConnect() {
-  app_name = "MQTT";
+  strncpy_P (app_name, app_name_mqtt, sizeof(app_name_mqtt) );
   syslog.appName(app_name);
   // Loop until we're reconnected
   if (!mqttClient.connected() && configured) {
     // Attempt to connect
 
-    tmpString = String(baseTopic + "$online");
+    tmpString = String(baseTopic) + String(FPSTR(mqttstr_online));
     tmpString.toCharArray(pubTopic, OUT_STR_MAX);
     tmpString = String("false");
     tmpString.toCharArray(output, OUT_STR_MAX);
@@ -94,10 +85,10 @@ void mqttConnect() {
       }
 
       // Publush $online as true with pubTopic still correct from will above
-      mqttSend(String("$online"), String("true"), true);
+      mqttSend(String(FPSTR(mqttstr_online)), String("true"), true);
 
       char subTopic[40];
-      tmpString = String(baseTopic + "$ota/command");
+      tmpString = String(baseTopic) + String(FPSTR(mqttstr_ota)) + String(FPSTR(str_command));
       logString = String("Subscribing to " + tmpString);
       tmpString.toCharArray(subTopic, 40);
 
@@ -119,7 +110,7 @@ void mqttConnect() {
 
 /// The MQTT callback function for received messages
 void mqttCallback(char* subTopic, byte* payload, unsigned int length) {
-  app_name = "MQTT";
+  strncpy_P (app_name, app_name_mqtt, sizeof(app_name_mqtt) );
   syslog.appName(app_name);
 
   String mqttSubString = "";
@@ -204,11 +195,11 @@ void mqttCommand(String cmd, String key, String value) {
     if (use_syslog) {
       syslog.log(LOG_INFO, logString);
     }
-    mqttSend(String("$online"), String("false"), true);
+    mqttSend(String(FPSTR(mqttstr_online)), String("false"), true);
     ESP.restart();
   } else {
     logString = String("UNKNOWN command: " + key);
-    app_name = "MQTT";
+    strncpy_P (app_name, app_name_mqtt, sizeof(app_name_mqtt) );
     mqttLog(logString);
     return;
   }

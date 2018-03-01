@@ -1,4 +1,4 @@
-String anchars = "abcdefghijklmnopqrstuvwxyz0123456789";                     // Alfanumberic character filled string for cookie generation
+static const String anchars = "abcdefghijklmnopqrstuvwxyz0123456789";        // Alfanumberic character filled string for cookie generation
 String sessioncookie;                                                        // This is cookie buffer
 
 void httpSetup() {
@@ -12,7 +12,9 @@ void httpSetup() {
   });
 
   httpServer.on("/login", []() {
-    String loginPage = "<!DOCTYPE html><html><head><title>Login</title></head><body> <div id=\"login\"> <form action='/login' method='POST'> <center> <h1>Login </h1><p><input type='text' name='user' placeholder='User name'></p><p><input type='password' name='pass' placeholder='Password'></p><br><button type='submit' name='submit'>login</button></center> </form></body></html>";
+    strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
+    syslog.appName(app_name);
+    String loginPage = String(F("<!DOCTYPE html><html><head><title>Login</title></head><body> <div id=\"login\"> <form action='/login' method='POST'> <center> <h1>Login </h1><p><input type='text' name='user' placeholder='User name'></p><p><input type='password' name='pass' placeholder='Password'></p><br><button type='submit' name='submit'>login</button></center> </form></body></html>"));
 
     if (httpServer.hasHeader("Cookie")){   
       String cookie = httpServer.header("Cookie"); // Copy the Cookie header to this buffer
@@ -36,15 +38,14 @@ void httpSetup() {
       if (trycount != 10 && !lock)
         trycount++;                                   // If system is not locked up the trycount buffer
       if (trycount < 10 && !lock) {                   // We go here if systems isn't locked out, we give user 10 times to make a mistake after we lock down the system, thus making brute force attack almost imposible
-        loginPage += "<p>Wrong username/password</p>";
-        loginPage += "You have ";
+        loginPage += String(F("<p>Wrong username/password</p>You have "));
         loginPage += (10 - trycount);
-        loginPage += " tries before system temporarily locks out.";
+        loginPage += String(F(" tries before system temporarily locks out."));
         logincld = millis();                          // Reset the logincld timer, since we still have available tries
       }
       
       if (trycount == 10) {                           // If too many bad tries
-        loginPage += "Too many invalid login requests, you can try again in ";
+        loginPage += String(F("Too many invalid login requests, you can try again in "));
         if (lock) {
           loginPage += 5 - ((millis() - logincld) / 60000); // Display lock time remaining in minutes
         } else {
@@ -60,6 +61,8 @@ void httpSetup() {
   });
 
   httpServer.on("/logout", []() {
+    strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
+    syslog.appName(app_name);
     //Set 'c=0', it users header, effectively deleting it's header 
     httpServer.sendHeader("Set-Cookie","c=0");
     httpServer.sendHeader("Location","/login");
@@ -70,6 +73,8 @@ void httpSetup() {
   });
 
   httpServer.on("/", []() {
+    strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
+    syslog.appName(app_name);
     if (!is_authenticated()) {
       httpServer.sendHeader("Location","/login");
       httpServer.sendHeader("Cache-Control","no-cache");
@@ -93,13 +98,15 @@ void httpSetup() {
     httpData += trEnd;
     httpData += tableEnd;
 
-    httpData += "<meta http-equiv='refresh' content='3' />";
+    httpData += String(F("<meta http-equiv='refresh' content='3' />"));
 
     httpData += httpFooter;
     httpServer.send(200, "text/html", httpData);
   });
 
   httpServer.on("/reboot", []() {
+    strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
+    syslog.appName(app_name);
     if (!is_authenticated()) {
       httpServer.sendHeader("Location","/login");
       httpServer.sendHeader("Cache-Control","no-cache");
@@ -108,7 +115,7 @@ void httpSetup() {
     }
     tempign = millis(); //reset the inactivity timer if someone logs in
 
-    httpData = "<html><head><meta http-equiv='refresh' content='3;url=/' /></head><p>Rebooting...</p>";
+    httpData = String(F("<html><head><meta http-equiv='refresh' content='3;url=/' /></head><p>Rebooting...</p>"));
     httpData += httpFooter;
     httpServer.send(200, "text/html", httpData);
     delay(100);
@@ -117,6 +124,8 @@ void httpSetup() {
   });
 
   httpServer.on("/system", [](){
+    strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
+    syslog.appName(app_name);
     if (!is_authenticated()) {
       httpServer.sendHeader("Location","/login");
       httpServer.sendHeader("Cache-Control","no-cache");
@@ -167,13 +176,15 @@ void httpSetup() {
     httpData += trEnd;
     httpData += tableEnd;
 
-    httpData += "<meta http-equiv='refresh' content='3' />";
+    httpData += String(F("<meta http-equiv='refresh' content='3' />"));
     httpData += httpFooter;
     httpServer.send(200, "text/html", httpData);
   });
 
 
   httpServer.on("/config", [](){
+    strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
+    syslog.appName(app_name);
     if (!is_authenticated()) {
       httpServer.sendHeader("Location","/login");
       httpServer.sendHeader("Cache-Control","no-cache");
@@ -201,78 +212,78 @@ void httpSetup() {
         }
       }
 
-      if (httpServer.hasArg("ip_address")) {
-        tmpip.fromString(httpServer.arg("ip_address"));
+      if (httpServer.hasArg(String(FPSTR(cfg_ip_address)))) {
+        tmpip.fromString(httpServer.arg(String(FPSTR(cfg_ip_address))));
         if (ip != tmpip) {
           if (use_staticip)
             rebootRequired = true;        // Changing IP requires a reboot
           ip = tmpip;
         }
       }
-      if (httpServer.hasArg("subnet")) {
-        tmpip.fromString(httpServer.arg("subnet"));
+      if (httpServer.hasArg(String(FPSTR(cfg_subnet)))) {
+        tmpip.fromString(httpServer.arg(String(FPSTR(cfg_subnet))));
         if (subnet != tmpip) {
           if (use_staticip)
             rebootRequired = true;        // Changing subnet requires a reboot
           subnet = tmpip;
         }
       }
-      if (httpServer.hasArg("gateway")) {
-        tmpip.fromString(httpServer.arg("gateway"));
+      if (httpServer.hasArg(String(FPSTR(cfg_gateway)))) {
+        tmpip.fromString(httpServer.arg(String(FPSTR(cfg_gateway))));
         if (gateway != tmpip) {
           if (use_staticip)
             rebootRequired = true;        // Changing gateway IP requires a reboot
           gateway = tmpip;
         }
       }
-      if (httpServer.hasArg("dns_ip")) {
-        tmpip.fromString(httpServer.arg("dns_ip"));
+      if (httpServer.hasArg(String(FPSTR(cfg_dns_server)))) {
+        tmpip.fromString(httpServer.arg(String(FPSTR(cfg_dns_server))));
         if (dns_ip != tmpip) {
           if (use_staticip)
             rebootRequired = true;        // Changing DNS server requires a reboot
           dns_ip = tmpip;
         }
       }
-      if (httpServer.hasArg("ntp_server1")) {
+      if (httpServer.hasArg(String(FPSTR(cfg_ntp_server1)))) {
         tmpString = String(ntp_server1);
-        if (httpServer.arg("ntp_server1") != tmpString) {
+        if (httpServer.arg(String(FPSTR(cfg_ntp_server1))) != tmpString) {
           rebootRequired = true;          // Changing NTP servers requires a reboot
-          httpServer.arg("ntp_server1").toCharArray(ntp_server1, 40);
+          httpServer.arg(String(FPSTR(cfg_ntp_server1))).toCharArray(ntp_server1, 40);
         }
       }
-      if (httpServer.hasArg("ntp_server2")) {
+      if (httpServer.hasArg(String(FPSTR(cfg_ntp_server2)))) {
         tmpString = String(ntp_server2);
-        if (httpServer.arg("ntp_server2") != tmpString) {
+        if (httpServer.arg(String(FPSTR(cfg_ntp_server2))) != tmpString) {
           rebootRequired = true;          // Changing NTP servers requires a reboot
-          httpServer.arg("ntp_server2").toCharArray(ntp_server2, 40);
+          httpServer.arg(String(FPSTR(cfg_ntp_server2))).toCharArray(ntp_server2, 40);
         }
       }
 
-      if (httpServer.hasArg("mqtt_server")) {
+      if (httpServer.hasArg(String(FPSTR(cfg_mqtt_server)))) {
         tmpString = String(mqtt_server);
-        if (httpServer.arg("mqtt_server") != tmpString) {
-          httpServer.arg("mqtt_server").toCharArray(mqtt_server, 40);
+        if (httpServer.arg(String(FPSTR(cfg_mqtt_server))) != tmpString) {
+          httpServer.arg(String(FPSTR(cfg_mqtt_server))).toCharArray(mqtt_server, 40);
           mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
           mqttClient.setServer(mqtt_server, atoi( mqtt_port ));
         }
       }
-      if (httpServer.hasArg("mqtt_port")) {
+      if (httpServer.hasArg(String(FPSTR(cfg_mqtt_port)))) {
         tmpString = String(mqtt_port);
-        if (httpServer.arg("mqtt_port") != tmpString) {
-          httpServer.arg("mqtt_port").toCharArray(mqtt_port, 5);
+        if (httpServer.arg(String(FPSTR(cfg_mqtt_port))) != tmpString) {
+          httpServer.arg(String(FPSTR(cfg_mqtt_port))).toCharArray(mqtt_port, 5);
           mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
           mqttClient.setServer(mqtt_server, atoi( mqtt_port ));
         }
       }
-      if (httpServer.hasArg("mqtt_name")) {
+      if (httpServer.hasArg(String(FPSTR(cfg_mqtt_name)))) {
         tmpString = String(mqtt_name);
-        if (httpServer.arg("mqtt_name") != tmpString) {
+        if (httpServer.arg(String(FPSTR(cfg_mqtt_name))) != tmpString) {
           mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
-          httpServer.arg("mqtt_name").toCharArray(mqtt_name, 20);
+          httpServer.arg(String(FPSTR(cfg_mqtt_name))).toCharArray(mqtt_name, 20);
         }
       }
-      if (httpServer.hasArg("mqtt_tls")) {
-        if (httpServer.arg("mqtt_tls") == "on") {
+      if (httpServer.hasArg(String(FPSTR(cfg_mqtt_tls)))) {
+        if (httpServer.arg(String(FPSTR(cfg_mqtt_tls))) == "on") {
           if (!mqtt_tls) {
             rebootRequired = true;        // Enabling TLS requires a reboot, as the server certificate verification will fail and force a reboot otherwise
             mqtt_tls = true;
@@ -290,8 +301,8 @@ void httpSetup() {
           mqtt_tls = false;
         }
       }
-      if (httpServer.hasArg("mqtt_auth")) {
-        if (httpServer.arg("mqtt_auth") == "on") {
+      if (httpServer.hasArg(String(FPSTR(cfg_mqtt_auth)))) {
+        if (httpServer.arg(String(FPSTR(cfg_mqtt_auth))) == "on") {
           if (!mqtt_auth) {
             mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
             mqtt_auth = true;
@@ -308,26 +319,26 @@ void httpSetup() {
           mqtt_auth = false;
         }
       }
-      if (httpServer.hasArg("mqtt_user")) {
+      if (httpServer.hasArg(String(FPSTR(cfg_mqtt_user)))) {
         tmpString = String(mqtt_user);
-        if (httpServer.arg("mqtt_user") != tmpString) {
+        if (httpServer.arg(String(FPSTR(cfg_mqtt_user))) != tmpString) {
           mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
-          httpServer.arg("mqtt_user").toCharArray(mqtt_user, 20);
+          httpServer.arg(String(FPSTR(cfg_mqtt_user))).toCharArray(mqtt_user, 20);
         }
       }
-      if (httpServer.hasArg("mqtt_passwd")) {
+      if (httpServer.hasArg(String(FPSTR(cfg_mqtt_passwd)))) {
         tmpString = String(mqtt_passwd);
-        if (httpServer.arg("mqtt_passwd") != tmpString) {
+        if (httpServer.arg(String(FPSTR(cfg_mqtt_passwd))) != tmpString) {
           mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
-          httpServer.arg("mqtt_passwd").toCharArray(mqtt_passwd, 32);
+          httpServer.arg(String(FPSTR(cfg_mqtt_passwd))).toCharArray(mqtt_passwd, 32);
         }
       }
 
-      if (httpServer.hasArg("mqtt_interval"))
-        mqtt_interval = httpServer.arg("mqtt_interval").toInt();
+      if (httpServer.hasArg(String(FPSTR(cfg_mqtt_interval))))
+        mqtt_interval = httpServer.arg(String(FPSTR(cfg_mqtt_interval))).toInt();
 
-      if (httpServer.hasArg("mqtt_watchdog")) {
-        mqtt_watchdog = httpServer.arg("mqtt_watchdog").toInt();
+      if (httpServer.hasArg(String(FPSTR(cfg_mqtt_watchdog)))) {
+        mqtt_watchdog = httpServer.arg(String(FPSTR(cfg_mqtt_watchdog))).toInt();
         if (mqtt_watchdog <= mqtt_interval) {
           mqtt_watchdog = mqtt_interval + 1;
         }
@@ -336,10 +347,10 @@ void httpSetup() {
         }
       }
 
-      if (httpServer.hasArg("syslog_server"))
-        httpServer.arg("syslog_server").toCharArray(syslog_server, 40);
-      if (httpServer.hasArg("use_syslog")) {
-        if (httpServer.arg("use_syslog") == "on") {
+      if (httpServer.hasArg(String(FPSTR(cfg_syslog_server))))
+        httpServer.arg(String(FPSTR(cfg_syslog_server))).toCharArray(syslog_server, 40);
+      if (httpServer.hasArg(String(FPSTR(cfg_use_syslog)))) {
+        if (httpServer.arg(String(FPSTR(cfg_use_syslog))) == "on") {
           if (! use_syslog)
             setupSyslog();      // Syslog changed to enabled
           use_syslog = true;
@@ -355,7 +366,7 @@ void httpSetup() {
       saveConfig();
     }
 
-    httpData += "<form action='#' method='POST'>";
+    httpData += String(F("<form action='#' method='POST'>"));
     httpData += tableStart;
 
     httpData += thStart + "<b>Network:</b>" + thBreak + thEnd;
@@ -363,49 +374,46 @@ void httpSetup() {
     httpData += htmlRadio("staticip", "true",          use_staticip)     + "Static IP";
     httpData += htmlRadio("staticip", "false",         (! use_staticip)) + "DHCP";
     httpData += trEnd;
-    httpData += trStart + "Address:"            + tdBreak + htmlInput("text",     "ip_address",    IPtoString(ip))      + trEnd;
-    httpData += trStart + "Subnet Mask:"        + tdBreak + htmlInput("text",     "subnet",        IPtoString(subnet))  + trEnd;
-    httpData += trStart + "Gateway:"            + tdBreak + htmlInput("text",     "gateway",       IPtoString(gateway)) + trEnd;
-    httpData += trStart + "DNS Server:"         + tdBreak + htmlInput("text",     "dns_ip",        IPtoString(dns_ip))  + trEnd;
-    httpData += trStart + "NTP Server 1:"       + tdBreak + htmlInput("text",     "ntp_server1",   ntp_server1)         + trEnd;
-    httpData += trStart + "NTP Server 2:"       + tdBreak + htmlInput("text",     "ntp_server2",   ntp_server2)         + trEnd;
+    httpData += trStart + "Address:"            + tdBreak + htmlInput("text",     String(FPSTR(cfg_ip_address)),    IPtoString(ip))      + trEnd;
+    httpData += trStart + "Subnet Mask:"        + tdBreak + htmlInput("text",     String(FPSTR(cfg_subnet)),        IPtoString(subnet))  + trEnd;
+    httpData += trStart + "Gateway:"            + tdBreak + htmlInput("text",     String(FPSTR(cfg_gateway)),       IPtoString(gateway)) + trEnd;
+    httpData += trStart + "DNS Server:"         + tdBreak + htmlInput("text",     String(FPSTR(cfg_dns_server)),    IPtoString(dns_ip))  + trEnd;
+    httpData += trStart + "NTP Server 1:"       + tdBreak + htmlInput("text",     String(FPSTR(cfg_ntp_server1)),   ntp_server1)         + trEnd;
+    httpData += trStart + "NTP Server 2:"       + tdBreak + htmlInput("text",     String(FPSTR(cfg_ntp_server2)),   ntp_server2)         + trEnd;
 
     httpData += thStart + "<b>MQTT:</b>" + thBreak + thEnd;
 
-    httpData += trStart + "Server:"             + tdBreak + htmlInput("text",     "mqtt_server",   mqtt_server)   + trEnd;
-    httpData += trStart + "Port:"               + tdBreak + htmlInput("text",     "mqtt_port",     mqtt_port)     + trEnd;
-    httpData += trStart + "Name:"               + tdBreak + htmlInput("text",     "mqtt_name",     mqtt_name)     + trEnd;
-    httpData += trStart + "Use TLS:"            + tdBreak + htmlCheckbox(         "mqtt_tls",      mqtt_tls)      + trEnd;
-    httpData += trStart + "Use authentication:" + tdBreak + htmlCheckbox(         "mqtt_auth",     mqtt_auth)     + trEnd;
-    httpData += trStart + "Username:"           + tdBreak + htmlInput("text",     "mqtt_user",     mqtt_user)     + trEnd;
-    httpData += trStart + "Password:"           + tdBreak + htmlInput("text",     "mqtt_passwd",   mqtt_passwd)   + trEnd;
-    httpData += trStart + "Data interval (s):"  + tdBreak + htmlInput("text",     "mqtt_interval", String(mqtt_interval)) + trEnd;
-    httpData += trStart + "MQTT watchdog (s):"  + tdBreak + htmlInput("text",     "mqtt_watchdog", String(mqtt_watchdog)) + trEnd;
+    httpData += trStart + "Server:"             + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_server)),   mqtt_server)   + trEnd;
+    httpData += trStart + "Port:"               + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_port)),     mqtt_port)     + trEnd;
+    httpData += trStart + "Name:"               + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_name)),     mqtt_name)     + trEnd;
+    httpData += trStart + "Use TLS:"            + tdBreak + htmlCheckbox(         String(FPSTR(cfg_mqtt_tls)),      mqtt_tls)      + trEnd;
+    httpData += trStart + "Use authentication:" + tdBreak + htmlCheckbox(         String(FPSTR(cfg_mqtt_auth)),     mqtt_auth)     + trEnd;
+    httpData += trStart + "Username:"           + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_user)),     mqtt_user)     + trEnd;
+    httpData += trStart + "Password:"           + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_passwd)),   mqtt_passwd)   + trEnd;
+    httpData += trStart + "Data interval (s):"  + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_interval)), String(mqtt_interval)) + trEnd;
+    httpData += trStart + "MQTT watchdog (s):"  + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_watchdog)), String(mqtt_watchdog)) + trEnd;
 
     httpData += thStart + "<b>Syslog:</b>" + thBreak + thEnd;
 
-    httpData += trStart + "Use Syslog:"         + tdBreak + htmlCheckbox(         "use_syslog",    use_syslog)    + trEnd;
-    httpData += trStart + "Server:"             + tdBreak + htmlInput("text",     "syslog_server", syslog_server) + trEnd;
+    httpData += trStart + "Use Syslog:"         + tdBreak + htmlCheckbox(         String(FPSTR(cfg_use_syslog)),    use_syslog)    + trEnd;
+    httpData += trStart + "Server:"             + tdBreak + htmlInput("text",     String(FPSTR(cfg_syslog_server)), syslog_server) + trEnd;
 
     httpData += thStart + "<b>Sensors:</b>" + thBreak + thEnd;
 
     httpData += httpSensorSetup();
-/*
-// #################### any extra WM config #defined in variables.h
-#ifdef WMADDCONFIG
-WMADDCONFIG
-#endif
-*/
+
     httpData += trEnd;
     httpData += tableEnd;
 
-    httpData += "<input type='submit' value='Submit'><input type='Reset'></form><br/>";
+    httpData += String(F("<input type='submit' value='Submit'><input type='Reset'></form><br/>"));
 
     httpData += httpFooter;
     httpServer.send(200, "text/html", httpData);
   });
 
   httpServer.on("/password", [](){
+    strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
+    syslog.appName(app_name);
     if (!is_authenticated()) {
       httpServer.sendHeader("Location","/login");
       httpServer.sendHeader("Cache-Control","no-cache");
@@ -436,37 +444,41 @@ WMADDCONFIG
             httpUser = newUser;
             httpData += "<p>Username changed.</p>";
             authChanged = true;
+            logString = "Username changed";
+            mqttLog(logString);
           }
         } else {
-          httpData += "<p><b>Username empty. Not changed.</b></p>";
+          httpData += String(F("<p><b>Username empty. Not changed.</b></p>"));
         }
         if ( newPasswd1 == newPasswd1 ) {
           if ( newPasswd1 != "" ) {
             if ( newPasswd1 != httpPasswd ) {
               httpPasswd = newPasswd1;
-              httpData += "<p>Password changed.</p>";
+              httpData += String(F("<p>Password changed.</p>"));
               authChanged = true;
+              logString = "Password changed";
+              mqttLog(logString);
             } else {
-              httpData += "<p><b>New password the same as old. Not changed.</b></p>";
+              httpData += String(F("<p><b>New password the same as old. Not changed.</b></p>"));
             }
           } else {
-            httpData += "<p><b>New password empty. Not changed.</b></p>";
+            httpData += String(F("<p><b>New password empty. Not changed.</b></p>"));
           }
         } else {
-          httpData += "<p><b>New passwords don't match. Not changed.</b></p>";
+          httpData += String(F("<p><b>New passwords don't match. Not changed.</b></p>"));
         }
       } else {
-        httpData += "<p><b>Current password incorrent.</b></p>";
+        httpData += String(F("<p><b>Current password incorrent.</b></p>"));
       }
 
       if (authChanged)
         saveConfig();
     }
 
-    httpData += "<form action='#' method='POST'>";
+    httpData += String(F("<form action='#' method='POST'>"));
     httpData += tableStart;
 
-    httpData += thStart + "<b>Admin login:</b>" + thBreak + thEnd;
+    httpData += thStart + String(F("<b>Admin login:</b>")) + thBreak + thEnd;
 
     httpData += trStart + "Username:"           + tdBreak + htmlInput("text",     "newUser",  httpUser) + trEnd;
     httpData += trStart + "Current password:"   + tdBreak + htmlInput("password", "currentPasswd", "")  + trEnd;
@@ -477,7 +489,7 @@ WMADDCONFIG
     httpData += trEnd;
     httpData += tableEnd;
 
-    httpData += "<input type='submit' value='Submit'><input type='Reset'></form><br/>";
+    httpData += String(F("<input type='submit' value='Submit'><input type='Reset'></form><br/>"));
 
     httpData += httpFooter;
     httpServer.send(200, "text/html", httpData);
@@ -526,7 +538,7 @@ String htmlHeader(String url) {
   httpHeader += "</p>";
 
   if (rebootRequired) {
-    httpHeader += "<p><b>Reboot required to use new settings.</b></p>";
+    httpHeader += String(F("<p><b>Reboot required to use new settings.</b></p>"));
   }
 
   return httpHeader;

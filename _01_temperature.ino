@@ -38,11 +38,7 @@ void sendData() {
 }
 
 String httpSensorData() {
-  String httpData = "<table>";
-  String trStart = "<tr><td>";
-  String tdBreak = "</td><td>";
-  String trEnd   = "</td></tr>";
-
+  String httpData = tableStart;
   httpData += trStart + "Temperature:" + tdBreak;
   if (temperature != 1000) {
     httpData += String(temperature) + " C";
@@ -51,7 +47,7 @@ String httpSensorData() {
   }
   httpData += trEnd;
 
-  httpData += "</table>";
+  httpData += tableEnd;
   return httpData;
 }
 
