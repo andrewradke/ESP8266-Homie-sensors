@@ -73,25 +73,26 @@ void printMessage(String message, bool oled) {
 
 
 void printConfig() {
-  mqttSend(String(FPSTR(mqttstr_online)),       String("true"), true);
+  mqttSend(String(FPSTR(mqttstr_online)),       String(FPSTR(str_true)), true);
   mqttSend(String(FPSTR(mqttstr_fwname)),       String(fwname), true);
   mqttSend(String(FPSTR(mqttstr_fwversion)),    String(FWVERSION), true);
   mqttSend(String(FPSTR(mqttstr_name)),         String(mqtt_name), true);
   mqttSend(String(FPSTR(mqttstr_nodes)),        String(nodes), true);
   mqttSend(String(FPSTR(mqttstr_localip)),      IPtoString(WiFi.localIP()), true);
 
+/*
   String cfgStr = String(FPSTR(mqttstr_config));
 
   mqttSend(String(cfgStr + "ssid"),          String(ssid), true);
 
   if (use_staticip) {
-    mqttSend(String(cfgStr + "static_ip"),   String("true"), true);
+    mqttSend(String(cfgStr + "static_ip"),   String(FPSTR(str_true)), true);
     mqttSend(String(cfgStr + String(FPSTR(cfg_ip_address))),  IPtoString(ip), true);
     mqttSend(String(cfgStr + String(FPSTR(cfg_subnet))),      IPtoString(subnet), true);
     mqttSend(String(cfgStr + String(FPSTR(cfg_gateway))),     IPtoString(gateway), true);
     mqttSend(String(cfgStr + String(FPSTR(cfg_dns_server))),  IPtoString(dns_ip), true);
   } else {
-    mqttSend(String(cfgStr + "static_ip"),   String("false"), true);
+    mqttSend(String(cfgStr + "static_ip"),   String(FPSTR(str_false)), true);
     mqttSend(String(cfgStr + String(FPSTR(cfg_ip_address))),  "", true);
     mqttSend(String(cfgStr + String(FPSTR(cfg_subnet))),      "", true);
     mqttSend(String(cfgStr + String(FPSTR(cfg_gateway))),     "", true);
@@ -113,10 +114,12 @@ void printConfig() {
 
 // #################### printSensorConfig() is defined in each sensor file as appropriate
   printSensorConfig(cfgStr);
+*/
 }
 
 
 void printSystem() {
+/*
   String sysStr = String(FPSTR(mqttstr_system));
   mqttSend(String(sysStr + "flash_size"),        String(ESP.getFlashChipRealSize()/1048576.0) + " MB", true);
   mqttSend(String(sysStr + "flash_size_config"), String(ESP.getFlashChipSize()/1048576.0) + " MB",     true);
@@ -125,6 +128,7 @@ void printSystem() {
   mqttSend(String(sysStr + "free_memory"),       String(ESP.getFreeHeap() / 1024) + " kB",             true);
   mqttSend(String(sysStr + "esp_chip_id"),       String(ESP.getChipId()),                              true);
   mqttSend(String(sysStr + "flash_chip_id"),     String(ESP.getFlashChipId()),                         true);
+*/
 }
 
 
@@ -402,7 +406,7 @@ void runAction(String key, String value) {
   if ( key == "reboot" ) {
     logString = String(F("Received reboot command."));
     mqttLog(logString);
-    mqttSend(String(FPSTR(mqttstr_online)), String("false"), true);
+    mqttSend(String(FPSTR(mqttstr_online)), String(FPSTR(str_false)), true);
     ESP.restart();
   } else if ( key == "saveconfig" ) {
     saveConfig();
@@ -449,13 +453,139 @@ void updateFirmware(String url) {
 
 
 void setupSyslog() {
-    // Setup syslog
-    logString = String(F("Syslog server: ")) + String(syslog_server);
+  // Setup syslog
+  strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
+  logString = String(F("Syslog server: ")) + String(syslog_server);
+  printMessage(logString, true);
+
+  syslog.server(syslog_server, 514);
+  syslog.deviceHostname(host_name);
+  syslog.defaultPriority(LOG_KERN);
+  // Send log messages up to LOG_INFO severity
+  syslog.logMask(LOG_UPTO(LOG_INFO));
+}
+
+bool newWiFiCredentials() {
+  connectNewWifi = false;
+  bool result;
+  strncpy_P (app_name, app_name_wifi, sizeof(app_name_wifi) );
+
+  logString = String(F("Request to change WiFi network from '")) + ssid + "' to '" + _ssid + String(F("'. Disconnecting from existing network."));
+  printMessage(logString, true);
+  if (use_syslog) {
+    syslog.appName(app_name);
+    syslog.log(LOG_INFO, logString);
+  }
+  delay(100);
+  WiFi.disconnect(true);
+
+  // using user-provided  _ssid, _pass in place of system-stored ssid and pass
+  WiFi.begin(_ssid.c_str(), _psk.c_str());
+
+  logString = F("Waiting for connection result with 10s timeout");
+  printMessage(logString, true);
+
+  unsigned long start = millis();
+  boolean keepConnecting = true;
+  uint8_t wifiStatus;
+  while (keepConnecting) {
+    wifiStatus = WiFi.status();
+    if (millis() > start + 10000) {
+      keepConnecting = false;
+      logString = F("Connection timed out");
+      printMessage(logString, true);
+    }
+    if (wifiStatus == WL_CONNECTED || wifiStatus == WL_CONNECT_FAILED) {
+      keepConnecting = false;
+    }
+    Serial.print('.');
+    delay(500);
+  }
+
+  logString = String(F("Connection result: ")) + String(wifiStatus);
+  printMessage(logString, true);
+  if (use_syslog) {
+    syslog.appName(app_name);
+    syslog.log(LOG_INFO, logString);
+  }
+
+  if (wifiStatus != WL_CONNECTED) {
+    logString = F("Failed to connect.");
+    result    = false;
+    httpLogin = false;  // If this was done over a network connection record it as no-one logged in to allow the watchdog to reboot quicker.
+  } else {
+    logString = F("Connected.");
+    WiFi.mode(WIFI_STA);
+    ssid = _ssid;
+    psk  = _psk;
+    result = true;
+  }
+  waitForDHCPLease();
+
+  printMessage(logString, true);
+  if (use_syslog) {
+    syslog.appName(app_name);
+    syslog.log(LOG_INFO, logString);
+  }
+
+  return result;
+}
+
+void checkWatchdog() {
+  currentTime = millis();
+  if ( currentTime >= (watchdog + (1000 * mqtt_watchdog ) ) && ! httpLogin) {
+    strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
+    logString = String(F("No MQTT data in ")) + String(mqtt_watchdog) + String(F(" seconds. Rebooting."));
     printMessage(logString, true);
+
+    delay(1000);
+    //reboot and try again, or maybe put it to deep sleep
+    ESP.restart();
+    delay(5000);
+  }
+}
+
+void waitForDHCPLease() {
+  strncpy_P (app_name, app_name_net, sizeof(app_name_net) );
+  syslog.appName(app_name);
+
+  // Check if an IP address lease has been received and loop until it has
+  IPAddress dhcpIP = WiFi.localIP();
+  bool hasLease = (dhcpIP != INADDR_NONE);
+
+  if (hasLease) {
+    return;
+  } else {
+    logString = F("Waiting max 15 seconds for DHCP lease.");
+    printMessage(logString, true);
+
+    unsigned long start = millis();
+    boolean keepConnecting = true;
+    while (keepConnecting) {
+      if (dhcpIP != INADDR_NONE) {
+        keepConnecting = false;
+      } else {
+        if (millis() > start + 15000) {
+          keepConnecting = false;
+          Serial.println();
+          logString = F("DHCP timed out");
+          printMessage(logString, true);
+        }
+        Serial.print('.');
+        delay(500);
+      }
+    }
+    Serial.println();
+
+    if (dhcpIP == INADDR_NONE) {
+      logString = F("No DHCP lease in 10 seconds. Rebooting.");
+      printMessage(logString, true);
   
-    syslog.server(syslog_server, 514);
-    syslog.deviceHostname(host_name);
-    syslog.defaultPriority(LOG_KERN);
-    // Send log messages up to LOG_INFO severity
-    syslog.logMask(LOG_UPTO(LOG_INFO));
+      delay(1000);
+      //reboot and try again, or maybe put it to deep sleep
+      ESP.restart();
+      delay(5000);
+    }
+  }
+
 }

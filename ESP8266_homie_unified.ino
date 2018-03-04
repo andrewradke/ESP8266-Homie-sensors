@@ -24,9 +24,9 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     2
-#define FWVERSION  "0.9.9"
-#define FWPASSWORD "esp8266"
+#define FWTYPE     10
+#define FWVERSION  "0.9.10"
+#define FWPASSWORD "esp8266."
 //#define USESSD1306                // SSD1306 OLED display
 
 
@@ -35,9 +35,7 @@
 
 #include <ESP8266WiFi.h>          // ESP8266 Core WiFi Library
 
-#include <DNSServer.h>            // Local DNS Server used for redirecting all requests to the configuration portal
 #include <ESP8266WebServer.h>     // Local WebServer used to serve the configuration portal
-#include <WiFiManager.h>          // https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
 #include <ESP8266mDNS.h>
@@ -49,6 +47,16 @@
 
 // ########### String constants ############
 #include "String_Consts.h"
+
+
+
+// Local DNS Server used for redirecting all requests to the configuration portal
+#include <DNSServer.h>
+DNSServer dnsServer;
+const byte DNS_PORT          = 53;
+bool  inConfigAP             = false;
+bool  connectNewWifi         = false;
+const uint16_t configPortalTimeout = 300;   // 5 minute timeout on config portal before giving up and rebooting
 
 
 // Accurate time is needed to be able to verify security certificates
@@ -161,8 +169,10 @@ IPAddress subnet(255, 255, 255, 0);
 IPAddress gateway(192, 168, 0, 1);
 
 
-String ssid = "";
-String psk = "";
+String ssid  = "";
+String psk   = "";
+String _ssid = "";  // Used for when we are trying to connect to a new WiFi network
+String _psk  = "";  // Used for when we are trying to connect to a new WiFi network
 
 
 unsigned long currentTime     = 0;
@@ -204,10 +214,10 @@ void setup() {
 
 
 // Load all the defaults into memory
-  memcpy( ntp_server1, default_ntp_server1, 41);
-  memcpy( ntp_server2, default_ntp_server2, 41);
+  memcpy( ntp_server1,   default_ntp_server1,   41);
+  memcpy( ntp_server2,   default_ntp_server2,   41);
   memcpy( syslog_server, default_syslog_server, 41);
-  memcpy( mqtt_server, default_mqtt_server, 41);
+  memcpy( mqtt_server,   default_mqtt_server,   41);
 
   httpUser   = String(FPSTR(default_httpUser));
   httpPasswd = String(FPSTR(default_httpPasswd));
@@ -270,7 +280,7 @@ void setup() {
 
 
   if ( digitalRead(CONFIG_PIN) == HIGH ) {  // If the config pin IS grounded then skip this
-    // Back off for between 0 and 5 seconds before starting Wifi
+    // Back off for between 0 and 1 seconds before starting Wifi
     // This reduces the sudden current draw when too many sensors start at once or lots of data packets at exactly the same time
     long startupDelay = random(1000);
     logString = "Startup random delay: " + String(startupDelay);
@@ -281,12 +291,22 @@ void setup() {
 
   //WiFiManager
   //Local intialization in setup() only. Once its business is done, there is no need to keep it around
-  WiFiManager wifiManager;
+//  WiFiManager wifiManager;
 
 
 #ifdef DEBUG
-  wifiManager.setDebugOutput(true);
+//  wifiManager.setDebugOutput(true);
 #endif
+
+  // This will be available in the setup AP as well
+  logString = String(F("Starting web server"));
+  printMessage(logString, true);
+  httpSetup();
+   // These 3 lines tell esp to collect User-Agent and Cookie in http header when request is made 
+  const char * headerkeys[] = {"User-Agent","Cookie"} ;
+  size_t headerkeyssize = sizeof(headerkeys)/sizeof(char*);
+  httpServer.collectHeaders(headerkeys, headerkeyssize );
+  httpServer.begin();
 
 
   // is configuration portal requested?
@@ -298,68 +318,50 @@ void setup() {
     logString += " Resetting configuration.";
     printMessage(logString, true);
 
-    // set config save notify callback
-    wifiManager.setSaveConfigCallback(saveConfigCallback);
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.softAP(fwname, FWPASSWORD);
 
-    WiFiManagerParameter host_name_text("device name:");
-    wifiManager.addParameter(&host_name_text);
-    WiFiManagerParameter custom_host_name("host_name", "device name", host_name, 20);
-    wifiManager.addParameter(&custom_host_name);
+   connectNewWifi = false;
 
-#ifdef USESSD1306
-    display.clearDisplay();
-
-    display.setTextSize(2);
-    display.setTextColor(WHITE);
-    display.setCursor(0, 0);
-    display.println("Setup mode");
-
-    display.setTextSize(1);
-    display.print("SSID: ");
-    display.println(fwname);
-    display.println("IP: 192.168.4.1");
-
-    display.display();
+    delay(500); // Without delay the IP address may be blank
+#ifdef DEBUG
+    dmesg();
+    Serial.print(F("AP IP address: "));
+    Serial.println(WiFi.softAPIP());
 #endif
 
-    // sets 5 minute timeout until configuration portal gets turned off and it reboots
-    wifiManager.setConfigPortalTimeout(300);
-    wifiManager.setTimeout(300);
+    /* Setup the DNS server redirecting all the domains to the apIP */
+    dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+    dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
-    if (!wifiManager.startConfigPortal(fwname, FWPASSWORD)) {
-      logString = String(F("Failed to connect and hit timeout. Rebooting."));
-      printMessage(logString, true);
+    inConfigAP     = true;    // We don't need to ask for a password on the webpage
+    connectNewWifi = false;
 
-      delay(3000);
-      //reboot and try again, or maybe put it to deep sleep
-      ESP.restart();
-      delay(5000);
+    unsigned long configPortalStart = millis();
+    while (true) {
+      if ( millis() >= (configPortalStart + (1000 * configPortalTimeout ) ) ) {
+        logString = F("Config portal timeout reached. Rebooting.");
+        printMessage(logString, true);
+        delay(500);
+        //reboot and try again, or maybe put it to deep sleep
+        ESP.restart();
+        delay(5000);
+      }
+      dnsServer.processNextRequest();
+      httpServer.handleClient();
+      if (connectNewWifi) {
+        delay(1000);
+        if (newWiFiCredentials()) {
+          break;
+        }
+      }
+      yield();
     }
-
-    strcpy(host_name, custom_host_name.getValue());
-    configured = false;       // We want the next startup to wait for configuration via the web interface
-
-    //save the custom parameters to FS
-    if (shouldSaveConfig) {
-      saveConfig();
-    }
-    Serial.println();
   } else {
-    //We don't want to stay here. Just timeout and reboot after 10 seconds
-    wifiManager.setTimeout(10);
-
-    // fetches ssid and password and tries to connect
-    // if it does not connect it starts an access point with the ssid set to fwname
-    if (!wifiManager.autoConnect(fwname, FWPASSWORD)) {
-      logString = String(F("Failed to connect within timeout. Rebooting."));
-      printMessage(logString, true);
-
-      delay(1000);
-      //reboot and try again
-      ESP.restart();
-      delay(5000);
-    }
+    WiFi.begin();
   }
+
+  WiFi.mode(WIFI_STA);
 
   if (use_staticip) {
     // WiFi.setDNS(dns_ip); // This doesn't work with the ESP8266 so reconfigure everything
@@ -373,7 +375,7 @@ void setup() {
 
 
   ssid = WiFi.SSID();
-  psk = WiFi.psk();
+  psk  = WiFi.psk();
 
   //if you get here you have connected to the WiFi
   strncpy_P (app_name, app_name_wifi, sizeof(app_name_wifi) );
@@ -389,6 +391,7 @@ void setup() {
   if (use_staticip) {
     logString = "Static";
   } else {
+    waitForDHCPLease();
     logString = "DHCP";
   }
   logString += " IP address: " + IPtoString(WiFi.localIP());
@@ -415,7 +418,7 @@ void setup() {
     syslog.log(LOG_INFO, logString);
   }
 
-
+/*
   logString = String(F("Starting web server"));
   printMessage(logString, true);
 
@@ -427,6 +430,7 @@ void setup() {
   httpServer.collectHeaders(headerkeys, headerkeyssize );
 
   httpServer.begin();
+*/
   MDNS.begin(host_name);
   MDNS.addService("http", "tcp", 80);
   logString = "Web server available by http://" + String(host_name) + ".local/";
@@ -449,7 +453,8 @@ void setup() {
     }
     struct tm timeinfo;
     gmtime_r(&now, &timeinfo);
-    logString = "Time: " + String(asctime(&timeinfo));
+    logString = String(asctime(&timeinfo));
+    logString.trim();
     printMessage(logString, true);
   
     // Load root certificate in DER format into WiFiClientSecure object
@@ -517,6 +522,7 @@ void setup() {
 
   printSystem();
 
+#ifdef DEBUG
   // The delays are needed to give time for each syslog packet to be sent. Otherwise a few of the later ones can end up being lost
   logString = "Flash size: " + String(realSize/1048576.0) + " MB";
   printMessage(logString, true);
@@ -560,6 +566,7 @@ void setup() {
     syslog.log(LOG_INFO, logString);
     delay(1);
   }
+#endif
 
 
 #ifdef DEBUG
@@ -573,6 +580,9 @@ void setup() {
 void loop() {
 
   httpServer.handleClient();
+  if (connectNewWifi) {
+    newWiFiCredentials();  // Attempt to connect to new WiFi network
+  }
 
   if (lock && abs(millis() - logincld) > 300000) {
     lock = false;
@@ -615,12 +625,19 @@ void loop() {
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
     delay(250);
-    reconnected = true;
+    checkWatchdog();      // Let the watchdog reboot if we've been disconnected too long
+    reconnected = true;   // Records that we have reconnected
   }
   if (reconnected == true) {
     strncpy_P (app_name, app_name_wifi, sizeof(app_name_wifi) );
-    logString = "Connected";
+    logString = F("Connected");
     printMessage(logString, true);
+
+    if (!use_staticip) {
+      waitForDHCPLease();
+    }
+
+    logString = F("Connected");
     if (use_syslog) {
       syslog.appName(app_name);
       syslog.log(LOG_INFO, logString);
@@ -665,14 +682,5 @@ void loop() {
 
 
   ////////////////////////////////////// check the watchdog ///////////////////////////////////////
-  currentTime = millis();
-  if ( currentTime >= (watchdog + (1000 * mqtt_watchdog ) ) && ! httpLogin) {
-    logString = "No MQTT data in " + String(mqtt_watchdog) + " seconds. Rebooting.";
-    printMessage(logString, true);
-
-    delay(3000);
-    //reboot and try again, or maybe put it to deep sleep
-    ESP.restart();
-    delay(5000);
-  }
+  checkWatchdog();
 }

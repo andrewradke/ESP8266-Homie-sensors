@@ -39,7 +39,7 @@ void mqttConnect() {
 
     tmpString = String(baseTopic) + String(FPSTR(mqttstr_online));
     tmpString.toCharArray(pubTopic, OUT_STR_MAX);
-    tmpString = String("false");
+    tmpString = String(FPSTR(str_false));
     tmpString.toCharArray(output, OUT_STR_MAX);
 
     mqttClient.disconnect();
@@ -85,7 +85,7 @@ void mqttConnect() {
       }
 
       // Publush $online as true with pubTopic still correct from will above
-      mqttSend(String(FPSTR(mqttstr_online)), String("true"), true);
+      mqttSend(String(FPSTR(mqttstr_online)), String(FPSTR(str_true)), true);
 
       char subTopic[40];
       tmpString = String(baseTopic) + String(FPSTR(mqttstr_ota)) + String(FPSTR(str_command));
@@ -195,7 +195,7 @@ void mqttCommand(String cmd, String key, String value) {
     if (use_syslog) {
       syslog.log(LOG_INFO, logString);
     }
-    mqttSend(String(FPSTR(mqttstr_online)), String("false"), true);
+    mqttSend(String(FPSTR(mqttstr_online)), String(FPSTR(str_false)), true);
     ESP.restart();
   } else {
     logString = String("UNKNOWN command: " + key);

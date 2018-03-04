@@ -58,4 +58,7 @@ static const char mqttstr_ota[]       PROGMEM = "$ota/";
 
 static const char str_command[]    PROGMEM = "command";
 static const char str_error[]      PROGMEM = "error";
+static const char str_true[]       PROGMEM = "true";
+static const char str_false[]      PROGMEM = "false";
+static const char str_nbsp[]       PROGMEM = "&nbsp;";
 
