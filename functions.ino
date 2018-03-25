@@ -577,6 +577,9 @@ void waitForDHCPLease() {
     }
     Serial.println();
 
+    // WiFi.begin() may force the DHCP to get a new IP along with a new connection.
+    // As such another go at a begin() might do the trick instead
+
     if (dhcpIP == INADDR_NONE) {
       logString = F("No DHCP lease in 10 seconds. Rebooting.");
       printMessage(logString, true);

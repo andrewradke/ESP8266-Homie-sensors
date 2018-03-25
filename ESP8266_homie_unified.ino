@@ -24,7 +24,7 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     10
+#define FWTYPE     3
 #define FWVERSION  "0.9.10"
 #define FWPASSWORD "esp8266."
 //#define USESSD1306                // SSD1306 OLED display
@@ -289,14 +289,6 @@ void setup() {
     delay( startupDelay );
   }
 
-  //WiFiManager
-  //Local intialization in setup() only. Once its business is done, there is no need to keep it around
-//  WiFiManager wifiManager;
-
-
-#ifdef DEBUG
-//  wifiManager.setDebugOutput(true);
-#endif
 
   // This will be available in the setup AP as well
   logString = String(F("Starting web server"));
@@ -312,16 +304,22 @@ void setup() {
   // is configuration portal requested?
   if ( ( digitalRead(CONFIG_PIN) == LOW ) || (WiFi.SSID() == "") ) {
     if ( digitalRead(CONFIG_PIN) == LOW )
-      logString = "Config PIN pressed.";
+      logString = F("Config PIN pressed.");
     if (WiFi.SSID() == "")
-      logString = "No saved SSID.";
-    logString += " Resetting configuration.";
+      logString = F("No saved SSID.");
+    logString += F(" Resetting configuration.");
     printMessage(logString, true);
 
+    // Without this disconnect() setting mode to WIFI_AP_STA with corrupted or incorrect credentials can sometimes cause
+    // the ESP8266 to get stuck and have the wdt constantly reboot before you can correct the problem.
+    WiFi.disconnect();
     WiFi.mode(WIFI_AP_STA);
+    logString = F("Starting AP as ");
+    logString += String(fwname);
+    printMessage(logString, true);
     WiFi.softAP(fwname, FWPASSWORD);
 
-   connectNewWifi = false;
+    connectNewWifi = false;
 
     delay(500); // Without delay the IP address may be blank
 #ifdef DEBUG
@@ -418,19 +416,6 @@ void setup() {
     syslog.log(LOG_INFO, logString);
   }
 
-/*
-  logString = String(F("Starting web server"));
-  printMessage(logString, true);
-
-  httpSetup();
-
-   // These 3 lines tell esp to collect User-Agent and Cookie in http header when request is made 
-  const char * headerkeys[] = {"User-Agent","Cookie"} ;
-  size_t headerkeyssize = sizeof(headerkeys)/sizeof(char*);
-  httpServer.collectHeaders(headerkeys, headerkeyssize );
-
-  httpServer.begin();
-*/
   MDNS.begin(host_name);
   MDNS.addService("http", "tcp", 80);
   logString = "Web server available by http://" + String(host_name) + ".local/";
