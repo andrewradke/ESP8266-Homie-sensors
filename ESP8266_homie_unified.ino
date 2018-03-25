@@ -141,15 +141,6 @@ PubSubClient mqttClient;
 
 /// The HTTP server
 ESP8266WebServer httpServer(80);
-const String httpFooter = "</body></html>";
-const String tableStart = "<table>";
-const String tableEnd   = "</table>";
-const String trStart    = "<tr><td>";
-const String trEnd      = "</td></tr>";
-const String tdBreak    = "</td><td>";
-const String thStart    = "<tr><th>";
-const String thEnd      = "</th></tr>";
-const String thBreak    = "</th><th>";
 String httpData;
 bool   lock = false;                // This bool is used to control device lockout 
 String httpUser;
@@ -190,7 +181,12 @@ String tmpString;
 String logString;     // This can be used by MQTT logging as well
 
 
-bool   configured = false;
+bool   configured     = false;
+bool   configLoaded   = false;
+String configfilename = "/config.json";
+String certfilename   = "/cacert.der";
+bool   ca_cert_okay    = false;
+
 
 ////////////////////////////////////// setup ///////////////////////////////////////
 
@@ -302,11 +298,13 @@ void setup() {
 
 
   // is configuration portal requested?
-  if ( ( digitalRead(CONFIG_PIN) == LOW ) || (WiFi.SSID() == "") ) {
+  if ( ( digitalRead(CONFIG_PIN) == LOW ) || (WiFi.SSID() == "") || (! configLoaded) ) {
     if ( digitalRead(CONFIG_PIN) == LOW )
       logString = F("Config PIN pressed.");
     if (WiFi.SSID() == "")
       logString = F("No saved SSID.");
+    if (! configLoaded)
+      logString = F("Config file failed to load.");
     logString += F(" Resetting configuration.");
     printMessage(logString, true);
 
@@ -441,17 +439,23 @@ void setup() {
     logString = String(asctime(&timeinfo));
     logString.trim();
     printMessage(logString, true);
-  
-    // Load root certificate in DER format into WiFiClientSecure object
-    bool result = espSecureClient.setCACert_P(caCert, caCertLen);
-    if (!result) {
-      logString = String(F("Failed to load root CA certificate! Cannot continue."));
-      printMessage(logString, true);
-      if (use_syslog) {
-        syslog.log(LOG_INFO, logString);
-      }
-      while (true) {
-        yield();
+
+    if ( SPIFFS.exists(certfilename) ) {
+      File certfile = SPIFFS.open(certfilename, "r");
+      if (certfile) {
+        logString = F("Opened CA certificate file.");
+        printMessage(logString, true);
+
+        size_t size = certfile.size();
+        if (espSecureClient.loadCACert(certfile, certfile.size()) ) {
+          ca_cert_okay = true;
+        } else {
+          logString = F("Failed to load root CA certificate! MQTT disabled.");
+          printMessage(logString, true);
+          if (use_syslog) {
+            syslog.log(LOG_INFO, logString);
+          }
+        }
       }
     }
   } else {

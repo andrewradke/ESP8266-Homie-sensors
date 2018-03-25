@@ -18,24 +18,29 @@ const char HTTP_NAV_START[] PROGMEM       = "<ul class='nav'>";
 const char HTTP_NAV_END[] PROGMEM         = "</ul>";
 const char HTTP_NAV_LI[] PROGMEM          = "<li{c}>{l}</li>";
 
-const byte MENU_COUNT = 8;
-const String http_page_urls[MENU_COUNT]  = { "/", "/config", "/system", "/wifi", "/password", "/firmware", "/reboot", "/logout" };
-const String http_page_names[MENU_COUNT] = { "Home", "Configuration", "Device Info", "WiFi", "Password", "Update firmware", "Reboot", "Logout" };
+const byte MENU_COUNT = 9;
+const String http_page_urls[MENU_COUNT]  = { "/", "/config", "/system", "/wifi", "/password", "/cacert", "/firmware", "/reboot", "/logout" };
+const String http_page_names[MENU_COUNT] = { "Home", "Configuration", "Device Info", "WiFi", "Password", "CA Certificate", "Update firmware", "Reboot", "Logout" };
+
+
+File fsUploadFile;   // a File object to temporarily store the received files
 
 void httpSetup() {
   gencookie(); //generate new cookie on device start
 
-  httpServer.on("/login",        handleLogin );
-  httpServer.on("/logout",       handleLogout );
   httpServer.on("/",             handleRoot );
-  httpServer.on( "/reboot",      handleReboot );
-  httpServer.on( "/system",      handleSystem );
-  httpServer.on( "/config",      handleConfig );
-  httpServer.on( "/password",    handlePassword );
+  httpServer.on("/config",       handleConfig );
+  httpServer.on("/system",       handleSystem );
   httpServer.on("/wifi",         handleWifi);
   httpServer.on("/wifisave",     handleWifiSave);
   httpServer.on("/generate_204", handleRoot);  //Android captive portal. Maybe not needed. Might be handled by notFound handler.
   httpServer.on("/fwlink",       handleRoot);  //Microsoft captive portal. Maybe not needed. Might be handled by notFound handler.
+  httpServer.on("/password",     handlePassword );
+  httpServer.on("/cacert",       HTTP_GET, handleCACert);
+  httpServer.on("/cacert",       HTTP_POST, [](){ httpServer.send(200, "text/html", ""); }, handleCAUpload);
+  httpServer.on("/reboot",       handleReboot );
+  httpServer.on("/login",        handleLogin );
+  httpServer.on("/logout",       handleLogout );
   httpServer.onNotFound(         handleNotFound );
 
 }
@@ -808,3 +813,70 @@ void handleWifiSave() {
   }
 }
 
+
+/** Handle the CA certificate upload page */
+void handleCACert() {
+  strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
+  syslog.appName(app_name);
+  if (!is_authenticated()) {
+    httpServer.sendHeader("Location","/login");
+    httpServer.sendHeader("Cache-Control","no-cache");
+    httpServer.send(301);
+    return;
+  }
+  tempign = millis(); //reset the inactivity timer if someone logs in
+
+  httpData = htmlHeader();
+
+  if ( SPIFFS.exists(certfilename) ) {
+    File certfile = SPIFFS.open(certfilename, "r");
+    httpData += F("<h2 style='color:red'>Existing certificate</h2>");
+    httpData += F("There is an existing certificate file size: ");
+    httpData += certfile.size();
+    httpData += F(" bytes<hr>");
+  }
+
+  httpData += F("Select a file to uplad with the CA certificate in DER format.<br/>");
+  httpData += F("A certificate can be converted to DER format with openssl with the following command edited as appropriate:");
+  httpData += F("<pre>openssl x509 -in CACert.pem -out CACert.der -outform DER</pre>");
+  httpData += F("<form action='#' method='POST' enctype='multipart/form-data'>");
+  httpData += F("<input type='file' name='cacert'>");
+  httpData += F("<br/><button type='submit'>Upload</button></form>");
+
+  httpData += FPSTR(HTTP_END);
+  httpServer.sendHeader("Content-Length", String(httpData.length()));
+  httpServer.send(200, "text/html", httpData);
+}
+
+/* Handle a file being uploaded */
+void handleCAUpload() {
+  strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
+  syslog.appName(app_name);
+  if (!is_authenticated()) {
+    httpServer.sendHeader("Location","/login");
+    httpServer.sendHeader("Cache-Control","no-cache");
+    httpServer.send(301);
+    return;
+  }
+  tempign = millis(); //reset the inactivity timer if someone logs in
+
+
+  HTTPUpload& upload = httpServer.upload();
+
+  if (upload.status == UPLOAD_FILE_START) {
+    if ( SPIFFS.exists(certfilename) )
+      SPIFFS.remove(certfilename);
+    fsUploadFile = SPIFFS.open(certfilename, "w");        // Save the file as cacert.der no matter the supplied filename
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (fsUploadFile)
+      fsUploadFile.write(upload.buf, upload.currentSize); // Write the received bytes to the file
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (fsUploadFile) {                                   // If the file was successfully created
+      fsUploadFile.close();                               // Close the file again
+      httpServer.sendHeader("Location","/cacert");        // Redirect the client to the success page
+      httpServer.send(303);
+    } else {
+      httpServer.send(500, "text/plain", String(F("500: couldn't create file")) );
+    }
+  }
+}

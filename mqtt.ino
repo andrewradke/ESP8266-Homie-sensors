@@ -31,6 +31,9 @@ void mqttLog(String data) {
 
 
 void mqttConnect() {
+  if ( mqtt_tls && (! ca_cert_okay) ) {
+    return;   // We can't do much if we are meant to use TLS and haven't been able to load the CA certificate
+  }
   strncpy_P (app_name, app_name_mqtt, sizeof(app_name_mqtt) );
   syslog.appName(app_name);
   // Loop until we're reconnected

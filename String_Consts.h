@@ -62,3 +62,13 @@ static const char str_true[]       PROGMEM = "true";
 static const char str_false[]      PROGMEM = "false";
 static const char str_nbsp[]       PROGMEM = "&nbsp;";
 
+
+const String httpFooter = "</body></html>";
+const String tableStart = "<table>";
+const String tableEnd   = "</table>";
+const String trStart    = "<tr><td>";
+const String trEnd      = "</td></tr>";
+const String tdBreak    = "</td><td>";
+const String thStart    = "<tr><th>";
+const String thEnd      = "</th></tr>";
+const String thBreak    = "</th><th>";

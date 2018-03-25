@@ -198,7 +198,7 @@ void saveConfig() {
 
   sensorExportJSON(json);
 
-  File configFile = SPIFFS.open("/config.json", "w");
+  File configFile = SPIFFS.open(configfilename, "w");
   if (!configFile) {
     logString = String(F("Failed to open config file for writing."));
     printMessage(logString, true);
@@ -224,8 +224,8 @@ void loadConfig() {
   printMessage(logString, true);
 
   if (SPIFFS.begin()) {
-    if (SPIFFS.exists("/config.json")) {
-      File configFile = SPIFFS.open("/config.json", "r");
+    if (SPIFFS.exists(configfilename)) {
+      File configFile = SPIFFS.open(configfilename, "r");
       if (configFile) {
         logString = String(F("Opened config file."));
         printMessage(logString, true);
@@ -329,7 +329,13 @@ void loadConfig() {
             configured = json[String(FPSTR(cfg_configured))];
           }
 
+          strcpy(host_name, mqtt_name); // We use the MQTT name as the host name since there is little value in having both and it just adds another config item and potential confusion.
+
           sensorImportJSON(json);
+
+          // The config file has been found, opened and is good json
+          configLoaded = true;
+
         } else {
           logString = String(F("Corrupted json config file."));
           printMessage(logString, true);
