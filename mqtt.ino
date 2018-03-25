@@ -175,10 +175,8 @@ void mqttCommand(String cmd, String key, String value) {
       mqtt_interval = value.toInt();
     }
   } else if ( cmd == "get" ) {
-    if ( key == "config" ) {
-      printConfig();
-    } else if ( key == "system" ) {
-      printSystem();
+    if ( key == "system" ) {
+      mqtt_send_systeminfo();
     }
   } else if ( cmd == "action" ) {
     runAction(key, value);

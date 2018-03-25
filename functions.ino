@@ -72,71 +72,15 @@ void printMessage(String message, bool oled) {
 }
 
 
-void printConfig() {
+void mqtt_send_systeminfo() {
   mqttSend(String(FPSTR(mqttstr_online)),       String(FPSTR(str_true)), true);
   mqttSend(String(FPSTR(mqttstr_fwname)),       String(fwname), true);
   mqttSend(String(FPSTR(mqttstr_fwversion)),    String(FWVERSION), true);
   mqttSend(String(FPSTR(mqttstr_name)),         String(mqtt_name), true);
   mqttSend(String(FPSTR(mqttstr_nodes)),        String(nodes), true);
   mqttSend(String(FPSTR(mqttstr_localip)),      IPtoString(WiFi.localIP()), true);
-
-/*
-  String cfgStr = String(FPSTR(mqttstr_config));
-
-  mqttSend(String(cfgStr + "ssid"),          String(ssid), true);
-
-  if (use_staticip) {
-    mqttSend(String(cfgStr + "static_ip"),   String(FPSTR(str_true)), true);
-    mqttSend(String(cfgStr + String(FPSTR(cfg_ip_address))),  IPtoString(ip), true);
-    mqttSend(String(cfgStr + String(FPSTR(cfg_subnet))),      IPtoString(subnet), true);
-    mqttSend(String(cfgStr + String(FPSTR(cfg_gateway))),     IPtoString(gateway), true);
-    mqttSend(String(cfgStr + String(FPSTR(cfg_dns_server))),  IPtoString(dns_ip), true);
-  } else {
-    mqttSend(String(cfgStr + "static_ip"),   String(FPSTR(str_false)), true);
-    mqttSend(String(cfgStr + String(FPSTR(cfg_ip_address))),  "", true);
-    mqttSend(String(cfgStr + String(FPSTR(cfg_subnet))),      "", true);
-    mqttSend(String(cfgStr + String(FPSTR(cfg_gateway))),     "", true);
-    mqttSend(String(cfgStr + String(FPSTR(cfg_dns_server))),  "", true);
-  }
-
-  mqttSend(String(cfgStr + String(FPSTR(cfg_ntp_server1))),   String(ntp_server1), true);
-  mqttSend(String(cfgStr + String(FPSTR(cfg_ntp_server2))),   String(ntp_server2), true);
-
-  mqttSend(String(cfgStr + String(FPSTR(cfg_mqtt_server))),   String(mqtt_server), true);
-  mqttSend(String(cfgStr + String(FPSTR(cfg_mqtt_port))),     String(mqtt_port), true);
-  mqttSend(String(cfgStr + String(FPSTR(cfg_mqtt_name))),     String(mqtt_name), true);
-  mqttSend(String(cfgStr + String(FPSTR(cfg_mqtt_interval))), String(mqtt_interval), true);
-  mqttSend(String(cfgStr + String(FPSTR(cfg_mqtt_watchdog))), String(mqtt_watchdog), true);
-
-  mqttSend(String(cfgStr + String(FPSTR(cfg_use_syslog))),    String(use_syslog), true);
-  mqttSend(String(cfgStr + String(FPSTR(cfg_host_name))),     String(host_name), true);
-  mqttSend(String(cfgStr + String(FPSTR(cfg_syslog_server))), String(syslog_server), true);
-
-// #################### printSensorConfig() is defined in each sensor file as appropriate
-  printSensorConfig(cfgStr);
-*/
 }
 
-
-void printSystem() {
-/*
-  String sysStr = String(FPSTR(mqttstr_system));
-  mqttSend(String(sysStr + "flash_size"),        String(ESP.getFlashChipRealSize()/1048576.0) + " MB", true);
-  mqttSend(String(sysStr + "flash_size_config"), String(ESP.getFlashChipSize()/1048576.0) + " MB",     true);
-  mqttSend(String(sysStr + "program_size"),      String(ESP.getSketchSize() / 1024) + " kB",           true);
-  mqttSend(String(sysStr + "free_program_size"), String(ESP.getFreeSketchSpace() / 1024) + " kB",      true);
-  mqttSend(String(sysStr + "free_memory"),       String(ESP.getFreeHeap() / 1024) + " kB",             true);
-  mqttSend(String(sysStr + "esp_chip_id"),       String(ESP.getChipId()),                              true);
-  mqttSend(String(sysStr + "flash_chip_id"),     String(ESP.getFlashChipId()),                         true);
-*/
-}
-
-
-//callback notifying us of the need to save config
-void saveConfigCallback () {
-//  Serial.println("Should save config");
-  shouldSaveConfig = true;
-}
 
 
 void saveConfig() {
@@ -483,7 +427,7 @@ bool newWiFiCredentials() {
     syslog.log(LOG_INFO, logString);
   }
   delay(100);
-  WiFi.disconnect(true);
+  WiFi.disconnect(true);  // Disconnect and discard old credentials
 
   // using user-provided  _ssid, _pass in place of system-stored ssid and pass
   WiFi.begin(_ssid.c_str(), _psk.c_str());
@@ -564,6 +508,7 @@ void waitForDHCPLease() {
   } else {
     logString = F("Waiting max 15 seconds for DHCP lease.");
     printMessage(logString, true);
+    byte disconnect_count = 0;
 
     unsigned long start = millis();
     boolean keepConnecting = true;
@@ -571,6 +516,15 @@ void waitForDHCPLease() {
       if (dhcpIP != INADDR_NONE) {
         keepConnecting = false;
       } else {
+        if ( // We'll have a couple of goes at disconnecting and reconnecting as DHCP doesn't always start otherwise
+          ( (millis() > start + 5000) && ( disconnect_count = 0 ) ) || 
+          ( (millis() > start + 10000) && ( disconnect_count = 1 ) )
+          ) {
+          WiFi.disconnect(false);
+          WiFi.begin();
+          disconnect_count++;
+        }
+
         if (millis() > start + 15000) {
           keepConnecting = false;
           Serial.println();
@@ -587,7 +541,7 @@ void waitForDHCPLease() {
     // As such another go at a begin() might do the trick instead
 
     if (dhcpIP == INADDR_NONE) {
-      logString = F("No DHCP lease in 10 seconds. Rebooting.");
+      logString = F("No DHCP lease in 15 seconds. Rebooting.");
       printMessage(logString, true);
   
       delay(1000);

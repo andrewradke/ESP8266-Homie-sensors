@@ -172,11 +172,6 @@ unsigned long mqttTime        = 0;
 unsigned long mqttConnectTime = 0;
 
 
-
-// flag for whether saving config is required after WiFiManager has updated values
-bool shouldSaveConfig = false;
-
-
 String tmpString;
 String logString;     // This can be used by MQTT logging as well
 
@@ -308,9 +303,10 @@ void setup() {
     logString += F(" Resetting configuration.");
     printMessage(logString, true);
 
-    // Without this disconnect() setting mode to WIFI_AP_STA with corrupted or incorrect credentials can sometimes cause
-    // the ESP8266 to get stuck and have the wdt constantly reboot before you can correct the problem.
-    WiFi.disconnect();
+    // Without this disconnect(true) setting mode to WIFI_AP_STA with corrupted or incorrect credentials can sometimes cause
+    // the ESP8266 to get stuck and have the wdt constantly reboot before you can correct the problem. The false tells it to
+    // retain the save credentials
+    WiFi.disconnect(false);
     WiFi.mode(WIFI_AP_STA);
     logString = F("Starting AP as ");
     logString += String(fwname);
@@ -497,7 +493,7 @@ void setup() {
   sensorSetup();
 
 
-  printConfig();
+  mqtt_send_systeminfo();
 
 
   strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
@@ -508,8 +504,6 @@ void setup() {
     syslog.log(LOG_INFO, logString);
   }
 
-
-  printSystem();
 
 #ifdef DEBUG
   // The delays are needed to give time for each syslog packet to be sent. Otherwise a few of the later ones can end up being lost
