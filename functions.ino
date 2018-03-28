@@ -427,7 +427,9 @@ bool newWiFiCredentials() {
     syslog.log(LOG_INFO, logString);
   }
   delay(100);
-  WiFi.disconnect(true);  // Disconnect and discard old credentials
+  WiFi.persistent(true);  // Discard old WiFi credentials, i.e. erase the WiFi credentials
+  WiFi.disconnect();      // Disconnect
+  delay(100);
 
   // using user-provided  _ssid, _pass in place of system-stored ssid and pass
   WiFi.begin(_ssid.c_str(), _psk.c_str());
@@ -513,6 +515,7 @@ void waitForDHCPLease() {
     unsigned long start = millis();
     boolean keepConnecting = true;
     while (keepConnecting) {
+      dhcpIP = WiFi.localIP();
       if (dhcpIP != INADDR_NONE) {
         keepConnecting = false;
       } else {
@@ -520,7 +523,9 @@ void waitForDHCPLease() {
           ( (millis() > start + 5000) && ( disconnect_count = 0 ) ) || 
           ( (millis() > start + 10000) && ( disconnect_count = 1 ) )
           ) {
-          WiFi.disconnect(false);
+          WiFi.persistent(false);  // KEEP old WiFi credentials, i.e. don't erase the WiFi credentials
+          WiFi.disconnect();       // Disconnect
+          delay(100);
           WiFi.begin();
           disconnect_count++;
         }

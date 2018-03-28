@@ -25,7 +25,7 @@
 
 
 #define FWTYPE     3
-#define FWVERSION  "0.9.10"
+#define FWVERSION  "0.9.11"
 #define FWPASSWORD "esp8266."
 //#define USESSD1306                // SSD1306 OLED display
 
@@ -232,20 +232,20 @@ void setup() {
   Serial.println();
 
   strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
-  logString = String(fwname) + " v" + FWVERSION + " booting.";
+  logString = String(fwname) + " v" + FWVERSION + F(" booting.");
   printMessage(logString, true);
   strncpy_P (app_name, app_name_net, sizeof(app_name_net) );
-  logString = "Connecting to '" + String(WiFi.SSID()) + "'";
+  logString = String(F("Connecting to '")) + String(WiFi.SSID()) + "'";
   printMessage(logString, true);
 
 
   uint32_t realSize = ESP.getFlashChipRealSize();
   uint32_t ideSize  = ESP.getFlashChipSize();
   if (ideSize != realSize) {
-    logString = "Flash size config wrong. IDE: " + String(ideSize/1048576.0) + " MB, real: " + String(realSize/1048576.0) + " MB";
+    logString = String(F("Flash size config wrong. IDE: ")) + String(ideSize/1048576.0) + F(" MB, real: ") + String(realSize/1048576.0) + " MB";
     printMessage(logString, true);
     if (ideSize >= realSize) {
-      logString = String(F("\nFlash too small!\nCANNOT BOOT\n"));
+      logString = F("\nFlash too small!\nCANNOT BOOT\n");
       printMessage(logString, true);
       bool ledState = 0;
       while (1) {
@@ -259,6 +259,9 @@ void setup() {
 
   loadConfig();
 
+  strncpy_P (app_name, app_name_wifi, sizeof(app_name_wifi) );
+  logString = String(F("MAC address: ")) + String(WiFi.macAddress());
+  printMessage(logString, true);
 
 #ifdef DEBUG
   dmesg();
@@ -274,7 +277,7 @@ void setup() {
     // Back off for between 0 and 1 seconds before starting Wifi
     // This reduces the sudden current draw when too many sensors start at once or lots of data packets at exactly the same time
     long startupDelay = random(1000);
-    logString = "Startup random delay: " + String(startupDelay);
+    logString = String(F("Startup random delay: ")) + String(startupDelay);
     printMessage(logString, true);
 
     delay( startupDelay );
@@ -282,7 +285,7 @@ void setup() {
 
 
   // This will be available in the setup AP as well
-  logString = String(F("Starting web server"));
+  logString = F("Starting web server");
   printMessage(logString, true);
   httpSetup();
    // These 3 lines tell esp to collect User-Agent and Cookie in http header when request is made 
@@ -303,10 +306,12 @@ void setup() {
     logString += F(" Resetting configuration.");
     printMessage(logString, true);
 
-    // Without this disconnect(true) setting mode to WIFI_AP_STA with corrupted or incorrect credentials can sometimes cause
-    // the ESP8266 to get stuck and have the wdt constantly reboot before you can correct the problem. The false tells it to
-    // retain the save credentials
-    WiFi.disconnect(false);
+    // Without this disconnect() setting mode to WIFI_AP_STA with corrupted or incorrect credentials can sometimes cause
+    // the ESP8266 to get stuck and have the wdt constantly reboot before you can correct the problem. The persitant(false)
+    // tells it to retain the saved credentials (i.e. don't erase anything)
+    WiFi.persistent(false);  // KEEP old WiFi credentials
+    WiFi.disconnect();       // but disconnect
+    delay(100);
     WiFi.mode(WIFI_AP_STA);
     logString = F("Starting AP as ");
     logString += String(fwname);
@@ -371,7 +376,7 @@ void setup() {
 
   //if you get here you have connected to the WiFi
   strncpy_P (app_name, app_name_wifi, sizeof(app_name_wifi) );
-  logString = "Connected";
+  logString = F("Connected");
   printMessage(logString, true);
 
   if (use_syslog) {
@@ -386,20 +391,20 @@ void setup() {
     waitForDHCPLease();
     logString = "DHCP";
   }
-  logString += " IP address: " + IPtoString(WiFi.localIP());
+  logString += String(F(" IP address: ")) + IPtoString(WiFi.localIP());
   printMessage(logString, true);
   if (use_syslog) {
     syslog.appName(app_name);
     syslog.log(LOG_INFO, logString);
   }
 
-  logString = "Subnet mask: " + IPtoString(WiFi.subnetMask());
+  logString = String(F("Subnet mask: ")) + IPtoString(WiFi.subnetMask());
   printMessage(logString, true);
   logString = "Gateway: " + IPtoString(WiFi.gatewayIP());
   printMessage(logString, true);
 
   if (use_staticip) {
-    logString = "DNS Server: " + IPtoString(dns_ip);
+    logString = String(F("DNS Server: ")) + IPtoString(dns_ip);
     printMessage(logString, true);
   }
 
@@ -412,7 +417,7 @@ void setup() {
 
   MDNS.begin(host_name);
   MDNS.addService("http", "tcp", 80);
-  logString = "Web server available by http://" + String(host_name) + ".local/";
+  logString = String(F("Web server available by http://")) + String(host_name) + F(".local/");
   printMessage(logString, true);
 
   if (mqtt_tls) {
@@ -420,7 +425,7 @@ void setup() {
 
     // Synchronize time useing SNTP. This is necessary to verify that
     // the TLS certificates offered by the server are currently valid.
-    logString = "Setting time using SNTP";
+    logString = F("Setting time using SNTP");
     printMessage(logString, true);
 
     configTime(8 * 3600, 0, ntp_server1, ntp_server2);
@@ -497,7 +502,7 @@ void setup() {
 
 
   strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
-  logString = "Startup complete.";
+  logString = F("Startup complete.");
   printMessage(logString, true);
   if (use_syslog) {
     syslog.appName(app_name);
@@ -507,43 +512,43 @@ void setup() {
 
 #ifdef DEBUG
   // The delays are needed to give time for each syslog packet to be sent. Otherwise a few of the later ones can end up being lost
-  logString = "Flash size: " + String(realSize/1048576.0) + " MB";
+  logString = String(F("Flash size: ")) + String(realSize/1048576.0) + " MB";
   printMessage(logString, true);
   if (use_syslog) {
     syslog.log(LOG_INFO, logString);
     delay(1);
   }
-  logString = "Flash size config: " + String(ideSize/1048576.0) + " MB";
+  logString = String(F("Flash size config: ")) + String(ideSize/1048576.0) + " MB";
   printMessage(logString, true);
   if (use_syslog) {
     syslog.log(LOG_INFO, logString);
     delay(1);
   }
-  logString = "Program Size: " + String(ESP.getSketchSize() / 1024) + " kB";
+  logString = String(F("Program Size: ")) + String(ESP.getSketchSize() / 1024) + " kB";
   printMessage(logString, true);
   if (use_syslog) {
     syslog.log(LOG_INFO, logString);
     delay(1);
   }
-  logString = "Free Program Space: " + String(ESP.getFreeSketchSpace() / 1024) + " kB";
+  logString = String(F("Free Program Space: ")) + String(ESP.getFreeSketchSpace() / 1024) + " kB";
   printMessage(logString, true);
   if (use_syslog) {
     syslog.log(LOG_INFO, logString);
     delay(1);
   }
-  logString = "Free Memory: " + String(ESP.getFreeHeap() / 1024) + " kB";
+  logString = String(F("Free Memory: ")) + String(ESP.getFreeHeap() / 1024) + " kB";
   printMessage(logString, true);
   if (use_syslog) {
     syslog.log(LOG_INFO, logString);
     delay(1);
   }
-  logString = "ESP Chip Id: " + String(ESP.getChipId());
+  logString = String(F("ESP Chip Id: ")) + String(ESP.getChipId());
   printMessage(logString, true);
   if (use_syslog) {
     syslog.log(LOG_INFO, logString);
     delay(1);
   }
-  logString = "Flash Chip Id: " + String(ESP.getFlashChipId());
+  logString = String(F("Flash Chip Id: ")) + String(ESP.getFlashChipId());
   printMessage(logString, true);
   if (use_syslog) {
     syslog.log(LOG_INFO, logString);
@@ -620,6 +625,7 @@ void loop() {
       waitForDHCPLease();
     }
 
+    strncpy_P (app_name, app_name_net, sizeof(app_name_net) );
     logString = F("Connected");
     if (use_syslog) {
       syslog.appName(app_name);

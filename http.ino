@@ -287,35 +287,41 @@ void handleSystem() {
 
   httpData += tableStart;
 
-  httpData += trStart + String(F("Firmware version:")) + tdBreak + String(FWVERSION) + trEnd;
+  httpData += trStart + F("Firmware version:") + tdBreak + String(FWVERSION) + trEnd;
 
   httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
 
-  httpData += trStart + "Flash size:" + tdBreak;
+  httpData += trStart + F("MAC address:") + tdBreak;
+  httpData += String(WiFi.macAddress());
+  httpData += trEnd;
+
+  httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
+
+  httpData += trStart + F("Flash size:") + tdBreak;
   httpData += String(ESP.getFlashChipRealSize()/1048576.0) + " MB";
   httpData += trEnd;
 
-  httpData += trStart + "Flash size config:" + tdBreak;
+  httpData += trStart + F("Flash size config:") + tdBreak;
   httpData += String(ESP.getFlashChipSize()/1048576.0) + " MB";
   httpData += trEnd;
 
-  httpData += trStart + "Program size:" + tdBreak;
+  httpData += trStart + F("Program size:") + tdBreak;
   httpData += String(ESP.getSketchSize() / 1024) + " kB";
   httpData += trEnd;
 
-  httpData += trStart + "Free program size:" + tdBreak;
+  httpData += trStart + F("Free program size:") + tdBreak;
   httpData += String(ESP.getFreeSketchSpace() / 1024) + " kB";
   httpData += trEnd;
 
-  httpData += trStart + "Free memory:" + tdBreak;
+  httpData += trStart + F("Free memory:") + tdBreak;
   httpData += String(ESP.getFreeHeap() / 1024) + " kB";
   httpData += trEnd;
 
-  httpData += trStart + "ESP chip ID:" + tdBreak;
+  httpData += trStart + F("ESP chip ID:") + tdBreak;
   httpData += String(ESP.getChipId());
   httpData += trEnd;
 
-  httpData += trStart + "Flash chip ID:" + tdBreak;
+  httpData += trStart + F("Flash chip ID:") + tdBreak;
   httpData += String(ESP.getFlashChipId());
   httpData += trEnd;
 
@@ -324,17 +330,17 @@ void handleSystem() {
   /// send uptime and signal
   unsigned long uptime = millis();
   uptime = uptime / 1000;
-  httpData += trStart + "Uptime:" + tdBreak + String(uptime) + " s" + trEnd;
+  httpData += trStart + F("Uptime:") + tdBreak + String(uptime) + " s" + trEnd;
 
   httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
 
-  httpData += trStart + "SSID:"   + tdBreak + String(ssid) + trEnd;
-  httpData += trStart + "Signal:" + tdBreak + String(WiFi.RSSI()) + " dBm" + trEnd;
-  httpData += trStart + "IP:"     + tdBreak + IPtoString(WiFi.localIP()) + trEnd;
+  httpData += trStart + F("SSID:")   + tdBreak + String(ssid) + trEnd;
+  httpData += trStart + F("Signal:") + tdBreak + String(WiFi.RSSI()) + " dBm" + trEnd;
+  httpData += trStart + F("IP:")     + tdBreak + IPtoString(WiFi.localIP()) + trEnd;
   httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
   httpData += tableEnd;
 
-  httpData += String(F("<meta http-equiv='refresh' content='3' />"));
+  httpData += F("<meta http-equiv='refresh' content='3' />");
   httpData += FPSTR(HTTP_END);
   httpServer.sendHeader("Content-Length", String(httpData.length()));
   httpServer.send(200, "text/html", httpData);
@@ -524,10 +530,10 @@ void handleConfig() {
     saveConfig();
   }
 
-  httpData += String(F("<form action='#' method='POST'>"));
+  httpData += F("<form action='#' method='POST'>");
   httpData += tableStart;
 
-  httpData += thStart + "Network:" + thBreak + thEnd;
+  httpData += thStart + F("Network:") + thBreak + thEnd;
   httpData += trStart + "IP:"                 + tdBreak;
   httpData += htmlRadio("staticip", String(FPSTR(str_true)),          use_staticip)     + "Static IP";
   httpData += htmlRadio("staticip", String(FPSTR(str_false)),         (! use_staticip)) + "DHCP";
