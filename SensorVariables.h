@@ -73,9 +73,11 @@ const char switchNodeVerb[]   = "switch/switch";
 // ************* esp8266-depth-sensor *************
 #elif FWTYPE == 4
 
+// D4 = GPIO2
+// D6 = GPIO12
 char fwname[40] =    "esp8266-depth-sensor";
-#define TRIGGER_PIN  5          // WeMos D1 Mini D1
-#define ECHO_PIN     4          // WeMos D1 Mini D2
+#define TRIGGER_PIN  2          // WeMos D1 Mini D4
+#define ECHO_PIN     12         // WeMos D1 Mini D6
 #define MAX_DISTANCE 400        // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 char nodes[100] =    "distance:cm,depth:cm";
 #include <NewPing.h>            // https://bitbucket.org/teckel12/arduino-new-ping/downloads
