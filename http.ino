@@ -212,6 +212,7 @@ void handleLogin() {
     }
   }
   httpData += "</center>";
+  httpData += FPSTR(HTTP_END);
   httpServer.sendHeader("Content-Length", String(httpData.length()));
   httpServer.send(200, "text/html", httpData );
 }
