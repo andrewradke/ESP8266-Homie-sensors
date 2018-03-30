@@ -1,3 +1,5 @@
+const String mqtt_rc_states[10]  = { "Connection timeout", "Connection lost", "Connect failed", "Disconnected", "Connected", "Connect: bad protocol", "Connect: bad client ID", "Connect: unavailable", "Connect: bad credentials", "Connect: unauthorised" };
+
 void mqttSend(String topic, String data, bool retain) {
 
 #ifdef DEBUG
@@ -51,17 +53,17 @@ void mqttConnect() {
     }
 
     if (mqttResult) {
-      logString = "Connected";
+      logString = F("Connected");
       logMessage(app_name_mqtt, logString, true);
 
       if (mqtt_tls) {
         // Verify validity of server's certificate before doing anything else
-        logString = "server certificate ";
+        logString = F("server certificate ");
         if (espSecureClient.verifyCertChain(mqtt_server)) {
-          logString = logString + "verified";
+          logString = logString + F("verified");
           tlsOkay = true;
         } else {
-          logString = "ERROR: " + logString + "verification failed! Rebooting...";
+          logString = String(F("ERROR: ")) + logString + F("verification failed! Rebooting...");
           tlsOkay = false;
         }
         logMessage(app_name_mqtt, logString, true);
@@ -83,13 +85,15 @@ void mqttConnect() {
       tmpString = String(baseTopic) + String(FPSTR(mqttstr_ota)) + String(FPSTR(str_command));
       tmpString.toCharArray(subTopic, 40);
 
-      logString = String("Subscribing to " + tmpString);
+      logString = String(F("Subscribing to ")) + tmpString;
       logMessage(app_name_mqtt, logString, true);
 
       mqttClient.subscribe(subTopic);
 
     } else {
-      logString = "Failed to connect to MQTT, rc=" + String(mqttClient.state());
+      logString = F("Failed to connect to MQTT, ");
+      logString += mqtt_rc_states[mqttClient.state() + 4];    // The return codes start from -4 so we have to add four to get the correct array position
+      logString += " (rc=" + String(mqttClient.state()) + ")";
       logMessage(app_name_mqtt, logString, true);
     }
   }
