@@ -22,11 +22,7 @@ void mqttSend(String topic, String data, bool retain) {
 
 void mqttLog(String data) {
   mqttSend(String(FPSTR(mqttstr_log)), data, false);
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.appName(app_name);
-    syslog.log(LOG_INFO, data);
-  }
+  logMessage(app_name_mqtt, logString, true);
 }
 
 
@@ -34,8 +30,7 @@ void mqttConnect() {
   if ( mqtt_tls && (! ca_cert_okay) ) {
     return;   // We can't do much if we are meant to use TLS and haven't been able to load the CA certificate
   }
-  strncpy_P (app_name, app_name_mqtt, sizeof(app_name_mqtt) );
-  syslog.appName(app_name);
+
   // Loop until we're reconnected
   if (!mqttClient.connected() && configured) {
     // Attempt to connect
@@ -57,10 +52,7 @@ void mqttConnect() {
 
     if (mqttResult) {
       logString = "Connected";
-      printMessage(logString, true);
-      if (use_syslog) {
-        syslog.log(LOG_INFO, logString);
-      }
+      logMessage(app_name_mqtt, logString, true);
 
       if (mqtt_tls) {
         // Verify validity of server's certificate before doing anything else
@@ -72,10 +64,7 @@ void mqttConnect() {
           logString = "ERROR: " + logString + "verification failed! Rebooting...";
           tlsOkay = false;
         }
-        printMessage(logString, true);
-        if (use_syslog) {
-          syslog.log(LOG_INFO, logString);
-        }
+        logMessage(app_name_mqtt, logString, true);
   
         if (! tlsOkay) {
           delay(1000);
@@ -92,30 +81,22 @@ void mqttConnect() {
 
       char subTopic[40];
       tmpString = String(baseTopic) + String(FPSTR(mqttstr_ota)) + String(FPSTR(str_command));
-      logString = String("Subscribing to " + tmpString);
       tmpString.toCharArray(subTopic, 40);
 
-      printMessage(logString, true);
-      if (use_syslog) {
-        syslog.log(LOG_INFO, logString);
-      }
+      logString = String("Subscribing to " + tmpString);
+      logMessage(app_name_mqtt, logString, true);
+
       mqttClient.subscribe(subTopic);
 
     } else {
       logString = "Failed to connect to MQTT, rc=" + String(mqttClient.state());
-      printMessage(logString, true);
-      if (use_syslog) {
-        syslog.log(LOG_INFO, logString);
-      }
+      logMessage(app_name_mqtt, logString, true);
     }
   }
 }
 
 /// The MQTT callback function for received messages
 void mqttCallback(char* subTopic, byte* payload, unsigned int length) {
-  strncpy_P (app_name, app_name_mqtt, sizeof(app_name_mqtt) );
-  syslog.appName(app_name);
-
   String mqttSubString = "";
   String mqttSubCmd    = "";
   String mqttSubKey    = "";
@@ -192,15 +173,12 @@ void mqttCommand(String cmd, String key, String value) {
     WiFi.begin(ssid.c_str(), psk.c_str(), 0, NULL, false);
   } else if ( cmd == "reboot" ) {
     logString = "Received reboot command.";
-    printMessage(logString, true);
-    if (use_syslog) {
-      syslog.log(LOG_INFO, logString);
-    }
+    logMessage(app_name_mqtt, logString, true);
+
     mqttSend(String(FPSTR(mqttstr_online)), String(FPSTR(str_false)), true);
     ESP.restart();
   } else {
     logString = String("UNKNOWN command: " + key);
-    strncpy_P (app_name, app_name_mqtt, sizeof(app_name_mqtt) );
     mqttLog(logString);
     return;
   }

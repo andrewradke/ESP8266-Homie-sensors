@@ -61,8 +61,12 @@ String htmlHeader() {
         tmpString.replace("{c}", " class='active'");
         tmpString.replace("{l}", http_page_names[i]);
       } else {
-        tmpString.replace("{c}", "");
-        tmpString.replace("{l}", "<a href='" + http_page_urls[i] + "'>" + http_page_names[i] + "</a>");
+        if ( (inConfigAP) && (http_page_urls[i] == "/logout") ) {
+          tmpString = "";
+        } else {
+          tmpString.replace("{c}", "");
+          tmpString.replace("{l}", "<a href='" + http_page_urls[i] + "'>" + http_page_names[i] + "</a>");
+        }
       }
       httpHeader += tmpString;
     }
@@ -114,6 +118,10 @@ bool is_authenticated() {
     if (cookie.indexOf(authk) != -1)
       return true;
   }
+  httpServer.sendHeader("Location","/login");
+  httpServer.sendHeader("Cache-Control","no-cache");
+  httpServer.send(301);
+
   return false;
 }
 
@@ -131,7 +139,7 @@ boolean isIp(String str) {
 
 /** Redirect to captive portal if we got a request for another domain. Return true in that case so the page handler do not try to handle the request again. */
 boolean captivePortal() {
-  if (!isIp(httpServer.hostHeader()) ) {
+  if ( (inConfigAP) && (!isIp(httpServer.hostHeader()) ) ) {
     Serial.println(F("Request redirected to captive portal"));
     httpServer.sendHeader("Location", String("http://") + IPtoString(httpServer.client().localIP()), true);
     httpServer.send ( 302, "text/plain", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
@@ -142,7 +150,7 @@ boolean captivePortal() {
 }
 
 void handleNotFound() {
-  if (captivePortal()) // If captive portal redirect instead of displaying the error page.
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the error page.
     return;
   httpData = htmlHeader();
   httpData += "404: not found: ";
@@ -153,8 +161,8 @@ void handleNotFound() {
 }
 
 void handleLogin() {
-  strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
-  syslog.appName(app_name);
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
 
   httpData = htmlHeader();
 
@@ -206,8 +214,9 @@ void handleLogin() {
 }
 
 void handleLogout() {
-  strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
-  syslog.appName(app_name);
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
+
   //Set 'c=0', it users header, effectively deleting it's header 
   httpServer.sendHeader("Set-Cookie","c=0");
   httpServer.sendHeader("Location","/login");
@@ -218,14 +227,9 @@ void handleLogout() {
 }
 
 void handleRoot() {
-  if (captivePortal()) // If captive portal redirect instead of displaying the page.
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
     return;
-  strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
-  syslog.appName(app_name);
   if (!is_authenticated()) {
-    httpServer.sendHeader("Location","/login");
-    httpServer.sendHeader("Cache-Control","no-cache");
-    httpServer.send(301);
     return;
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
@@ -253,12 +257,9 @@ void handleRoot() {
 }
 
 void handleReboot() {
-  strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
-  syslog.appName(app_name);
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
   if (!is_authenticated()) {
-    httpServer.sendHeader("Location","/login");
-    httpServer.sendHeader("Cache-Control","no-cache");
-    httpServer.send(301);
     return;
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
@@ -273,12 +274,9 @@ void handleReboot() {
 }
 
 void handleSystem() {
-  strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
-  syslog.appName(app_name);
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
   if (!is_authenticated()) {
-    httpServer.sendHeader("Location","/login");
-    httpServer.sendHeader("Cache-Control","no-cache");
-    httpServer.send(301);
     return;
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
@@ -347,12 +345,9 @@ void handleSystem() {
 }
 
 void handleConfig() {
-  strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
-  syslog.appName(app_name);
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
   if (!is_authenticated()) {
-    httpServer.sendHeader("Location","/login");
-    httpServer.sendHeader("Cache-Control","no-cache");
-    httpServer.send(301);
     return;
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
@@ -577,12 +572,9 @@ void handleConfig() {
 }
 
 void handlePassword() {
-  strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
-  syslog.appName(app_name);
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
   if (!is_authenticated()) {
-    httpServer.sendHeader("Location","/login");
-    httpServer.sendHeader("Cache-Control","no-cache");
-    httpServer.send(301);
     return;
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
@@ -665,12 +657,9 @@ void handlePassword() {
 
 /** Wifi config page handler */
 void handleWifi() {
-  strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
-  syslog.appName(app_name);
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
   if (!is_authenticated()) {
-    httpServer.sendHeader("Location","/login");
-    httpServer.sendHeader("Cache-Control","no-cache");
-    httpServer.send(301);
     return;
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
@@ -695,19 +684,11 @@ void handleWifi() {
 
   httpData += "<br/>";
 
-  strncpy_P (app_name, app_name_wifi, sizeof(app_name_wifi) );
-  syslog.appName(app_name);
   logString = F("scan start");
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.log(LOG_INFO, logString);
-  }
+  logMessage(app_name_wifi, logString, true);
   int n = WiFi.scanNetworks();
   logString = F("scan done");
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.log(LOG_INFO, logString);
-  }
+  logMessage(app_name_wifi, logString, true);
 
   if (n == 0) {
     httpData += F("No networks found. Refresh to scan again.");
@@ -777,12 +758,9 @@ void handleWifi() {
 
 /** Handle the WLAN save form and redirect to WLAN config page again */
 void handleWifiSave() {
-  strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
-  syslog.appName(app_name);
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
   if (!is_authenticated()) {
-    httpServer.sendHeader("Location","/login");
-    httpServer.sendHeader("Cache-Control","no-cache");
-    httpServer.send(301);
     return;
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
@@ -822,12 +800,9 @@ void handleWifiSave() {
 
 /** Handle the CA certificate upload page */
 void handleCACert() {
-  strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
-  syslog.appName(app_name);
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
   if (!is_authenticated()) {
-    httpServer.sendHeader("Location","/login");
-    httpServer.sendHeader("Cache-Control","no-cache");
-    httpServer.send(301);
     return;
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
@@ -856,12 +831,9 @@ void handleCACert() {
 
 /* Handle a file being uploaded */
 void handleCAUpload() {
-  strncpy_P (app_name, app_name_http, sizeof(app_name_http) );
-  syslog.appName(app_name);
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
   if (!is_authenticated()) {
-    httpServer.sendHeader("Location","/login");
-    httpServer.sendHeader("Cache-Control","no-cache");
-    httpServer.send(301);
     return;
   }
   tempign = millis(); //reset the inactivity timer if someone logs in

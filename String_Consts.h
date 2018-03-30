@@ -10,13 +10,13 @@ static const char default_httpPasswd[]      PROGMEM = "esp8266";
 
 ///// strings used in various places
 
-static const char app_name_sys[10]     PROGMEM = "SYS";
-static const char app_name_net[10]     PROGMEM = "NET";
-static const char app_name_cfg[10]     PROGMEM = "CFG";
-static const char app_name_wifi[10]    PROGMEM = "WIFI";
-static const char app_name_mqtt[10]    PROGMEM = "MQTT";
-static const char app_name_http[10]    PROGMEM = "HTTP";
-static const char app_name_sensors[10] PROGMEM = "Sensors";
+const String app_name_sys     = "SYS";
+const String app_name_net     = "NET";
+const String app_name_cfg     = "CFG";
+const String app_name_wifi    = "WIFI";
+const String app_name_mqtt    = "MQTT";
+const String app_name_http    = "HTTP";
+const String app_name_sensors = "Sensors";
 
 
 ///// strings used for config

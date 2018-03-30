@@ -33,6 +33,8 @@
 //#define DEBUG
 #define SERIALSPEED 74880
 
+#define LED_BUILTIN 2
+
 #include <ESP8266WiFi.h>          // ESP8266 Core WiFi Library
 
 #include <ESP8266WebServer.h>     // Local WebServer used to serve the configuration portal
@@ -67,8 +69,8 @@ char     ntp_server2[41];
 #include <WiFiClientSecure.h>
 // Root certificate used by mqtt.home.deepport.net.
 // Defined in "CACert" tab.
-extern const unsigned char caCert[] PROGMEM;
-extern const unsigned int caCertLen;
+//extern const unsigned char caCert[] PROGMEM;
+//extern const unsigned int caCertLen;
 bool tlsOkay = false;
 
 
@@ -84,7 +86,7 @@ char     syslog_server[41];
 uint16_t loglevel          = LOG_NOTICE;
 WiFiUDP  udpClient;
 Syslog   syslog(udpClient, SYSLOG_PROTO_IETF);
-char     app_name[10];     // printMessage will use this too so it's always declared
+//char     app_name[10];     // printMessage will use this too so it's always declared
 
 
 #ifdef USESSD1306
@@ -186,12 +188,12 @@ bool   ca_cert_okay    = false;
 ////////////////////////////////////// setup ///////////////////////////////////////
 
 void setup() {
-#ifdef DEBUG
   pinMode(LED_BUILTIN, OUTPUT);     // Initialize the LED_BUILTIN pin as an output
   digitalWrite(LED_BUILTIN, LOW);   // Turn the LED on (Note that LOW is the voltage level
-  // but actually the LED is on; this is because
-  // it is acive low on the ESP-01)
+                                    // but actually the LED is on; this is because
+                                    // it is acive low on the ESP-01)
 
+#ifdef DEBUG
   tmpString = String(fwname);
   tmpString = String(tmpString + "-DEBUG");
   tmpString.toCharArray(fwname, 40);
@@ -209,6 +211,7 @@ void setup() {
   memcpy( ntp_server2,   default_ntp_server2,   41);
   memcpy( syslog_server, default_syslog_server, 41);
   memcpy( mqtt_server,   default_mqtt_server,   41);
+  memcpy( mqtt_name,     fwname,                21);
 
   httpUser   = String(FPSTR(default_httpUser));
   httpPasswd = String(FPSTR(default_httpPasswd));
@@ -231,22 +234,23 @@ void setup() {
 
   Serial.println();
 
-  strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
+
   logString = String(fwname) + " v" + FWVERSION + F(" booting.");
-  printMessage(logString, true);
-  strncpy_P (app_name, app_name_net, sizeof(app_name_net) );
+  printMessage(app_name_sys, logString, true);
+
   logString = String(F("Connecting to '")) + String(WiFi.SSID()) + "'";
-  printMessage(logString, true);
+  printMessage(app_name_wifi, logString, true);
 
 
   uint32_t realSize = ESP.getFlashChipRealSize();
   uint32_t ideSize  = ESP.getFlashChipSize();
   if (ideSize != realSize) {
     logString = String(F("Flash size config wrong. IDE: ")) + String(ideSize/1048576.0) + F(" MB, real: ") + String(realSize/1048576.0) + " MB";
-    printMessage(logString, true);
+    printMessage(app_name_sys, logString, true);
+
     if (ideSize >= realSize) {
       logString = F("\nFlash too small!\nCANNOT BOOT\n");
-      printMessage(logString, true);
+      printMessage(app_name_sys, logString, true);
       bool ledState = 0;
       while (1) {
         digitalWrite(LED_BUILTIN, ledState);
@@ -259,9 +263,8 @@ void setup() {
 
   loadConfig();
 
-  strncpy_P (app_name, app_name_wifi, sizeof(app_name_wifi) );
   logString = String(F("MAC address: ")) + String(WiFi.macAddress());
-  printMessage(logString, true);
+  printMessage(app_name_wifi, logString, true);
 
 #ifdef DEBUG
   dmesg();
@@ -278,7 +281,7 @@ void setup() {
     // This reduces the sudden current draw when too many sensors start at once or lots of data packets at exactly the same time
     long startupDelay = random(1000);
     logString = String(F("Startup random delay: ")) + String(startupDelay);
-    printMessage(logString, true);
+    printMessage(app_name_sys, logString, true);
 
     delay( startupDelay );
   }
@@ -286,7 +289,7 @@ void setup() {
 
   // This will be available in the setup AP as well
   logString = F("Starting web server");
-  printMessage(logString, true);
+  printMessage(app_name_http, logString, true);
   httpSetup();
    // These 3 lines tell esp to collect User-Agent and Cookie in http header when request is made 
   const char * headerkeys[] = {"User-Agent","Cookie"} ;
@@ -304,7 +307,36 @@ void setup() {
     if (! configLoaded)
       logString = F("Config file failed to load.");
     logString += F(" Resetting configuration.");
-    printMessage(logString, true);
+    printMessage(app_name_cfg, logString, true);
+
+    while ( digitalRead(CONFIG_PIN) == LOW )
+      yield();
+    uint16_t config_length = millis();
+
+    if (config_length >= 10000) {
+      logString = F("Config pin pressed for  more than 10 seconds. Performing factory default reset.");
+      printMessage(app_name_cfg, logString, true);
+
+      if (SPIFFS.begin()) {
+        SPIFFS.format();
+      }
+      WiFi.persistent(true);  // Discard old WiFi credentials, i.e. erase the WiFi credentials
+      WiFi.disconnect();      // Disconnect
+
+      logString = F("Done.");
+      printMessage(app_name_cfg, logString, true);
+
+      bool ledState = 0;
+      for (byte i=0;i<20;i++) {
+        digitalWrite(LED_BUILTIN, ledState);
+        ledState = 1 - ledState;
+        delay(500);
+      }
+      delay(1000);
+      //reboot and try again, or maybe put it to deep sleep
+      ESP.restart();
+      delay(5000);
+    }
 
     // Without this disconnect() setting mode to WIFI_AP_STA with corrupted or incorrect credentials can sometimes cause
     // the ESP8266 to get stuck and have the wdt constantly reboot before you can correct the problem. The persitant(false)
@@ -315,7 +347,7 @@ void setup() {
     WiFi.mode(WIFI_AP_STA);
     logString = F("Starting AP as ");
     logString += String(fwname);
-    printMessage(logString, true);
+    printMessage(app_name_wifi, logString, true);
     WiFi.softAP(fwname, FWPASSWORD);
 
     connectNewWifi = false;
@@ -338,7 +370,7 @@ void setup() {
     while (true) {
       if ( millis() >= (configPortalStart + (1000 * configPortalTimeout ) ) ) {
         logString = F("Config portal timeout reached. Rebooting.");
-        printMessage(logString, true);
+        printMessage(app_name_sys, logString, true);
         delay(500);
         //reboot and try again, or maybe put it to deep sleep
         ESP.restart();
@@ -347,13 +379,15 @@ void setup() {
       dnsServer.processNextRequest();
       httpServer.handleClient();
       if (connectNewWifi) {
-        delay(1000);
+        saveConfig(); // Save a config file, with the defaults if nothing else has been set.                                                                                            
+        delay(100);
         if (newWiFiCredentials()) {
           break;
         }
       }
       yield();
     }
+    inConfigAP     = true;
   } else {
     WiFi.begin();
   }
@@ -375,16 +409,12 @@ void setup() {
   psk  = WiFi.psk();
 
   //if you get here you have connected to the WiFi
-  strncpy_P (app_name, app_name_wifi, sizeof(app_name_wifi) );
   logString = F("Connected");
-  printMessage(logString, true);
+  logMessage(app_name_wifi, logString, true);
 
-  if (use_syslog) {
-    syslog.appName(app_name);
-    syslog.log(LOG_INFO, logString);
-  }
+  logString = String(fwname) + " v" + FWVERSION;
+  logMessage(app_name_sys, logString, true);
 
-  strncpy_P (app_name, app_name_net, sizeof(app_name_net) );
   if (use_staticip) {
     logString = "Static";
   } else {
@@ -392,33 +422,21 @@ void setup() {
     logString = "DHCP";
   }
   logString += String(F(" IP address: ")) + IPtoString(WiFi.localIP());
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.appName(app_name);
-    syslog.log(LOG_INFO, logString);
-  }
-
+  logMessage(app_name_net, logString, true);
   logString = String(F("Subnet mask: ")) + IPtoString(WiFi.subnetMask());
-  printMessage(logString, true);
+  logMessage(app_name_net, logString, true);
   logString = "Gateway: " + IPtoString(WiFi.gatewayIP());
-  printMessage(logString, true);
+  logMessage(app_name_net, logString, true);
 
   if (use_staticip) {
     logString = String(F("DNS Server: ")) + IPtoString(dns_ip);
-    printMessage(logString, true);
-  }
-
-
-  if (use_syslog) {
-    strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
-    logString = String(fwname) + " v" + FWVERSION;;
-    syslog.log(LOG_INFO, logString);
+    logMessage(app_name_net, logString, true);
   }
 
   MDNS.begin(host_name);
   MDNS.addService("http", "tcp", 80);
   logString = String(F("Web server available by http://")) + String(host_name) + F(".local/");
-  printMessage(logString, true);
+  logMessage(app_name_http, logString, true);
 
   if (mqtt_tls) {
     mqttClient.setClient(espSecureClient);
@@ -426,7 +444,7 @@ void setup() {
     // Synchronize time useing SNTP. This is necessary to verify that
     // the TLS certificates offered by the server are currently valid.
     logString = F("Setting time using SNTP");
-    printMessage(logString, true);
+    logMessage(app_name_sys, logString, true);
 
     configTime(8 * 3600, 0, ntp_server1, ntp_server2);
     time_t now = time(nullptr);
@@ -439,25 +457,28 @@ void setup() {
     gmtime_r(&now, &timeinfo);
     logString = String(asctime(&timeinfo));
     logString.trim();
-    printMessage(logString, true);
+    logMessage(app_name_sys, logString, true);
 
     if ( SPIFFS.exists(certfilename) ) {
       File certfile = SPIFFS.open(certfilename, "r");
       if (certfile) {
         logString = F("Opened CA certificate file.");
-        printMessage(logString, true);
+        logMessage(app_name_mqtt, logString, true);
 
         size_t size = certfile.size();
         if (espSecureClient.loadCACert(certfile, certfile.size()) ) {
           ca_cert_okay = true;
         } else {
           logString = F("Failed to load root CA certificate! MQTT disabled.");
-          printMessage(logString, true);
-          if (use_syslog) {
-            syslog.log(LOG_INFO, logString);
-          }
+          logMessage(app_name_mqtt, logString, true);
         }
+      } else {
+        logString = F("Failed to open CA certificate! MQTT disabled.");
+        logMessage(app_name_mqtt, logString, true);
       }
+    } else {
+      logString = F("CA certificate doesn't exist! MQTT disabled.");
+      logMessage(app_name_mqtt, logString, true);
     }
   } else {
     mqttClient.setClient(espClient);
@@ -469,20 +490,11 @@ void setup() {
   baseTopic = String("homie/" + baseTopic);
   baseTopic = String(baseTopic + '/');
 
-  strncpy_P (app_name, app_name_mqtt, sizeof(app_name_mqtt) );
   logString = String("topic: " + baseTopic);
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.appName(app_name);
-    syslog.log(LOG_INFO, logString);
-  }
-
+  logMessage(app_name_mqtt, logString, true);
 
   logString = "server: " + String(mqtt_server) + ':' + String(mqtt_port);
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.log(LOG_INFO, logString);
-  }
+  logMessage(app_name_mqtt, logString, true);
 
   mqttClient.setServer(mqtt_server, atoi( mqtt_port ));
   mqttClient.setCallback(mqttCallback);
@@ -500,60 +512,31 @@ void setup() {
 
   mqtt_send_systeminfo();
 
-
-  strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
   logString = F("Startup complete.");
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.appName(app_name);
-    syslog.log(LOG_INFO, logString);
-  }
+  logMessage(app_name_sys, logString, true);
 
 
 #ifdef DEBUG
-  // The delays are needed to give time for each syslog packet to be sent. Otherwise a few of the later ones can end up being lost
   logString = String(F("Flash size: ")) + String(realSize/1048576.0) + " MB";
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.log(LOG_INFO, logString);
-    delay(1);
-  }
+  logMessage(app_name_sys, logString, true);
+
   logString = String(F("Flash size config: ")) + String(ideSize/1048576.0) + " MB";
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.log(LOG_INFO, logString);
-    delay(1);
-  }
+  logMessage(app_name_sys, logString, true);
+
   logString = String(F("Program Size: ")) + String(ESP.getSketchSize() / 1024) + " kB";
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.log(LOG_INFO, logString);
-    delay(1);
-  }
+  logMessage(app_name_sys, logString, true);
+
   logString = String(F("Free Program Space: ")) + String(ESP.getFreeSketchSpace() / 1024) + " kB";
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.log(LOG_INFO, logString);
-    delay(1);
-  }
+  logMessage(app_name_sys, logString, true);
+
   logString = String(F("Free Memory: ")) + String(ESP.getFreeHeap() / 1024) + " kB";
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.log(LOG_INFO, logString);
-    delay(1);
-  }
+  logMessage(app_name_sys, logString, true);
+
   logString = String(F("ESP Chip Id: ")) + String(ESP.getChipId());
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.log(LOG_INFO, logString);
-    delay(1);
-  }
+  logMessage(app_name_sys, logString, true);
+
   logString = String(F("Flash Chip Id: ")) + String(ESP.getFlashChipId());
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.log(LOG_INFO, logString);
-    delay(1);
-  }
+  logMessage(app_name_sys, logString, true);
 #endif
 
 
@@ -617,20 +600,15 @@ void loop() {
     reconnected = true;   // Records that we have reconnected
   }
   if (reconnected == true) {
-    strncpy_P (app_name, app_name_wifi, sizeof(app_name_wifi) );
     logString = F("Connected");
-    printMessage(logString, true);
+    logMessage(app_name_wifi, logString, true);
 
     if (!use_staticip) {
       waitForDHCPLease();
     }
 
-    strncpy_P (app_name, app_name_net, sizeof(app_name_net) );
     logString = F("Connected");
-    if (use_syslog) {
-      syslog.appName(app_name);
-      syslog.log(LOG_INFO, logString);
-    }
+    logMessage(app_name_net, logString, true);
   }
 
 

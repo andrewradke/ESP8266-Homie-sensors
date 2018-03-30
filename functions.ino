@@ -18,7 +18,7 @@ String IPtoString(IPAddress address) {
 }
 
 
-void printMessage(String message, bool oled) {
+void printMessage(String app_name, String message, bool oled) {
   dmesg();
   Serial.print(app_name);
   Serial.print(": ");
@@ -71,6 +71,18 @@ void printMessage(String message, bool oled) {
 #endif
 }
 
+void logMessage(String app_name, String message, bool oled) {
+  printMessage(app_name, logString, oled);
+
+  if (use_syslog) {
+    char appname[10];
+    app_name.toCharArray(appname,10);
+    syslog.appName(appname);
+    syslog.log(LOG_INFO, logString);
+    // The delay is needed to give time for each syslog packet to be sent. Otherwise a few of the later ones can end up being lost
+    delay(1);
+  }
+}
 
 void mqtt_send_systeminfo() {
   mqttSend(String(FPSTR(mqttstr_online)),       String(FPSTR(str_true)), true);
@@ -84,8 +96,6 @@ void mqtt_send_systeminfo() {
 
 
 void saveConfig() {
-  strncpy_P (app_name, app_name_cfg, sizeof(app_name_cfg) );
-  syslog.appName(app_name);
   char* cfg_name;
 
   logString = "Saving config";
@@ -145,10 +155,7 @@ void saveConfig() {
   File configFile = SPIFFS.open(configfilename, "w");
   if (!configFile) {
     logString = String(F("Failed to open config file for writing."));
-    printMessage(logString, true);
-    if (use_syslog) {
-      syslog.log(LOG_ERR, logString);
-    }
+    logMessage(app_name_cfg, logString, true);
   }
 
   dmesg();
@@ -160,19 +167,16 @@ void saveConfig() {
 
 
 void loadConfig() {
-  strncpy_P (app_name, app_name_cfg, sizeof(app_name_cfg) );
-  syslog.appName(app_name);
-
   //read configuration from FS json
   logString = String(F("Mounting FS..."));
-  printMessage(logString, true);
+  logMessage(app_name_sys, logString, true);
 
   if (SPIFFS.begin()) {
     if (SPIFFS.exists(configfilename)) {
       File configFile = SPIFFS.open(configfilename, "r");
       if (configFile) {
         logString = String(F("Opened config file."));
-        printMessage(logString, true);
+        logMessage(app_name_cfg, logString, true);
 
         size_t size = configFile.size();
         // Allocate a buffer to store contents of the file.
@@ -282,27 +286,24 @@ void loadConfig() {
 
         } else {
           logString = String(F("Corrupted json config file."));
-          printMessage(logString, true);
+          logMessage(app_name_cfg, logString, true);
         }
       } else {
         logString = String(F("Failed to open config file."));
-        printMessage(logString, true);
+        logMessage(app_name_cfg, logString, true);
       }
     } else {
       logString = String(F("No existing config file."));
-      printMessage(logString, true);
+      logMessage(app_name_cfg, logString, true);
     }
   } else {
     logString = String(F("Failed to mount FS."));
-    printMessage(logString, true);
+    logMessage(app_name_sys, logString, true);
   }
 }  //end readConfig
 
 
 void updateConfig(String key, String value) {
-  strncpy_P (app_name, app_name_cfg, sizeof(app_name_cfg) );
-  syslog.appName(app_name);
-
   if ( key == "ssid" ) {
     ssid = value;
   } else if ( key == "psk" ) {
@@ -343,16 +344,12 @@ void updateConfig(String key, String value) {
 
   } else if (! sensorUpdateConfig(key, value)) {
     logString = String("UNKNOWN config parameter: " + key);
-    strncpy_P (app_name, app_name_cfg, sizeof(app_name_cfg) );
     mqttLog(logString);
     return;
   }
 }
 
 void runAction(String key, String value) {
-  strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
-  syslog.appName(app_name);
-
   if ( key == "reboot" ) {
     logString = String(F("Received reboot command."));
     mqttLog(logString);
@@ -371,9 +368,6 @@ void runAction(String key, String value) {
 
 
 void updateFirmware(String url) {
-  strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
-  syslog.appName(app_name);
-
   logString = String(F("Firmware upgrade requested: "));
   logString = logString + url;
   mqttLog(logString);
@@ -404,9 +398,9 @@ void updateFirmware(String url) {
 
 void setupSyslog() {
   // Setup syslog
-  strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
+
   logString = String(F("Syslog server: ")) + String(syslog_server);
-  printMessage(logString, true);
+  logMessage(app_name_sys, logString, true);
 
   syslog.server(syslog_server, 514);
   syslog.deviceHostname(host_name);
@@ -418,14 +412,10 @@ void setupSyslog() {
 bool newWiFiCredentials() {
   connectNewWifi = false;
   bool result;
-  strncpy_P (app_name, app_name_wifi, sizeof(app_name_wifi) );
 
   logString = String(F("Request to change WiFi network from '")) + ssid + "' to '" + _ssid + String(F("'. Disconnecting from existing network."));
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.appName(app_name);
-    syslog.log(LOG_INFO, logString);
-  }
+  logMessage(app_name_wifi, logString, true);
+
   delay(100);
   WiFi.persistent(true);  // Discard old WiFi credentials, i.e. erase the WiFi credentials
   WiFi.disconnect();      // Disconnect
@@ -435,7 +425,7 @@ bool newWiFiCredentials() {
   WiFi.begin(_ssid.c_str(), _psk.c_str());
 
   logString = F("Waiting for connection result with 10s timeout");
-  printMessage(logString, true);
+  printMessage(app_name_wifi, logString, true);
 
   unsigned long start = millis();
   boolean keepConnecting = true;
@@ -445,7 +435,7 @@ bool newWiFiCredentials() {
     if (millis() > start + 10000) {
       keepConnecting = false;
       logString = F("Connection timed out");
-      printMessage(logString, true);
+      printMessage(app_name_wifi, logString, true);
     }
     if (wifiStatus == WL_CONNECTED || wifiStatus == WL_CONNECT_FAILED) {
       keepConnecting = false;
@@ -455,11 +445,7 @@ bool newWiFiCredentials() {
   }
 
   logString = String(F("Connection result: ")) + String(wifiStatus);
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.appName(app_name);
-    syslog.log(LOG_INFO, logString);
-  }
+  logMessage(app_name_wifi, logString, true);
 
   if (wifiStatus != WL_CONNECTED) {
     logString = F("Failed to connect.");
@@ -474,11 +460,7 @@ bool newWiFiCredentials() {
   }
   waitForDHCPLease();
 
-  printMessage(logString, true);
-  if (use_syslog) {
-    syslog.appName(app_name);
-    syslog.log(LOG_INFO, logString);
-  }
+  logMessage(app_name_wifi, logString, true);
 
   return result;
 }
@@ -486,9 +468,8 @@ bool newWiFiCredentials() {
 void checkWatchdog() {
   currentTime = millis();
   if ( currentTime >= (watchdog + (1000 * mqtt_watchdog ) ) && ! httpLogin) {
-    strncpy_P (app_name, app_name_sys, sizeof(app_name_sys) );
     logString = String(F("No MQTT data in ")) + String(mqtt_watchdog) + String(F(" seconds. Rebooting."));
-    printMessage(logString, true);
+    logMessage(app_name_sys, logString, true);
 
     delay(1000);
     //reboot and try again, or maybe put it to deep sleep
@@ -498,9 +479,6 @@ void checkWatchdog() {
 }
 
 void waitForDHCPLease() {
-  strncpy_P (app_name, app_name_net, sizeof(app_name_net) );
-  syslog.appName(app_name);
-
   // Check if an IP address lease has been received and loop until it has
   IPAddress dhcpIP = WiFi.localIP();
   bool hasLease = (dhcpIP != INADDR_NONE);
@@ -509,7 +487,7 @@ void waitForDHCPLease() {
     return;
   } else {
     logString = F("Waiting max 15 seconds for DHCP lease.");
-    printMessage(logString, true);
+    printMessage(app_name_net, logString, true);
     byte disconnect_count = 0;
 
     unsigned long start = millis();
@@ -534,7 +512,7 @@ void waitForDHCPLease() {
           keepConnecting = false;
           Serial.println();
           logString = F("DHCP timed out");
-          printMessage(logString, true);
+          printMessage(app_name_net, logString, true);
         }
         Serial.print('.');
         delay(500);
@@ -547,7 +525,7 @@ void waitForDHCPLease() {
 
     if (dhcpIP == INADDR_NONE) {
       logString = F("No DHCP lease in 15 seconds. Rebooting.");
-      printMessage(logString, true);
+      printMessage(app_name_net, logString, true);
   
       delay(1000);
       //reboot and try again, or maybe put it to deep sleep
