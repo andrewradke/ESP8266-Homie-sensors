@@ -24,6 +24,7 @@ const String http_page_names[MENU_COUNT] = { "Home", "Configuration", "Device In
 
 
 File fsUploadFile;   // a File object to temporarily store the received files
+String firmwareUpdateError;
 
 void httpSetup() {
   gencookie(); //generate new cookie on device start
@@ -38,6 +39,8 @@ void httpSetup() {
   httpServer.on("/password",     handlePassword );
   httpServer.on("/cacert",       HTTP_GET, handleCACert);
   httpServer.on("/cacert",       HTTP_POST, [](){ httpServer.send(200, "text/html", ""); }, handleCAUpload);
+  httpServer.on("/firmware",     HTTP_GET, handleFirmware);
+  httpServer.on("/firmware",     HTTP_POST, handleFirmwareUploadComplete, handleFirmwareUpload);
   httpServer.on("/reboot",       handleReboot );
   httpServer.on("/login",        handleLogin );
   httpServer.on("/logout",       handleLogout );
@@ -256,6 +259,104 @@ void handleRoot() {
   httpServer.send(200, "text/html", httpData);
 }
 
+void handleFirmware() {
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
+  if (!is_authenticated()) {
+    return;
+  }
+  tempign = millis(); //reset the inactivity timer if someone logs in
+
+  httpData = htmlHeader();
+
+  httpData += F("Select a firmware file to upload.<br />Be certain to make sure it's compiled with the same SPIFFS size or the next boot will fail.<br/>");
+  httpData += F("<form action='#' method='POST' enctype='multipart/form-data'>");
+  httpData += F("<input type='file' name='firmware'>");
+  httpData += F("<br/><button type='submit'>Update</button></form>");
+
+  httpData += FPSTR(HTTP_END);
+  httpServer.sendHeader("Content-Length", String(httpData.length()));
+  httpServer.send(200, "text/html", httpData);
+}
+
+void handleFirmwareUploadComplete() {
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
+  if (!is_authenticated()) {
+    return;
+  }
+  tempign = millis(); //reset the inactivity timer if someone logs in
+
+  if (Update.hasError()) {
+    httpData = htmlHeader();
+    httpData += F("<h2 style='color:red'>Firmware update failed.</h2>");
+    httpData += String(F("<pre>")) + firmwareUpdateError + F("</pre>");
+  
+    httpData += FPSTR(HTTP_END);
+    httpServer.sendHeader(F("Content-Length"), String(httpData.length()));
+    httpServer.send(200, "text/html", httpData);
+
+    // Can restart WiFiUDP here?
+  } else {
+    httpServer.client().setNoDelay(true);
+    httpData = F("<html><head><meta http-equiv='refresh' content='10;url=/' /></head><body><p>Update Success! Rebooting...</p></body></html>");
+    httpServer.sendHeader(F("Content-Length"), String(httpData.length()));
+    httpServer.send(200, "text/html", httpData);
+    delay(100);
+    httpServer.client().stop();
+    ESP.restart();
+  }
+}
+
+void handleFirmwareUpload() {
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
+  if (!is_authenticated()) {
+    return;
+  }
+  tempign = millis(); //reset the inactivity timer if someone logs in
+
+  HTTPUpload& upload = httpServer.upload();
+
+  if (upload.status == UPLOAD_FILE_START) {
+    firmwareUpdateError = "";
+    Serial.setDebugOutput(true);
+    logString = String(F("Firmware update: ")) +  upload.filename;
+    logMessage(app_name_sys, logString, true);
+    WiFiUDP::stopAll();
+
+    uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+    if (!Update.begin(maxSketchSpace)) {                  // start with max available size
+      Update.printError(Serial);
+      StreamString str;
+      Update.printError(str);
+      firmwareUpdateError = str.c_str();
+    }
+  } else if (upload.status == UPLOAD_FILE_WRITE && !firmwareUpdateError.length()) {
+    Serial.printf(".");
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize){
+      Update.printError(Serial);
+      StreamString str;
+      Update.printError(str);
+      firmwareUpdateError = str.c_str();
+    }
+  } else if (upload.status == UPLOAD_FILE_END && !firmwareUpdateError.length()) {
+    if (Update.end(true)) {                               // true to set the size to the current progress
+      Serial.printf("Update Success: %u\nReboot required...\n", upload.totalSize);
+    } else {
+      Update.printError(Serial);
+      StreamString str;
+      Update.printError(str);
+      firmwareUpdateError = str.c_str();
+    }
+    Serial.setDebugOutput(false);
+  } else if(upload.status == UPLOAD_FILE_ABORTED) {
+    Update.end();
+    Serial.println("Update was aborted");
+  }
+  delay(0);
+}
+
 void handleReboot() {
   if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
     return;
@@ -264,7 +365,7 @@ void handleReboot() {
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
 
-  httpData = String(F("<html><head><meta http-equiv='refresh' content='3;url=/' /></head><p>Rebooting...</p>"));
+  httpData = F("<html><head><meta http-equiv='refresh' content='10;url=/' /></head><body><p>Rebooting...</p></body></html>");
   httpData += FPSTR(HTTP_END);
   httpServer.sendHeader("Content-Length", String(httpData.length()));
   httpServer.send(200, "text/html", httpData);
@@ -817,7 +918,7 @@ void handleCACert() {
     httpData += F(" bytes<hr>");
   }
 
-  httpData += F("Select a file to uplad with the CA certificate in DER format.<br/>");
+  httpData += F("Select a file to upload with the CA certificate in DER format.<br/>");
   httpData += F("A certificate can be converted to DER format with openssl with the following command edited as appropriate:");
   httpData += F("<pre>openssl x509 -in CACert.pem -out CACert.der -outform DER</pre>");
   httpData += F("<form action='#' method='POST' enctype='multipart/form-data'>");

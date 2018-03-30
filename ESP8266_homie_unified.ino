@@ -24,8 +24,8 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     4
-#define FWVERSION  "0.9.11"
+#define FWTYPE     3
+#define FWVERSION  "0.9.13"
 #define FWPASSWORD "esp8266."
 //#define USESSD1306                // SSD1306 OLED display
 
@@ -33,7 +33,7 @@
 //#define DEBUG
 #define SERIALSPEED 74880
 
-#define LED_BUILTIN 2
+//#define LED_BUILTIN 2
 
 #include <ESP8266WiFi.h>          // ESP8266 Core WiFi Library
 
@@ -42,6 +42,7 @@
 #include <ESP8266httpUpdate.h>
 #include <ESP8266mDNS.h>
 #include <ESP8266WebServer.h>
+#include "StreamString.h"         // Need for web server firmware update
 
 #include <ArduinoJson.h>          // https://github.com/bblanchon/ArduinoJson
 #include <PubSubClient.h>         // http://pubsubclient.knolleary.net/
