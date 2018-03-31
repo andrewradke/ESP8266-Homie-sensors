@@ -88,7 +88,7 @@ String htmlInput(String inputType, String inputName, String inputValue) {
 }
 
 String htmlCheckbox(String inputName, const bool inputChecked) {
-  String tmpString = "<input type='checkbox' name='" + inputName + "'";
+  String tmpString = String(F("<input type='checkbox' name='")) + inputName + "'";
   if (inputChecked) {
     tmpString += " checked";
   }
@@ -97,7 +97,7 @@ String htmlCheckbox(String inputName, const bool inputChecked) {
 }
 
 String htmlRadio(String inputName, String inputValue, const bool inputChecked) {
-  String tmpString = "<input type='radio' name='" + inputName + "' value='" + inputValue + "'";
+  String tmpString = String(F("<input type='radio' name='")) + inputName + "' value='" + inputValue + "'";
   if (inputChecked) {
     tmpString += " checked";
   }
@@ -156,7 +156,7 @@ void handleNotFound() {
   if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the error page.
     return;
   httpData = htmlHeader();
-  httpData += "404: not found: ";
+  httpData += F("404: not found: ");
   httpData += httpServer.uri();
   httpData += FPSTR(HTTP_END);
   httpServer.sendHeader("Content-Length", String(httpData.length()));
@@ -288,21 +288,21 @@ void handleFirmwareUploadComplete() {
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
 
+  httpData = "</p>";
+
   if (Update.hasError()) {
-    httpData = htmlHeader();
     httpData += F("<h2 style='color:red'>Firmware update failed.</h2>");
     httpData += String(F("<pre>")) + firmwareUpdateError + F("</pre>");
   
     httpData += FPSTR(HTTP_END);
-    httpServer.sendHeader(F("Content-Length"), String(httpData.length()));
-    httpServer.send(200, "text/html", httpData);
+    httpServer.sendContent(httpData);
+    httpServer.client().stop(); // Stop is needed because we sent no content length
 
     // Can restart WiFiUDP here?
   } else {
     httpServer.client().setNoDelay(true);
-    httpData = F("<html><head><meta http-equiv='refresh' content='10;url=/' /></head><body><p>Update Success! Rebooting...</p></body></html>");
-    httpServer.sendHeader(F("Content-Length"), String(httpData.length()));
-    httpServer.send(200, "text/html", httpData);
+    httpData += F("<meta http-equiv='refresh' content='15;url=/' /><p>Update Success! Rebooting...</p></body></html>");
+    httpServer.sendContent(httpData);
     delay(100);
     httpServer.client().stop();
     ESP.restart();
@@ -326,6 +326,15 @@ void handleFirmwareUpload() {
     logMessage(app_name_sys, logString, true);
     WiFiUDP::stopAll();
 
+    httpServer.client().setNoDelay(true);
+    httpServer.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    httpServer.send(200, "text/html", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
+  
+    httpData = htmlHeader();
+    httpData += F("<p style='background-color:#0A0;width:fit-content;'>");
+  
+    httpServer.sendContent(httpData);
+
     uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
     if (!Update.begin(maxSketchSpace)) {                  // start with max available size
       Update.printError(Serial);
@@ -335,6 +344,8 @@ void handleFirmwareUpload() {
     }
   } else if (upload.status == UPLOAD_FILE_WRITE && !firmwareUpdateError.length()) {
     Serial.printf(".");
+    httpServer.sendContent(".");
+
     if (Update.write(upload.buf, upload.currentSize) != upload.currentSize){
       Update.printError(Serial);
       StreamString str;
@@ -353,7 +364,8 @@ void handleFirmwareUpload() {
     Serial.setDebugOutput(false);
   } else if(upload.status == UPLOAD_FILE_ABORTED) {
     Update.end();
-    Serial.println("Update was aborted");
+    firmwareUpdateError = F("Update was aborted");
+    Serial.println(firmwareUpdateError);
   }
   delay(0);
 }
@@ -413,6 +425,8 @@ void handleSystem() {
   httpData += String(ESP.getFreeSketchSpace() / 1024) + " kB";
   httpData += trEnd;
 
+  httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
+
   httpData += trStart + F("Free memory:") + tdBreak;
   httpData += String(ESP.getFreeHeap() / 1024) + " kB";
   httpData += trEnd;
@@ -423,6 +437,19 @@ void handleSystem() {
 
   httpData += trStart + F("Flash chip ID:") + tdBreak;
   httpData += String(ESP.getFlashChipId());
+  httpData += trEnd;
+
+  httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
+
+  FSInfo fs_info;
+  SPIFFS.info(fs_info);
+
+  httpData += trStart + F("Filesystem size:") + tdBreak;
+//  httpData += String(FSInfo.totalBytes / 1024) + " kB";
+  httpData += trEnd;
+
+  httpData += trStart + F("Filesystem free:") + tdBreak;
+//  httpData += String((FSInfo.totalBytes - FSInfo.usedBytes) / 1024) + " kB";
   httpData += trEnd;
 
   httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
