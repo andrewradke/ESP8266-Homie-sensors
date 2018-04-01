@@ -43,7 +43,6 @@ bool sensorRunAction(String key, String value) {
 }
 
 void calcData() {
-  strncpy_P (app_name, app_name_sensors, sizeof(app_name_sensors) );
   // Every second, calculate and print litres/hour
   if ( currentTime >= (cloopTime + 1000) ) {
     cloopTime = currentTime;                      // Updates cloopTime

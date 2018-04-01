@@ -93,10 +93,10 @@ byte          readings = 10;
 
 
 
-// ************* esp8266-pressure-sensor *************
+// ************* esp8266-pressure-sensors *************
 #elif FWTYPE == 5
 
-char fwname[40] =    "esp8266-pressure-sensor";
+char fwname[40] =    "esp8266-pressure-sensors";
 char nodes[100] =    "pressure0:pressure,pressure1:pressure,pressure2:pressure,pressure3:pressure";
 #include <Adafruit_ADS1015.h>
 Adafruit_ADS1115 ads1115;

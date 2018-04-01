@@ -2,15 +2,14 @@ static const String anchars = "abcdefghijklmnopqrstuvwxyz0123456789";        // 
 String sessioncookie;                                                        // This is cookie buffer
 
 const char HTTP_HEAD[] PROGMEM            = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><title>{v}</title>";
-const char HTTP_STYLE[] PROGMEM           = "<style>.c{text-align:center;} div,input{padding:5px;font-size:1em;} body{text-align:center;font-family:verdana;} table{text-align:left;} .nav li, button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float:right;width:90px;text-align:right;} ul.nav{text-align:center;} .nav li{display:inline-block;padding:0.5em;font-size:1rem;line-height:1.4rem;margin:0.2em;width:auto;} .nav li.active {background-color:#666;} .nav a{color:#fff;text-decoration:none;}</style>";
+const char HTTP_STYLE[] PROGMEM           = "<style>.c{text-align:center;} div,input{padding:5px;font-size:1em;} body{text-align:center;font-family:verdana;} table{text-align:left;} .nav li, button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float:right;width:90px;text-align:right;} .nav li{display:inline-block;padding:0.5em;font-size:1rem;line-height:1.4rem;margin:0.2em;width:auto;} .nav li.active {background-color:#666;} .nav a{color:#fff;text-decoration:none;}</style>";
 const char HTTP_SCRIPT[] PROGMEM          = "<script>function c(l){document.getElementById('s').value=l.innerText||l.textContent;document.getElementById('p').focus();}</script>";
 const char HTTP_HEAD_END[] PROGMEM        = "</head><body><div style='text-align:left;display:inline-block;min-width:260px;'><h1>{t}</h1>";
-const char HTTP_ITEM[] PROGMEM            = "<div><a href='#p' onclick='c(this)'>{v}</a>&nbsp;<span class='q {i}'>{r} dBm</span></div>";
+const char HTTP_ITEM[] PROGMEM            = "<tr><td><a href='#p' onclick='c(this)'>{v}</a></td><td><span class='q {i}'>{r} dB</td></tr>";
 const char HTTP_FORM_START[] PROGMEM      = "<form method='POST' action='wifisave'><input id='s' name='s' length=32 placeholder='SSID'><br/><input id='p' name='p' length=64 type='password' placeholder='password'><br/>";
 const char HTTP_FORM_PARAM[] PROGMEM      = "<br/><input id='{i}' name='{n}' maxlength={l} placeholder='{p}' value='{v}' {c}>";
-//const char HTTP_FORM_END[] PROGMEM        = "<br/><button type='submit'>Save</button><button type='Reset'>Reset form</button></form>";
 const char HTTP_FORM_END[] PROGMEM        = "<br/><button type='submit'>Save</button></form>";
-const char HTTP_SCAN_LINK[] PROGMEM       = "<br/><div class=\"c\"><a href=\"/wifi\">Scan</a></div>";
+const char HTTP_SCAN_LINK[] PROGMEM       = "<br/><div class=\"c\"><a href=\"/wifi\">Scan again</a></div>";
 const char HTTP_SAVED[] PROGMEM           = "<div>Credentials Saved<br />Trying to connect ESP to network.<br />If it fails reconnect to AP to try again</div>";
 const char HTTP_END[] PROGMEM             = "</div></body></html>";
 
@@ -23,8 +22,9 @@ const String http_page_urls[MENU_COUNT]  = { "/", "/config", "/system", "/wifi",
 const String http_page_names[MENU_COUNT] = { "Home", "Configuration", "Device Info", "WiFi", "Password", "CA Certificate", "Update firmware", "Reboot", "Logout" };
 
 
-File fsUploadFile;   // a File object to temporarily store the received files
-String firmwareUpdateError;
+File     fsUploadFile;           // a File object to temporarily store the received files
+String   firmwareUpdateError;    // Contains any error message during firmware update
+uint32_t uploadedFileSize;       // Conatins the size of any file uploaded
 
 void httpSetup() {
   gencookie(); //generate new cookie on device start
@@ -38,7 +38,7 @@ void httpSetup() {
   httpServer.on("/fwlink",       handleRoot);  //Microsoft captive portal. Maybe not needed. Might be handled by notFound handler.
   httpServer.on("/password",     handlePassword );
   httpServer.on("/cacert",       HTTP_GET, handleCACert);
-  httpServer.on("/cacert",       HTTP_POST, [](){ httpServer.send(200, "text/html", ""); }, handleCAUpload);
+  httpServer.on("/cacert",       HTTP_POST, [](){ httpServer.send(200, "text/html", ""); }, handleCACertUpload);
   httpServer.on("/firmware",     HTTP_GET, handleFirmware);
   httpServer.on("/firmware",     HTTP_POST, handleFirmwareUploadComplete, handleFirmwareUpload);
   httpServer.on("/reboot",       handleReboot );
@@ -290,7 +290,7 @@ void handleFirmwareUploadComplete() {
 
   httpData = "</p>";
 
-  if (Update.hasError()) {
+  if (Update.hasError() || uploadedFileSize == 0) {
     httpData += F("<h2 style='color:red'>Firmware update failed.</h2>");
     httpData += String(F("<pre>")) + firmwareUpdateError + F("</pre>");
   
@@ -301,10 +301,13 @@ void handleFirmwareUploadComplete() {
     // Can restart WiFiUDP here?
   } else {
     httpServer.client().setNoDelay(true);
-    httpData += F("<meta http-equiv='refresh' content='15;url=/' /><p>Update Success! Rebooting...</p></body></html>");
+    httpData += F("<meta http-equiv='refresh' content='15;url=/' /><p>Update Success, ");
+    httpData += String(uploadedFileSize);
+    httpData += F(" bytes uploaded.<br/>Rebooting...</p></body></html>");
     httpServer.sendContent(httpData);
     delay(100);
     httpServer.client().stop();
+    delay(100);
     ESP.restart();
   }
 }
@@ -321,6 +324,7 @@ void handleFirmwareUpload() {
 
   if (upload.status == UPLOAD_FILE_START) {
     firmwareUpdateError = "";
+    uploadedFileSize    = 0;
     Serial.setDebugOutput(true);
     logString = String(F("Firmware update: ")) +  upload.filename;
     logMessage(app_name_sys, logString, true);
@@ -331,7 +335,7 @@ void handleFirmwareUpload() {
     httpServer.send(200, "text/html", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
   
     httpData = htmlHeader();
-    httpData += F("<p style='background-color:#0A0;width:fit-content;'>");
+    httpData += F("<p style='background-color:#0A0;width:fit-content;font-size:5px;'>");
   
     httpServer.sendContent(httpData);
 
@@ -344,7 +348,7 @@ void handleFirmwareUpload() {
     }
   } else if (upload.status == UPLOAD_FILE_WRITE && !firmwareUpdateError.length()) {
     Serial.printf(".");
-    httpServer.sendContent(".");
+    httpServer.sendContent("_");
 
     if (Update.write(upload.buf, upload.currentSize) != upload.currentSize){
       Update.printError(Serial);
@@ -354,7 +358,12 @@ void handleFirmwareUpload() {
     }
   } else if (upload.status == UPLOAD_FILE_END && !firmwareUpdateError.length()) {
     if (Update.end(true)) {                               // true to set the size to the current progress
-      Serial.printf("Update Success: %u\nReboot required...\n", upload.totalSize);
+      uploadedFileSize = upload.totalSize;
+      if (upload.totalSize != 0 ) {
+        Serial.printf("\nUpdate Success: %u bytes\nReboot required...\n", upload.totalSize);
+      } else {
+        firmwareUpdateError = F("no data uploaded.");
+      }
     } else {
       Update.printError(Serial);
       StreamString str;
@@ -445,11 +454,11 @@ void handleSystem() {
   SPIFFS.info(fs_info);
 
   httpData += trStart + F("Filesystem size:") + tdBreak;
-//  httpData += String(FSInfo.totalBytes / 1024) + " kB";
+  httpData += String(fs_info.totalBytes / 1024) + " kB";
   httpData += trEnd;
 
   httpData += trStart + F("Filesystem free:") + tdBreak;
-//  httpData += String((FSInfo.totalBytes - FSInfo.usedBytes) / 1024) + " kB";
+  httpData += String((fs_info.totalBytes - fs_info.usedBytes) / 1024) + " kB";
   httpData += trEnd;
 
   httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
@@ -795,7 +804,7 @@ void handleWifi() {
 
   httpData = htmlHeader();
 
-  if (httpServer.client().localIP() != WiFi.softAPIP()) {
+  if (! inConfigAP) {
     httpData += (String(F("<h2 style='color:red'>Warning</h2>")));
     httpData += (String(F("<p>You are connected through the wifi network: ")) + ssid + "<br/>");
     httpData += (String(F("<b>If you change WiFi networks you may not be able to reconnect to the device.</b></p>")));
@@ -806,12 +815,17 @@ void handleWifi() {
   httpData += tableStart;
   httpData += thStart + String(F("Current config:")) + thBreak + thEnd;
   httpData += trStart + "SSID:"   + tdBreak + String(ssid) + trEnd;
-  httpData += trStart + "Signal:" + tdBreak + String(signal) + " dBm" + trEnd;
-  httpData += trStart + "IP:"     + tdBreak + IPtoString(WiFi.localIP()) + trEnd;
+  if (! inConfigAP) {
+    httpData += trStart + "Signal:" + tdBreak + String(signal) + " dBm" + trEnd;
+    httpData += trStart + "IP:"     + tdBreak + IPtoString(WiFi.localIP()) + trEnd;
+  }
   httpData += trEnd;
   httpData += tableEnd;
 
   httpData += "<br/>";
+
+//  logString = String(F("Web server available by http://")) + String(host_name) + F(".local/");
+
 
   logString = F("scan start");
   logMessage(app_name_wifi, logString, true);
@@ -820,9 +834,9 @@ void handleWifi() {
   logMessage(app_name_wifi, logString, true);
 
   if (n == 0) {
-    httpData += F("No networks found. Refresh to scan again.");
+    httpData += F("No networks found.");
   } else {
-    httpData += F("WiFi network list. Refresh to scan again.");
+    httpData += F("WiFi network list:");
 
     //sort networks
     int indices[n];
@@ -853,7 +867,7 @@ void handleWifi() {
       }
     }
 
-
+    httpData += tableStart;
     for (int i = 0; i < n; i++) {
       if (indices[i] == -1)
         continue; // skip dups
@@ -869,6 +883,7 @@ void handleWifi() {
       httpData += item;
       delay(0);
     }
+    httpData += tableEnd;
   }
 
 
@@ -938,6 +953,8 @@ void handleCACert() {
 
   httpData = htmlHeader();
 
+  httpData += F("<p>This CA certificate is for the secure TLS MQTT connection.</p>");
+
   if ( SPIFFS.exists(certfilename) ) {
     File certfile = SPIFFS.open(certfilename, "r");
     httpData += F("<h2 style='color:red'>Existing certificate</h2>");
@@ -959,7 +976,7 @@ void handleCACert() {
 }
 
 /* Handle a file being uploaded */
-void handleCAUpload() {
+void handleCAUCertpload() {
   if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
     return;
   if (!is_authenticated()) {

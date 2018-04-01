@@ -1,9 +1,6 @@
 #if FWTYPE == 8      // esp8266-bme280
 
 void sensorSetup() {
-  strncpy_P (app_name, app_name_sensors, sizeof(app_name_sensors) );
-  syslog.appName(app_name);
-
   bme280Status = bme.begin(0x76);
   logString = "BME280 ";
   if (bme280Status) {
@@ -53,8 +50,6 @@ void calcData() {
 }
 
 void sendData() {
-  strncpy_P (app_name, app_name_sensors, sizeof(app_name_sensors) );
-
   temperature = 1000;
   humidity    = 1000;
   dewpoint    = 1000;

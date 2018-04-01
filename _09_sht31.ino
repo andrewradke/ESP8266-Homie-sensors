@@ -1,7 +1,6 @@
 #if FWTYPE == 9      // esp8266-sht31
 
 void sensorSetup() {
-  strncpy_P (app_name, app_name_sensors, sizeof(app_name_sensors) );
   sht31Status = sht31.begin(0x44);   // Set to 0x45 for alternate i2c addr
   logString = "SHT-31 initialised";
   mqttLog(logString);
@@ -44,8 +43,6 @@ void calcData() {
 }
 
 void sendData() {
-  strncpy_P (app_name, app_name_sensors, sizeof(app_name_sensors) );
-
   temperature = 1000;
   humidity    = 1000;
   dewpoint    = 1000;

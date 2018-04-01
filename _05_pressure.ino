@@ -1,4 +1,4 @@
-#if FWTYPE == 5      // esp8266-pressure-sensor
+#if FWTYPE == 5      // esp8266-pressure-sensors
 
 void sensorSetup() {
   ads1115.begin();

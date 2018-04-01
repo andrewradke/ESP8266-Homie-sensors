@@ -6,7 +6,7 @@
    2  esp8266-flow-counter
    3  esp8266-switch
    4  esp8266-depth-sensor
-   5  esp8266-pressure-sensor
+   5  esp8266-pressure-sensors
    6  esp8266-loadcell
    7  esp8266-watermeter
    8  esp8266-bme280

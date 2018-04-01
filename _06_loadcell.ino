@@ -54,7 +54,6 @@ void sendData() {
 }
 
 void rezero() {
-  strncpy_P (app_name, app_name_sensors, sizeof(app_name_sensors) );
   logString = "Re-zeroing";
   mqttLog(logString);
 
@@ -98,7 +97,6 @@ String httpSensorConfig() {
 
 
 void calibrate() {
-  strncpy_P (app_name, app_name_sensors, sizeof(app_name_sensors) );
   logString = "Calibrating";
   mqttLog(logString);
 
