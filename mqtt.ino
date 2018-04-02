@@ -63,7 +63,7 @@ void mqttConnect() {
           logString = logString + F("verified");
           tlsOkay = true;
         } else {
-          logString = String(F("ERROR: ")) + logString + F("verification failed! Rebooting...");
+          logString = String(F("ERROR: ")) + logString + F("verification failed! ") + str_rebooting;
           tlsOkay = false;
         }
         logMessage(app_name_mqtt, logString, true);

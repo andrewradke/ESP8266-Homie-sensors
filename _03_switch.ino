@@ -3,7 +3,7 @@
 void sensorSetup() {
   pinMode(SWITCH_PIN, INPUT_PULLUP);
   switchCheck();                             // Get the initial state for the switch
-  attachInterrupt(digitalPinToInterrupt(SWITCH_PIN), switchCheck, RISING); // Setup Interrupt
+  attachInterrupt(digitalPinToInterrupt(SWITCH_PIN), switchCheck, CHANGE); // Setup Interrupt
   sei();                                    // Enable interrupts
 }
 

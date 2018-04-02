@@ -72,5 +72,6 @@ const String thStart    = "<tr><th>";
 const String thEnd      = "</th></tr>";
 const String thBreak    = "</th><th>";
 
-static const char str_firmware_update[]       PROGMEM = "Firmware update: ";
+const String str_firmware_update = "Firmware update: ";
+const String str_rebooting       = "Rebooting.";
 

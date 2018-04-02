@@ -98,8 +98,8 @@ void mqtt_send_systeminfo() {
 void saveConfig() {
   char* cfg_name;
 
-  logString = "Saving config";
-  mqttLog(logString);
+  logString = F("Saving config");
+  logMessage(app_name_cfg, logString, true);
 
   DynamicJsonBuffer jsonBuffer;
   JsonObject& json = jsonBuffer.createObject();
@@ -154,13 +154,16 @@ void saveConfig() {
 
   File configFile = SPIFFS.open(configfilename, "w");
   if (!configFile) {
-    logString = String(F("Failed to open config file for writing."));
+    logString = F("Failed to open config file for writing.");
     logMessage(app_name_cfg, logString, true);
   }
 
+#ifdef DEBUG
   dmesg();
   json.printTo(Serial);
   Serial.println();
+#endif
+
   json.printTo(configFile);
   configFile.close();
 }  //end saveConfig
@@ -168,14 +171,14 @@ void saveConfig() {
 
 void loadConfig() {
   //read configuration from FS json
-  logString = String(F("Mounting FS..."));
+  logString = F("Mounting FS...");
   logMessage(app_name_sys, logString, true);
 
   if (SPIFFS.begin()) {
     if (SPIFFS.exists(configfilename)) {
       File configFile = SPIFFS.open(configfilename, "r");
       if (configFile) {
-        logString = String(F("Opened config file."));
+        logString = F("Opened config file.");
         logMessage(app_name_cfg, logString, true);
 
         size_t size = configFile.size();
@@ -285,19 +288,19 @@ void loadConfig() {
           configLoaded = true;
 
         } else {
-          logString = String(F("Corrupted json config file."));
+          logString = F("Corrupted json config file.");
           logMessage(app_name_cfg, logString, true);
         }
       } else {
-        logString = String(F("Failed to open config file."));
+        logString = F("Failed to open config file.");
         logMessage(app_name_cfg, logString, true);
       }
     } else {
-      logString = String(F("No existing config file."));
+      logString = F("No existing config file.");
       logMessage(app_name_cfg, logString, true);
     }
   } else {
-    logString = String(F("Failed to mount FS."));
+    logString = F("Failed to mount FS.");
     logMessage(app_name_sys, logString, true);
   }
 }  //end readConfig
@@ -351,7 +354,7 @@ void updateConfig(String key, String value) {
 
 void runAction(String key, String value) {
   if ( key == "reboot" ) {
-    logString = String(F("Received reboot command."));
+    logString = F("Received reboot command.");
     mqttLog(logString);
     mqttSend(String(FPSTR(mqttstr_online)), String(FPSTR(str_false)), true);
     ESP.restart();
@@ -368,7 +371,7 @@ void runAction(String key, String value) {
 
 
 void updateFirmware(String url) {
-  logString = String(F("Firmware upgrade requested: "));
+  logString = F("Firmware upgrade requested via MQTT: ");
   logString = logString + url;
   mqttLog(logString);
 
@@ -376,19 +379,17 @@ void updateFirmware(String url) {
 
   switch (ret) {
     case HTTP_UPDATE_FAILED:
-      logString = String(F("HTTP_UPDATE_FAILED Error ("));
-      logString = String(logString + ESPhttpUpdate.getLastError() );
-      logString = String(logString + "): " + ESPhttpUpdate.getLastErrorString().c_str());
+      logString = String(F("HTTP_UPDATE_FAILED Error (")) + ESPhttpUpdate.getLastError() + "): " + ESPhttpUpdate.getLastErrorString().c_str();
       mqttSend(String("$ota/error"), logString, false);
       break;
 
     case HTTP_UPDATE_NO_UPDATES:
-      logString = String(F("HTTP_UPDATE_NO_UPDATES"));
+      logString = F("HTTP_UPDATE_NO_UPDATES");
       mqttSend(String("$ota/error"), logString, false);
       break;
 
     case HTTP_UPDATE_OK:
-      logString = String(F("HTTP_UPDATE_OK"));
+      logString = F("HTTP_UPDATE_OK");
       mqttSend(String("$ota/command"), logString, false);
       break;
   }
@@ -468,7 +469,7 @@ bool newWiFiCredentials() {
 void checkWatchdog() {
   currentTime = millis();
   if ( currentTime >= (watchdog + (1000 * mqtt_watchdog ) ) && ! httpLoggedin) {
-    logString = String(F("No MQTT data in ")) + String(mqtt_watchdog) + String(F(" seconds. Rebooting."));
+    logString = String(F("No MQTT data in ")) + String(mqtt_watchdog) + F(" seconds. ") + str_rebooting;
     logMessage(app_name_sys, logString, true);
 
     delay(1000);
@@ -524,7 +525,7 @@ void waitForDHCPLease() {
     // As such another go at a begin() might do the trick instead
 
     if (dhcpIP == INADDR_NONE) {
-      logString = F("No DHCP lease in 15 seconds. Rebooting.");
+      logString = String(F("No DHCP lease in 15 seconds. ")) + str_rebooting;
       printMessage(app_name_net, logString, true);
   
       delay(1000);

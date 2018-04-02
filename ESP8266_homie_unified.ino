@@ -25,7 +25,7 @@
 
 
 #define FWTYPE     3
-#define FWVERSION  "0.9.13"
+#define FWVERSION  "0.9.14"
 #define FWPASSWORD "esp8266."
 //#define USESSD1306                // SSD1306 OLED display
 
@@ -371,7 +371,7 @@ void setup() {
     unsigned long configPortalStart = millis();
     while (true) {
       if ( millis() >= (configPortalStart + (1000 * configPortalTimeout ) ) ) {
-        logString = F("Config portal timeout reached. Rebooting.");
+        logString = String(F("Config portal timeout reached. ")) + str_rebooting;
         printMessage(app_name_sys, logString, true);
         delay(500);
         //reboot and try again, or maybe put it to deep sleep
@@ -580,22 +580,25 @@ void setup() {
 #ifdef DEBUG
   logString = String(F("Flash size: ")) + String(realSize/1048576.0) + " MB";
   logMessage(app_name_sys, logString, true);
-
   logString = String(F("Flash size config: ")) + String(ideSize/1048576.0) + " MB";
   logMessage(app_name_sys, logString, true);
-
   logString = String(F("Program Size: ")) + String(ESP.getSketchSize() / 1024) + " kB";
   logMessage(app_name_sys, logString, true);
-
   logString = String(F("Free Program Space: ")) + String(ESP.getFreeSketchSpace() / 1024) + " kB";
   logMessage(app_name_sys, logString, true);
 
   logString = String(F("Free Memory: ")) + String(ESP.getFreeHeap() / 1024) + " kB";
   logMessage(app_name_sys, logString, true);
 
-  logString = String(F("ESP Chip Id: ")) + String(ESP.getChipId());
+  FSInfo fs_info;
+  SPIFFS.info(fs_info);
+  logString = String(F("Filesystem size:")) + String(fs_info.totalBytes / 1024) + " kB";
+  logMessage(app_name_sys, logString, true);
+  logString = String(F("Filesystem free:")) + String((fs_info.totalBytes - fs_info.usedBytes) / 1024) + " kB";
   logMessage(app_name_sys, logString, true);
 
+  logString = String(F("ESP Chip Id: ")) + String(ESP.getChipId());
+  logMessage(app_name_sys, logString, true);
   logString = String(F("Flash Chip Id: ")) + String(ESP.getFlashChipId());
   logMessage(app_name_sys, logString, true);
 #endif
