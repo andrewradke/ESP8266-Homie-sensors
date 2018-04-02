@@ -448,14 +448,14 @@ bool newWiFiCredentials() {
   logMessage(app_name_wifi, logString, true);
 
   if (wifiStatus != WL_CONNECTED) {
-    logString = F("Failed to connect.");
-    result    = false;
-    httpLogin = false;  // If this was done over a network connection record it as no-one logged in to allow the watchdog to reboot quicker.
+    logString    = F("Failed to connect.");
+    result       = false;
+    httpLoggedin = false;  // If this was done over a network connection record it as no-one logged in to allow the watchdog to reboot quicker.
   } else {
     logString = F("Connected.");
     WiFi.mode(WIFI_STA);
-    ssid = _ssid;
-    psk  = _psk;
+    ssid   = _ssid;
+    psk    = _psk;
     result = true;
   }
   waitForDHCPLease();
@@ -467,7 +467,7 @@ bool newWiFiCredentials() {
 
 void checkWatchdog() {
   currentTime = millis();
-  if ( currentTime >= (watchdog + (1000 * mqtt_watchdog ) ) && ! httpLogin) {
+  if ( currentTime >= (watchdog + (1000 * mqtt_watchdog ) ) && ! httpLoggedin) {
     logString = String(F("No MQTT data in ")) + String(mqtt_watchdog) + String(F(" seconds. Rebooting."));
     logMessage(app_name_sys, logString, true);
 

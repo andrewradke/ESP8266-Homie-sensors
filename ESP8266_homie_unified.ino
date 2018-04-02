@@ -38,11 +38,12 @@
 #include <ESP8266WiFi.h>          // ESP8266 Core WiFi Library
 
 #include <ESP8266WebServer.h>     // Local WebServer used to serve the configuration portal
+//#include <ESP8266WebServerSecure.h> // At this stage loading the key and cert from a file doesn't work, it's too memory intensive and one page handler can't server both HTTP and HTTPS (this can be handled to some degree except for file uploads).
+#include "StreamString.h"         // Need for web server firmware update
+#include <ESP8266mDNS.h>
+
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
-#include <ESP8266mDNS.h>
-#include <ESP8266WebServer.h>
-#include "StreamString.h"         // Need for web server firmware update
 
 #include <ArduinoJson.h>          // https://github.com/bblanchon/ArduinoJson
 #include <PubSubClient.h>         // http://pubsubclient.knolleary.net/
@@ -68,10 +69,6 @@ char     ntp_server1[41];
 char     ntp_server2[41];
 
 #include <WiFiClientSecure.h>
-// Root certificate used by mqtt.home.deepport.net.
-// Defined in "CACert" tab.
-//extern const unsigned char caCert[] PROGMEM;
-//extern const unsigned int caCertLen;
 bool tlsOkay = false;
 
 
@@ -138,17 +135,18 @@ String baseTopic;
 char pubTopic[50];
 
 /// The MQTT client
-//PubSubClient mqttClient(espSecureClient);
 PubSubClient mqttClient;
 
 
 /// The HTTP server
-ESP8266WebServer httpServer(80);
+ESP8266WebServer       httpServer(80);
+//ESP8266WebServerSecure httpsServer(443);
+
 String httpData;
 bool   lock = false;                // This bool is used to control device lockout 
 String httpUser;
 String httpPasswd;
-bool   httpLogin  = false;
+bool   httpLoggedin  = false;
 unsigned long logincld = millis(), reqmillis = millis(), tempign = millis(); // First 2 timers are for lockout and last one is inactivity timer
 uint8_t trycount = 0;                                                        // trycount will be our buffer for remembering how many failed login attempts there have been
 
@@ -179,11 +177,14 @@ String tmpString;
 String logString;     // This can be used by MQTT logging as well
 
 
-bool   configured     = false;
-bool   configLoaded   = false;
-String configfilename = "/config.json";
-String certfilename   = "/cacert.der";
-bool   ca_cert_okay    = false;
+bool   configured        = false;
+bool   configLoaded      = false;
+String configfilename    = "/config.json";
+String CAcertfilename    = "/cacert.der";
+String HTTPScertfilename = "/httpscert.der";
+String HTTPSkeyfilename  = "/httpskey.der";
+bool   ca_cert_okay      = false;
+//bool   https_okay        = false;
 
 
 ////////////////////////////////////// setup ///////////////////////////////////////
@@ -434,6 +435,65 @@ void setup() {
     logMessage(app_name_net, logString, true);
   }
 
+/*
+  bool https_files_okay = true;
+  File certfile, keyfile;
+
+  if ( SPIFFS.exists(HTTPScertfilename) ) {
+    certfile = SPIFFS.open(HTTPScertfilename, "r");
+    if (certfile) {
+      logString = F("Opened HTTPS certificate file.");
+      logMessage(app_name_http, logString, true);
+    } else {
+      logString = F("Failed to open HTTPS certificate! HTTPS disabled.");
+      logMessage(app_name_http, logString, true);
+      https_files_okay = false;
+    }
+  } else {
+    logString = F("HTTPS certificate doesn't exist! HTTPS disabled.");
+    logMessage(app_name_http, logString, true);
+    https_files_okay = false;
+  }
+
+  if ( SPIFFS.exists(HTTPSkeyfilename) ) {
+    keyfile = SPIFFS.open(HTTPSkeyfilename, "r");
+    if (keyfile) {
+      logString = F("Opened HTTPS key file.");
+      logMessage(app_name_http, logString, true);
+    } else {
+      logString = F("Failed to open HTTPS key! HTTPS disabled.");
+      logMessage(app_name_http, logString, true);
+      https_files_okay = false;
+    }
+  } else {
+    logString = F("HTTPS key doesn't exist! HTTPS disabled.");
+    logMessage(app_name_http, logString, true);
+    https_files_okay = false;
+  }
+
+  if (https_files_okay) {
+    uint8_t x509[certfile.size()];
+    uint8_t rsakey[keyfile.size()];
+    certfile.read((uint8_t *)x509,  certfile.size());
+    keyfile.read((uint8_t *)rsakey, keyfile.size());
+    httpsServer.setServerKeyAndCert(rsakey, sizeof(rsakey), x509, sizeof(x509));
+
+    httpsServer.collectHeaders(headerkeys, headerkeyssize );
+    httpsServer.begin();
+    MDNS.addService("https", "tcp", 443);
+    logString = String(F("HTTPS server available by https://")) + String(host_name) + F(".local/");
+    logMessage(app_name_http, logString, true);
+    https_okay = true;
+  } else {
+    logString = F("Failed to start HTTPS server using supplied certificate and key files! HTTPS disabled.");
+    logMessage(app_name_http, logString, true);
+  }
+  if (certfile)
+    certfile.close();
+  if (keyfile)
+    keyfile.close();
+*/
+
   MDNS.begin(host_name);
   MDNS.addService("http", "tcp", 80);
   logString = String(F("Web server available by http://")) + String(host_name) + F(".local/");
@@ -460,19 +520,19 @@ void setup() {
     logString.trim();
     logMessage(app_name_sys, logString, true);
 
-    if ( SPIFFS.exists(certfilename) ) {
-      File certfile = SPIFFS.open(certfilename, "r");
-      if (certfile) {
+    if ( SPIFFS.exists(CAcertfilename) ) {
+      File CAcertfile = SPIFFS.open(CAcertfilename, "r");
+      if (CAcertfile) {
         logString = F("Opened CA certificate file.");
         logMessage(app_name_mqtt, logString, true);
 
-        size_t size = certfile.size();
-        if (espSecureClient.loadCACert(certfile, certfile.size()) ) {
+        if (espSecureClient.loadCACert(CAcertfile, CAcertfile.size()) ) {
           ca_cert_okay = true;
         } else {
           logString = F("Failed to load root CA certificate! MQTT disabled.");
           logMessage(app_name_mqtt, logString, true);
         }
+        CAcertfile.close();
       } else {
         logString = F("Failed to open CA certificate! MQTT disabled.");
         logMessage(app_name_mqtt, logString, true);
@@ -552,6 +612,8 @@ void setup() {
 void loop() {
 
   httpServer.handleClient();
+//  if (https_okay)
+//    httpsServer.handleClient();
   if (connectNewWifi) {
     newWiFiCredentials();  // Attempt to connect to new WiFi network
   }
@@ -567,7 +629,7 @@ void loop() {
     // After minute is passed without bad entries, reset trycount
   }
   if (abs(millis() - tempign) > 120000) {
-    httpLogin = false;
+    httpLoggedin = false;
     gencookie();
     tempign = millis();
     // if there is no activity from loged on user, generate a new cookie. This is more secure than adding expiry to the cookie header

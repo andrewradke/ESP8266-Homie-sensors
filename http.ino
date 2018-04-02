@@ -2,7 +2,7 @@ static const String anchars = "abcdefghijklmnopqrstuvwxyz0123456789";        // 
 String sessioncookie;                                                        // This is cookie buffer
 
 const char HTTP_HEAD[] PROGMEM            = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><title>{v}</title>";
-const char HTTP_STYLE[] PROGMEM           = "<style>.c{text-align:center;} div,input{padding:5px;font-size:1em;} body{text-align:center;font-family:verdana;} table{text-align:left;} .nav li, button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float:right;width:90px;text-align:right;} .nav li{display:inline-block;padding:0.5em;font-size:1rem;line-height:1.4rem;margin:0.2em;width:auto;} .nav li.active {background-color:#666;} .nav a{color:#fff;text-decoration:none;}</style>";
+const char HTTP_STYLE[] PROGMEM           = "<style>.c{text-align:center;} div,input{padding:5px;font-size:1em;} body{text-align:center;font-family:verdana;} table{text-align:left;} .nav li, button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float:right;width:90px;text-align:right;} ul.nav {padding: 0;} .nav li{display:inline-block;padding:0.5em;font-size:1rem;line-height:1.4rem;margin:0.2em;width:auto;} .nav li.active {background-color:#666;} .nav a{color:#fff;text-decoration:none;}</style>";
 const char HTTP_SCRIPT[] PROGMEM          = "<script>function c(l){document.getElementById('s').value=l.innerText||l.textContent;document.getElementById('p').focus();}</script>";
 const char HTTP_HEAD_END[] PROGMEM        = "</head><body><div style='text-align:left;display:inline-block;min-width:260px;'><h1>{t}</h1>";
 const char HTTP_ITEM[] PROGMEM            = "<tr><td><a href='#p' onclick='c(this)'>{v}</a></td><td><span class='q {i}'>{r} dB</td></tr>";
@@ -17,9 +17,9 @@ const char HTTP_NAV_START[] PROGMEM       = "<ul class='nav'>";
 const char HTTP_NAV_END[] PROGMEM         = "</ul>";
 const char HTTP_NAV_LI[] PROGMEM          = "<li{c}>{l}</li>";
 
-const byte MENU_COUNT = 9;
-const String http_page_urls[MENU_COUNT]  = { "/", "/config", "/system", "/wifi", "/password", "/cacert", "/firmware", "/reboot", "/logout" };
-const String http_page_names[MENU_COUNT] = { "Home", "Configuration", "Device Info", "WiFi", "Password", "CA Certificate", "Update firmware", "Reboot", "Logout" };
+const byte MENU_COUNT = 10;
+const String http_page_urls[MENU_COUNT]  = { "/", "/config", "/system", "/wifi", "/password", "/cacert", "/https", "/firmware", "/reboot", "/logout" };
+const String http_page_names[MENU_COUNT] = { "Home", "Configuration", "Device Info", "WiFi", "Password", "CA Certificate", "HTTPS Certificate", "Update firmware", "Reboot", "Logout" };
 
 
 File     fsUploadFile;           // a File object to temporarily store the received files
@@ -34,13 +34,16 @@ void httpSetup() {
   httpServer.on("/system",       handleSystem );
   httpServer.on("/wifi",         handleWifi);
   httpServer.on("/wifisave",     handleWifiSave);
-  httpServer.on("/generate_204", handleRoot);  //Android captive portal. Maybe not needed. Might be handled by notFound handler.
-  httpServer.on("/fwlink",       handleRoot);  //Microsoft captive portal. Maybe not needed. Might be handled by notFound handler.
+  httpServer.on("/generate_204", handleRoot);  //Android captive portal. Maybe not needed. Might be handled by notFound handler.   HTTP only
+  httpServer.on("/fwlink",       handleRoot);  //Microsoft captive portal. Maybe not needed. Might be handled by notFound handler. HTTP only
   httpServer.on("/password",     handlePassword );
-  httpServer.on("/cacert",       HTTP_GET, handleCACert);
+  httpServer.on("/cacert",       HTTP_GET,  handleCACert);
   httpServer.on("/cacert",       HTTP_POST, [](){ httpServer.send(200, "text/html", ""); }, handleCACertUpload);
-  httpServer.on("/firmware",     HTTP_GET, handleFirmware);
-  httpServer.on("/firmware",     HTTP_POST, handleFirmwareUploadComplete, handleFirmwareUpload);
+  httpServer.on("/https",        HTTP_GET,  handleHTTPSCerts);
+  httpServer.on("/httpscert",    HTTP_POST, [](){ httpServer.send(200, "text/html", ""); }, handleHTTPSCertUpload);
+  httpServer.on("/httpskey",     HTTP_POST, [](){ httpServer.send(200, "text/html", ""); }, handleHTTPSKeyUpload);
+  httpServer.on("/firmware",     HTTP_GET,  handleFirmware);
+  httpServer.on("/firmware",     HTTP_POST, handleFirmwareUploadComplete,                   handleFirmwareUpload);
   httpServer.on("/reboot",       handleReboot );
   httpServer.on("/login",        handleLogin );
   httpServer.on("/logout",       handleLogout );
@@ -142,7 +145,7 @@ boolean isIp(String str) {
 
 /** Redirect to captive portal if we got a request for another domain. Return true in that case so the page handler do not try to handle the request again. */
 boolean captivePortal() {
-  if ( (inConfigAP) && (!isIp(httpServer.hostHeader()) ) ) {
+  if ( (inConfigAP) && (!isIp(httpServer.hostHeader()) ) ) { // The captive portal is always HTTP only so the httpServer object is the only one that needs to be looked at here
     Serial.println(F("Request redirected to captive portal"));
     httpServer.sendHeader("Location", String("http://") + IPtoString(httpServer.client().localIP()), true);
     httpServer.send ( 302, "text/plain", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
@@ -178,14 +181,14 @@ void handleLogin() {
   // if user posted with these arguments
   if (httpServer.hasArg("user") && httpServer.hasArg("pass")) {
     // check if login details are good and dont allow it if device is in lockdown
-    if (httpServer.arg("user") == httpUser &&  httpServer.arg("pass") == httpPasswd && !lock) {
+    if (httpServer.arg("user") == httpUser && httpServer.arg("pass") == httpPasswd && !lock) {
       // if above values are good, send 'Cookie' header with variable c, with format 'c=sessioncookie'
       httpServer.sendHeader("Location","/");
       httpServer.sendHeader("Cache-Control","no-cache");
       httpServer.sendHeader("Set-Cookie","c=" + sessioncookie);
       httpServer.send(301);
       trycount = 0;                                 // With good headers in mind, reset the trycount buffer
-      httpLogin = true;
+      httpLoggedin = true;
       return;
     }
 
@@ -221,12 +224,12 @@ void handleLogout() {
   if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
     return;
 
-  //Set 'c=0', it users header, effectively deleting it's header 
+  //Set 'c=0', it users header, effectively deleting it's header
   httpServer.sendHeader("Set-Cookie","c=0");
   httpServer.sendHeader("Location","/login");
   httpServer.sendHeader("Cache-Control","no-cache");
   httpServer.send(301);
-  httpLogin = false;
+  httpLoggedin = false;
   return;
 }
 
@@ -250,7 +253,6 @@ void handleRoot() {
   httpData += tableStart;
   httpData += trStart + "Uptime:" + tdBreak + String(uptime) + " s" + trEnd;
   httpData += trStart + "Signal:" + tdBreak + String(signal) + " dBm" + trEnd;
-  httpData += trEnd;
   httpData += tableEnd;
 
   httpData += String(F("<meta http-equiv='refresh' content='3' />"));
@@ -260,141 +262,6 @@ void handleRoot() {
   httpServer.send(200, "text/html", httpData);
 }
 
-void handleFirmware() {
-  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
-    return;
-  if (!is_authenticated()) {
-    return;
-  }
-  tempign = millis(); //reset the inactivity timer if someone logs in
-
-  httpData = htmlHeader();
-
-  httpData += F("Select a firmware file to upload.<br />Be certain to make sure it's compiled with the same SPIFFS size or the next boot will fail.<br/>");
-  httpData += F("<form action='#' method='POST' enctype='multipart/form-data'>");
-  httpData += F("<input type='file' name='firmware'>");
-  httpData += F("<br/><button type='submit'>Update</button></form>");
-
-  httpData += FPSTR(HTTP_END);
-  httpServer.sendHeader("Content-Length", String(httpData.length()));
-  httpServer.send(200, "text/html", httpData);
-}
-
-void handleFirmwareUploadComplete() {
-  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
-    return;
-  if (!is_authenticated()) {
-    return;
-  }
-  tempign = millis(); //reset the inactivity timer if someone logs in
-
-  httpData = "</p>";
-
-  if (Update.hasError() || uploadedFileSize == 0) {
-    httpData += F("<h2 style='color:red'>Firmware update failed.</h2>");
-    httpData += String(F("<pre>")) + firmwareUpdateError + F("</pre>");
-  
-    httpData += FPSTR(HTTP_END);
-    httpServer.sendContent(httpData);
-    httpServer.client().stop(); // Stop is needed because we sent no content length
-
-    // Can restart WiFiUDP here?
-  } else {
-    httpServer.client().setNoDelay(true);
-    httpData += F("<meta http-equiv='refresh' content='15;url=/' /><p>Update Success, ");
-    httpData += String(uploadedFileSize);
-    httpData += F(" bytes uploaded.<br/>Rebooting...</p></body></html>");
-    httpServer.sendContent(httpData);
-    delay(100);
-    httpServer.client().stop();
-    delay(100);
-    ESP.restart();
-  }
-}
-
-void handleFirmwareUpload() {
-  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
-    return;
-  if (!is_authenticated()) {
-    return;
-  }
-  tempign = millis(); //reset the inactivity timer if someone logs in
-
-  HTTPUpload& upload = httpServer.upload();
-
-  if (upload.status == UPLOAD_FILE_START) {
-    firmwareUpdateError = "";
-    uploadedFileSize    = 0;
-    Serial.setDebugOutput(true);
-    logString = String(F("Firmware update: ")) +  upload.filename;
-    logMessage(app_name_sys, logString, true);
-    WiFiUDP::stopAll();
-
-    httpServer.client().setNoDelay(true);
-    httpServer.setContentLength(CONTENT_LENGTH_UNKNOWN);
-    httpServer.send(200, "text/html", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
-  
-    httpData = htmlHeader();
-    httpData += F("<p style='background-color:#0A0;width:fit-content;font-size:5px;'>");
-  
-    httpServer.sendContent(httpData);
-
-    uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-    if (!Update.begin(maxSketchSpace)) {                  // start with max available size
-      Update.printError(Serial);
-      StreamString str;
-      Update.printError(str);
-      firmwareUpdateError = str.c_str();
-    }
-  } else if (upload.status == UPLOAD_FILE_WRITE && !firmwareUpdateError.length()) {
-    Serial.printf(".");
-    httpServer.sendContent("_");
-
-    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize){
-      Update.printError(Serial);
-      StreamString str;
-      Update.printError(str);
-      firmwareUpdateError = str.c_str();
-    }
-  } else if (upload.status == UPLOAD_FILE_END && !firmwareUpdateError.length()) {
-    if (Update.end(true)) {                               // true to set the size to the current progress
-      uploadedFileSize = upload.totalSize;
-      if (upload.totalSize != 0 ) {
-        Serial.printf("\nUpdate Success: %u bytes\nReboot required...\n", upload.totalSize);
-      } else {
-        firmwareUpdateError = F("no data uploaded.");
-      }
-    } else {
-      Update.printError(Serial);
-      StreamString str;
-      Update.printError(str);
-      firmwareUpdateError = str.c_str();
-    }
-    Serial.setDebugOutput(false);
-  } else if(upload.status == UPLOAD_FILE_ABORTED) {
-    Update.end();
-    firmwareUpdateError = F("Update was aborted");
-    Serial.println(firmwareUpdateError);
-  }
-  delay(0);
-}
-
-void handleReboot() {
-  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
-    return;
-  if (!is_authenticated()) {
-    return;
-  }
-  tempign = millis(); //reset the inactivity timer if someone logs in
-
-  httpData = F("<html><head><meta http-equiv='refresh' content='10;url=/' /></head><body><p>Rebooting...</p></body></html>");
-  httpData += FPSTR(HTTP_END);
-  httpServer.sendHeader("Content-Length", String(httpData.length()));
-  httpServer.send(200, "text/html", httpData);
-  delay(100);
-  ESP.restart();
-  delay(5000);
-}
 
 void handleSystem() {
   if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
@@ -478,9 +345,11 @@ void handleSystem() {
 
   httpData += F("<meta http-equiv='refresh' content='3' />");
   httpData += FPSTR(HTTP_END);
+
   httpServer.sendHeader("Content-Length", String(httpData.length()));
   httpServer.send(200, "text/html", httpData);
 }
+
 
 void handleConfig() {
   if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
@@ -709,6 +578,7 @@ void handleConfig() {
   httpServer.send(200, "text/html", httpData);
 }
 
+
 void handlePassword() {
   if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
     return;
@@ -924,10 +794,7 @@ void handleWifiSave() {
     httpData += FPSTR(HTTP_END);
 
     httpData += String(F("<meta http-equiv='refresh' content='10' />"));
-  
-    httpServer.sendHeader("Content-Length", String(httpData.length()));
-    httpServer.send(200, "text/html", httpData);
-  
+    
     connectNewWifi = true; //signal ready to connect/reset
   } else {
     httpData = htmlHeader();
@@ -936,9 +803,156 @@ void handleWifiSave() {
     httpData += String(F("<meta http-equiv='refresh' content='3;url=/wifi' />"));
 
     httpData += FPSTR(HTTP_END);
-    httpServer.sendHeader("Content-Length", String(httpData.length()));
-    httpServer.send(200, "text/html", httpData);
   }
+  httpServer.sendHeader("Content-Length", String(httpData.length()));
+  httpServer.send(200, "text/html", httpData);
+}
+
+
+//////////////////////////////////// upload pages ////////////////////////////////////
+
+
+void handleFirmware() {
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
+  if (!is_authenticated()) {
+    return;
+  }
+  tempign = millis(); //reset the inactivity timer if someone logs in
+
+  httpData = htmlHeader();
+
+  httpData += F("Select a firmware file to upload.<br />Be certain to make sure it's compiled with the same SPIFFS size or the next boot will fail.<br/>");
+  httpData += F("<form action='#' method='POST' enctype='multipart/form-data'>");
+  httpData += F("<input type='file' name='firmware'>");
+  httpData += F("<br/><button type='submit'>Update</button></form>");
+
+  httpData += FPSTR(HTTP_END);
+  httpServer.sendHeader("Content-Length", String(httpData.length()));
+  httpServer.send(200, "text/html", httpData);
+}
+
+void handleFirmwareUploadComplete() {
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
+  if (!is_authenticated()) {
+    return;
+  }
+  tempign = millis(); //reset the inactivity timer if someone logs in
+
+  httpData = "</p>";
+
+  if (Update.hasError() || firmwareUpdateError != "") {
+    httpData += String(F("<h2 style='color:red'>")) + String(str_firmware_update) + F("failed.</h2>");
+    httpData += String(F("<pre>")) + firmwareUpdateError + F("</pre>");
+  
+    httpData += FPSTR(HTTP_END);
+    httpServer.sendContent(httpData);
+    httpServer.client().stop(); // Stop is needed because we sent no content length
+
+    // Can restart WiFiUDP here?
+  } else {
+    httpData += F("<meta http-equiv='refresh' content='15;url=/' /><p>Update Success, ");
+    httpData += String(uploadedFileSize);
+    httpData += F(" bytes uploaded.<br/>Rebooting...</p></body></html>");
+    httpServer.client().setNoDelay(true);
+    httpServer.sendContent(httpData);
+    delay(100);
+    httpServer.client().stop();
+    delay(100);
+    ESP.restart();
+  }
+}
+
+void handleFirmwareUpload() {
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
+  if (!is_authenticated()) {
+    return;
+  }
+  tempign = millis(); //reset the inactivity timer if someone logs in
+
+  HTTPUpload& upload = httpServer.upload();
+
+  if (upload.status == UPLOAD_FILE_START) {
+    firmwareUpdateError = "";
+    uploadedFileSize    = 0;
+    Serial.setDebugOutput(true);
+    logString = String(str_firmware_update) +  upload.filename;
+    logMessage(app_name_sys, logString, true);
+    WiFiUDP::stopAll();
+
+    httpServer.client().setNoDelay(true);
+    httpServer.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    httpServer.send(200, "text/html", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
+
+    httpData = htmlHeader();
+    httpData += F("<p style='background-color:#0A0;width:fit-content;font-size:5px;'>");
+
+    httpServer.sendContent(httpData);
+
+    uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+    if (!Update.begin(maxSketchSpace)) {                  // start with max available size
+      Update.printError(Serial);
+      StreamString str;
+      Update.printError(str);
+      firmwareUpdateError = str.c_str();
+    }
+  } else if (upload.status == UPLOAD_FILE_WRITE && !firmwareUpdateError.length()) {
+    Serial.print(".");
+    httpServer.sendContent("_");
+
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize){
+      Update.printError(Serial);
+      StreamString str;
+      Update.printError(str);
+      firmwareUpdateError = str.c_str();
+      logString = String(str_firmware_update) + firmwareUpdateError;
+      logMessage(app_name_sys, logString, true);
+    }
+  } else if (upload.status == UPLOAD_FILE_END && !firmwareUpdateError.length()) {
+    if (Update.end(true)) {                               // true to set the size to the current progress
+      uploadedFileSize = upload.totalSize;
+      if (upload.totalSize != 0 ) {
+        Serial.printf_P( PSTR("\nUpdate Success: %u bytes\nReboot required...\n"), upload.totalSize);
+      } else {
+        firmwareUpdateError = F("no data uploaded.");
+        logString = String(str_firmware_update) + firmwareUpdateError;
+        logMessage(app_name_sys, logString, true);
+      }
+    } else {
+      Update.printError(Serial);
+      StreamString str;
+      Update.printError(str);
+      firmwareUpdateError = str.c_str();
+      logString = String(str_firmware_update) + firmwareUpdateError;
+      logMessage(app_name_sys, logString, true);
+    }
+    Serial.setDebugOutput(false);
+  } else if(upload.status == UPLOAD_FILE_ABORTED) {
+    Update.end();
+    firmwareUpdateError = F("Update was aborted");
+    logString = String(str_firmware_update) + firmwareUpdateError;
+    logMessage(app_name_sys, logString, true);
+  }
+  delay(0);
+}
+
+void handleReboot() {
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
+  if (!is_authenticated()) {
+    return;
+  }
+  tempign = millis(); //reset the inactivity timer if someone logs in
+
+  httpData = F("<html><head><meta http-equiv='refresh' content='10;url=/' /></head><body><p>Rebooting...</p></body></html>");
+  httpData += FPSTR(HTTP_END);
+  httpServer.sendHeader("Content-Length", String(httpData.length()));
+  httpServer.send(200, "text/html", httpData);
+  delay(100);
+  ESP.restart();
+  delay(5000);
 }
 
 
@@ -955,10 +969,10 @@ void handleCACert() {
 
   httpData += F("<p>This CA certificate is for the secure TLS MQTT connection.</p>");
 
-  if ( SPIFFS.exists(certfilename) ) {
-    File certfile = SPIFFS.open(certfilename, "r");
+  if ( SPIFFS.exists(CAcertfilename) ) {
+    File certfile = SPIFFS.open(CAcertfilename, "r");
     httpData += F("<h2 style='color:red'>Existing certificate</h2>");
-    httpData += F("There is an existing certificate file size: ");
+    httpData += F("There is an existing CA certificate with a size of ");
     httpData += certfile.size();
     httpData += F(" bytes<hr>");
   }
@@ -976,7 +990,7 @@ void handleCACert() {
 }
 
 /* Handle a file being uploaded */
-void handleCAUCertpload() {
+void handleCACertUpload() {
   if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
     return;
   if (!is_authenticated()) {
@@ -984,13 +998,12 @@ void handleCAUCertpload() {
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
 
-
   HTTPUpload& upload = httpServer.upload();
 
   if (upload.status == UPLOAD_FILE_START) {
-    if ( SPIFFS.exists(certfilename) )
-      SPIFFS.remove(certfilename);
-    fsUploadFile = SPIFFS.open(certfilename, "w");        // Save the file as cacert.der no matter the supplied filename
+    if ( SPIFFS.exists(CAcertfilename) )
+      SPIFFS.remove(CAcertfilename);
+    fsUploadFile = SPIFFS.open(CAcertfilename, "w");      // Save the file as cacert.der no matter the supplied filename
   } else if (upload.status == UPLOAD_FILE_WRITE) {
     if (fsUploadFile)
       fsUploadFile.write(upload.buf, upload.currentSize); // Write the received bytes to the file
@@ -1000,7 +1013,127 @@ void handleCAUCertpload() {
       httpServer.sendHeader("Location","/cacert");        // Redirect the client to the success page
       httpServer.send(303);
     } else {
-      httpServer.send(500, "text/plain", String(F("500: couldn't create file")) );
+      httpData = htmlHeader();
+      httpData += F("500: couldn't create file");
+      httpData += FPSTR(HTTP_END);
+      httpServer.send(500, "text/html", httpData );
+    }
+  }
+}
+
+
+/** Handle the HTTPS certificate and key upload page */
+void handleHTTPSCerts() {
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
+  if (!is_authenticated()) {
+    return;
+  }
+  tempign = millis(); //reset the inactivity timer if someone logs in
+
+  httpData = htmlHeader();
+
+  httpData += F("<h2 style='color:red'>Currently unused.</h2>");
+  httpData += F("<p>This certificate and key is for the secure HTTPS interface.<br/>It is not needed for MQTT but is a needed for a secure connection to this device's web interface.</p>");
+
+  httpData += F("The files need to be uploaded in DER format.<br/>");
+  httpData += F("A certificate can be converted to DER format with openssl with the following command edited as appropriate:");
+  httpData += F("<pre>openssl x509 -in filename.pem -out filename.pem.der -outform DER</pre>");
+  httpData += F("and the key can be converted with:");
+  httpData += F("<pre>openssl rsa -in filename.key -out filename.key.der -outform DER</pre>");
+
+  httpData += tableStart;
+  httpData += trStart;
+
+  if ( SPIFFS.exists(HTTPScertfilename) ) {
+    File certfile = SPIFFS.open(HTTPScertfilename, "r");
+    httpData += F("<h2 style='color:red'>Existing certificate</h2>");
+    httpData += F("There is an existing HTTPS certificate with a size of ");
+    httpData += certfile.size();
+    httpData += F(" bytes<hr>");
+  }
+  httpData += F("<form action='/httpscert' method='POST' enctype='multipart/form-data'>");
+  httpData += F("<input type='file' name='httpscert'>");
+  httpData += F("<br/><button type='submit'>Upload certificate</button></form>");
+  httpData += tdBreak;
+
+  if ( SPIFFS.exists(HTTPSkeyfilename) ) {
+    File certfile = SPIFFS.open(HTTPSkeyfilename, "r");
+    httpData += F("<h2 style='color:red'>Existing key</h2>");
+    httpData += F("There is an existing HTTPS key with a size of ");
+    httpData += certfile.size();
+    httpData += F(" bytes<hr>");
+  }
+  httpData += F("<form action='/httpskey' method='POST' enctype='multipart/form-data'>");
+  httpData += F("<input type='file' name='httpskey'>");
+  httpData += F("<br/><button type='submit'>Upload key</button></form>");
+  httpData += trEnd;
+  httpData += tableEnd;
+
+  httpData += FPSTR(HTTP_END);
+  httpServer.sendHeader("Content-Length", String(httpData.length()));
+  httpServer.send(200, "text/html", httpData);
+}
+
+/* Handle the cert file being uploaded */
+void handleHTTPSCertUpload() {
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
+  if (!is_authenticated()) {
+    return;
+  }
+  tempign = millis(); //reset the inactivity timer if someone logs in
+
+  HTTPUpload& upload = httpServer.upload();
+
+  if (upload.status == UPLOAD_FILE_START) {
+    if ( SPIFFS.exists(HTTPScertfilename) )
+      SPIFFS.remove(HTTPScertfilename);
+    fsUploadFile = SPIFFS.open(HTTPScertfilename, "w");   // Save the HTTPS certificate file
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (fsUploadFile)
+      fsUploadFile.write(upload.buf, upload.currentSize); // Write the received bytes to the file
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (fsUploadFile) {                                   // If the file was successfully created
+      fsUploadFile.close();                               // Close the file again
+      httpServer.sendHeader("Location","/https");         // Redirect the client to the success page
+      httpServer.send(303);
+    } else {
+      httpData = htmlHeader();
+      httpData += F("500: couldn't create file");
+      httpData += FPSTR(HTTP_END);
+      httpServer.send(500, "text/html", httpData );
+    }
+  }
+}
+/* Handle the key file being uploaded */
+void handleHTTPSKeyUpload() {
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
+  if (!is_authenticated()) {
+    return;
+  }
+  tempign = millis(); //reset the inactivity timer if someone logs in
+
+  HTTPUpload& upload = httpServer.upload();
+
+  if (upload.status == UPLOAD_FILE_START) {
+    if ( SPIFFS.exists(HTTPSkeyfilename) )
+      SPIFFS.remove(HTTPSkeyfilename);
+    fsUploadFile = SPIFFS.open(HTTPSkeyfilename, "w");   // Save the HTTPS key file
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (fsUploadFile)
+      fsUploadFile.write(upload.buf, upload.currentSize); // Write the received bytes to the file
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (fsUploadFile) {                                   // If the file was successfully created
+      fsUploadFile.close();                               // Close the file again
+      httpServer.sendHeader("Location","/https");         // Redirect the client to the success page
+      httpServer.send(303);
+    } else {
+      httpData = htmlHeader();
+      httpData += F("500: couldn't create file");
+      httpData += FPSTR(HTTP_END);
+      httpServer.send(500, "text/html", httpData );
     }
   }
 }
