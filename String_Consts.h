@@ -61,6 +61,8 @@ static const char str_error[]      PROGMEM = "error";
 static const char str_true[]       PROGMEM = "true";
 static const char str_false[]      PROGMEM = "false";
 static const char str_nbsp[]       PROGMEM = "&nbsp;";
+const String str_succeeded = "succeeded";
+const String str_failed    = "failed";
 
 const String httpFooter = "</body></html>";
 const String tableStart = "<table>";

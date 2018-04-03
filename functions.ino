@@ -480,6 +480,14 @@ void checkWatchdog() {
 }
 
 void waitForDHCPLease() {
+/*
+ * Using these functions might be more efficient:
+  WiFiEventHandler onStationModeConnected(std::function<void(const WiFiEventStationModeConnected&)>);
+  WiFiEventHandler onStationModeDisconnected(std::function<void(const WiFiEventStationModeDisconnected&)>);
+  WiFiEventHandler onStationModeAuthModeChanged(std::function<void(const WiFiEventStationModeAuthModeChanged&)>);
+  WiFiEventHandler onStationModeGotIP(std::function<void(const WiFiEventStationModeGotIP&)>);
+  WiFiEventHandler onStationModeDHCPTimeout(std::function<void(void)>);
+ */
   // Check if an IP address lease has been received and loop until it has
   IPAddress dhcpIP = WiFi.localIP();
   bool hasLease = (dhcpIP != INADDR_NONE);

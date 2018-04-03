@@ -19,7 +19,9 @@ const char HTTP_NAV_LI[] PROGMEM          = "<li{c}>{l}</li>";
 
 const char HTTP_META_REFRESH[] PROGMEM    = "<meta http-equiv='refresh' content='%u' />";
 
-const char HTTP_H2_RED[] PROGMEM          = "<h2 style='color:red'>{v}</h2>";
+const String str_h2_red                   = "<h2 style='color:red'>{v}</h2>";
+const String str_tick_green               = "<span style='color:green'>&#10004;</span>";
+const String str_cross_red                = "<span style='color:red'>&#10008;</span>";
 
 const byte   MENU_COUNT = 10;
 const String http_page_urls[MENU_COUNT]  = { "/", "/config", "/system", "/wifi", "/password", "/cacert", "/https", "/firmware", "/reboot", "/logout" };
@@ -42,12 +44,12 @@ void httpSetup() {
   httpServer.on("/fwlink",       handleRoot);  // Microsoft captive portal. Maybe not needed. Might be handled by notFound handler. HTTP only
   httpServer.on("/password",     handlePassword );
   httpServer.on("/cacert",       HTTP_GET,  handleCACert);
-  httpServer.on("/cacert",       HTTP_POST, [](){ httpServer.send(200, "text/html", ""); }, handleCACertUpload);
+  httpServer.on("/cacert",       HTTP_POST, [](){ send200Http(""); },     handleCACertUpload);
   httpServer.on("/https",        HTTP_GET,  handleHTTPSCerts);
-  httpServer.on("/httpscert",    HTTP_POST, [](){ httpServer.send(200, "text/html", ""); }, handleHTTPSCertUpload);
-  httpServer.on("/httpskey",     HTTP_POST, [](){ httpServer.send(200, "text/html", ""); }, handleHTTPSKeyUpload);
+  httpServer.on("/httpscert",    HTTP_POST, [](){ send200Http(""); },     handleHTTPSCertUpload);
+  httpServer.on("/httpskey",     HTTP_POST, [](){ send200Http(""); },     handleHTTPSKeyUpload);
   httpServer.on("/firmware",     HTTP_GET,  handleFirmware);
-  httpServer.on("/firmware",     HTTP_POST, handleFirmwareUploadComplete,                   handleFirmwareUpload);
+  httpServer.on("/firmware",     HTTP_POST, handleFirmwareUploadComplete, handleFirmwareUpload);
   httpServer.on("/reboot",       handleReboot );
   httpServer.on("/login",        handleLogin );
   httpServer.on("/logout",       handleLogout );
@@ -121,6 +123,15 @@ void sendCacheControlHeader() {
 void sendCacheControlHeader(uint16_t len) {
   httpServer.sendHeader(F("Content-Length"), String(len));
 }
+void send200Http(String httpData) {
+  httpServer.send(200, String(F("text/html")), httpData );
+}
+void send500HttpUploadFailed() {
+  httpData = htmlHeader();
+  httpData += F("500: couldn't create file");
+  httpData += FPSTR(HTTP_END);
+  httpServer.send(500, "text/html", httpData );
+}
 
 void gencookie() {
   sessioncookie = "";
@@ -160,7 +171,7 @@ boolean isIp(String str) {
 boolean captivePortal() {
   if ( (inConfigAP) && (!isIp(httpServer.hostHeader()) ) ) { // The captive portal is always HTTP only so the httpServer object is the only one that needs to be looked at here
     Serial.println(F("Request redirected to captive portal"));
-    sendLocationHeader(String("http://") + IPtoString(httpServer.client().localIP()));
+    sendLocationHeader(String(F("http://")) + IPtoString(httpServer.client().localIP()));
     httpServer.send ( 302, "text/plain", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
     httpServer.client().stop(); // Stop is needed because we sent no content length
     return true;
@@ -175,7 +186,6 @@ void handleNotFound() {
   httpData += F("404: not found: ");
   httpData += httpServer.uri();
   httpData += FPSTR(HTTP_END);
-//  httpServer.sendHeader("Content-Length", String(httpData.length()));
   sendCacheControlHeader(httpData.length());
   httpServer.send(404, "text/html", httpData);
 }
@@ -230,9 +240,8 @@ void handleLogin() {
   }
   httpData += "</center>";
   httpData += FPSTR(HTTP_END);
-//  httpServer.sendHeader("Content-Length", String(httpData.length()));
   sendCacheControlHeader(httpData.length());
-  httpServer.send(200, "text/html", httpData );
+  send200Http( httpData );
 }
 
 void handleLogout() {
@@ -267,17 +276,23 @@ void handleRoot() {
   uptime = uptime / 1000;
   int signal = WiFi.RSSI();
   httpData += tableStart;
-  httpData += trStart + "Uptime:" + tdBreak + String(uptime) + " s" + trEnd;
-  httpData += trStart + "Signal:" + tdBreak + String(signal) + " dB" + trEnd;
+  httpData += trStart + F("Uptime:") + tdBreak + String(uptime) + " s" + trEnd;
+  httpData += trStart + F("Signal:") + tdBreak + String(signal) + " dB" + trEnd;
+  httpData += trStart + F("MQTT:") + tdBreak;
+  if (mqttClient.connected()) {
+    httpData += str_tick_green;
+  } else {
+    httpData += str_cross_red;
+  }
+  httpData += trEnd;
   httpData += tableEnd;
 
   sprintf_P( buf, HTTP_META_REFRESH, 3);  // Refresh the page after 3 seconds
   httpData += String(buf);
 
   httpData += FPSTR(HTTP_END);
-//  httpServer.sendHeader("Content-Length", String(httpData.length()));
   sendCacheControlHeader(httpData.length());
-  httpServer.send(200, "text/html", httpData);
+  send200Http( httpData );
 }
 
 
@@ -366,9 +381,8 @@ void handleSystem() {
   httpData += String(buf);
   httpData += FPSTR(HTTP_END);
 
-//  httpServer.sendHeader("Content-Length", String(httpData.length()));
   sendCacheControlHeader(httpData.length());
-  httpServer.send(200, "text/html", httpData);
+  send200Http( httpData );
 }
 
 
@@ -380,10 +394,10 @@ void handleConfig() {
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
 
+  IPAddress tmpip;
   httpData = htmlHeader();
 
   if (httpServer.args()) {
-    IPAddress tmpip;
 
     if (httpServer.hasArg("staticip")) {
       if (httpServer.arg("staticip") == String(FPSTR(str_true))) {
@@ -558,19 +572,43 @@ void handleConfig() {
 
   httpData += thStart + F("Network:") + thBreak + thEnd;
   httpData += trStart + "IP:"                 + tdBreak;
-  httpData += htmlRadio("staticip", String(FPSTR(str_true)),          use_staticip)     + "Static IP";
-  httpData += htmlRadio("staticip", String(FPSTR(str_false)),         (! use_staticip)) + "DHCP";
+  httpData += htmlRadio("staticip", String(FPSTR(str_true)),          use_staticip)     + F("Static IP");
+  httpData += htmlRadio("staticip", String(FPSTR(str_false)),         (! use_staticip)) + F("DHCP");
   httpData += trEnd;
   httpData += trStart + "Address:"            + tdBreak + htmlInput("text",     String(FPSTR(cfg_ip_address)),    IPtoString(ip))      + trEnd;
   httpData += trStart + "Subnet Mask:"        + tdBreak + htmlInput("text",     String(FPSTR(cfg_subnet)),        IPtoString(subnet))  + trEnd;
   httpData += trStart + "Gateway:"            + tdBreak + htmlInput("text",     String(FPSTR(cfg_gateway)),       IPtoString(gateway)) + trEnd;
-  httpData += trStart + "DNS Server:"         + tdBreak + htmlInput("text",     String(FPSTR(cfg_dns_server)),    IPtoString(dns_ip))  + trEnd;
-  httpData += trStart + "NTP Server 1:"       + tdBreak + htmlInput("text",     String(FPSTR(cfg_ntp_server1)),   ntp_server1)         + trEnd;
-  httpData += trStart + "NTP Server 2:"       + tdBreak + htmlInput("text",     String(FPSTR(cfg_ntp_server2)),   ntp_server2)         + trEnd;
+  httpData += trStart + "DNS Server:"         + tdBreak + htmlInput("text",     String(FPSTR(cfg_dns_server)),    IPtoString(dns_ip));
+  tmpString = IPtoString(dns_ip);
+  if ( use_staticip && WiFi.hostByName(tmpString.c_str(), tmpip) ) {
+    httpData += str_tick_green;
+  } else {
+    httpData += str_cross_red;
+  }
+  httpData += trEnd;
+  httpData += trStart + "NTP Server 1:"       + tdBreak + htmlInput("text",     String(FPSTR(cfg_ntp_server1)),   ntp_server1);
+  if ( WiFi.hostByName(ntp_server1, tmpip) ) {
+    httpData += str_tick_green;
+  } else {
+    httpData += str_cross_red;
+  }
+  httpData += trEnd;
+  httpData += trStart + "NTP Server 2:"       + tdBreak + htmlInput("text",     String(FPSTR(cfg_ntp_server2)),   ntp_server2);
+  if ( WiFi.hostByName(ntp_server2, tmpip) ) {
+    httpData += str_tick_green;
+  } else {
+    httpData += str_cross_red;
+  }
+  httpData += trEnd;
 
-  httpData += thStart + "MQTT:" + thBreak + thEnd;
-
-  httpData += trStart + "Server:"             + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_server)),   mqtt_server)   + trEnd;
+  httpData += thStart + F("MQTT:") + thBreak + thEnd;
+  httpData += trStart + "Server:"             + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_server)),   mqtt_server);
+  if (mqttClient.connected()) {
+    httpData += str_tick_green;
+  } else {
+    httpData += str_cross_red;
+  }
+  httpData += trEnd;
   httpData += trStart + "Port:"               + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_port)),     mqtt_port)     + trEnd;
   httpData += trStart + "Name:"               + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_name)),     mqtt_name)     + trEnd;
   httpData += trStart + "Use TLS:"            + tdBreak + htmlCheckbox(         String(FPSTR(cfg_mqtt_tls)),      mqtt_tls)      + trEnd;
@@ -580,10 +618,15 @@ void handleConfig() {
   httpData += trStart + "Data interval (s):"  + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_interval)), String(mqtt_interval)) + trEnd;
   httpData += trStart + "MQTT watchdog (s):"  + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_watchdog)), String(mqtt_watchdog)) + trEnd;
 
-  httpData += thStart + "Syslog:" + thBreak + thEnd;
-
+  httpData += thStart + F("Syslog:") + thBreak + thEnd;
   httpData += trStart + "Use Syslog:"         + tdBreak + htmlCheckbox(         String(FPSTR(cfg_use_syslog)),    use_syslog)    + trEnd;
-  httpData += trStart + "Server:"             + tdBreak + htmlInput("text",     String(FPSTR(cfg_syslog_server)), syslog_server) + trEnd;
+  httpData += trStart + "Server:"             + tdBreak + htmlInput("text",     String(FPSTR(cfg_syslog_server)), syslog_server);
+  if ( use_syslog && WiFi.hostByName(syslog_server, tmpip) ) {
+    httpData += str_tick_green;
+  } else {
+    httpData += str_cross_red;
+  }
+  httpData += trEnd;
 
   httpData += thStart + "Sensors:" + thBreak + thEnd;
 
@@ -595,9 +638,8 @@ void handleConfig() {
   httpData += FPSTR(HTTP_FORM_END);
 
   httpData += FPSTR(HTTP_END);
-//  httpServer.sendHeader("Content-Length", String(httpData.length()));
   sendCacheControlHeader(httpData.length());
-  httpServer.send(200, "text/html", httpData);
+  send200Http( httpData );
 }
 
 
@@ -679,9 +721,8 @@ void handlePassword() {
   httpData += FPSTR(HTTP_FORM_END);
 
   httpData += FPSTR(HTTP_END);
-//  httpServer.sendHeader("Content-Length", String(httpData.length()));
   sendCacheControlHeader(httpData.length());
-  httpServer.send(200, "text/html", httpData);
+  send200Http( httpData );
 }
 
 
@@ -698,7 +739,7 @@ void handleWifi() {
   httpData = htmlHeader();
 
   if (! inConfigAP) {
-    httpData += FPSTR(HTTP_H2_RED);
+    httpData += str_h2_red;
     httpData.replace("{v}", F("Warning"));
     httpData += (String(F("<p>You are connected through the wifi network: ")) + ssid + "<br/>");
     httpData += (String(F("<b>If you change WiFi networks you may not be able to reconnect to the device.</b></p>")));
@@ -791,9 +832,8 @@ void handleWifi() {
   sendCacheControlHeader();     // Does this need to send "no-cache, no-store, must-revalidate"?
   httpServer.sendHeader("Pragma", "no-cache");
   httpServer.sendHeader("Expires", "-1");
-//  httpServer.sendHeader("Content-Length", String(httpData.length()));
   sendCacheControlHeader(httpData.length());
-  httpServer.send(200, "text/html", httpData);
+  send200Http( httpData );
 }
 
 /** Handle the WLAN save form and redirect to WLAN config page again */
@@ -833,15 +873,35 @@ void handleWifiSave() {
 
     httpData += FPSTR(HTTP_END);
   }
-//  httpServer.sendHeader("Content-Length", String(httpData.length()));
   sendCacheControlHeader(httpData.length());
-  httpServer.send(200, "text/html", httpData);
+  send200Http( httpData );
+}
+
+
+void handleReboot() {
+  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+    return;
+  if (!is_authenticated()) {
+    return;
+  }
+  tempign = millis(); //reset the inactivity timer if someone logs in
+  char buf[50];
+
+  httpData = htmlHeader();
+  sprintf_P( buf, HTTP_META_REFRESH, 10);  // Refresh the page after 10 seconds
+  httpData += String(buf);
+  httpData += str_rebooting;
+  httpData += FPSTR(HTTP_END);
+
+  sendCacheControlHeader(httpData.length());
+  send200Http( httpData );
+  delay(100);
+  ESP.restart();
+  delay(5000);
 }
 
 
 //////////////////////////////////// upload pages ////////////////////////////////////
-
-
 void handleFirmware() {
   if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
     return;
@@ -858,9 +918,8 @@ void handleFirmware() {
   httpData += F("<br/><button type='submit'>Update</button></form>");
 
   httpData += FPSTR(HTTP_END);
-//  httpServer.sendHeader("Content-Length", String(httpData.length()));
   sendCacheControlHeader(httpData.length());
-  httpServer.send(200, "text/html", httpData);
+  send200Http( httpData );
 }
 
 void handleFirmwareUploadComplete() {
@@ -875,7 +934,7 @@ void handleFirmwareUploadComplete() {
   httpData = "</p>";   // Finishes the progress bar
 
   if (Update.hasError() || firmwareUpdateError != "") {
-    httpData += FPSTR(HTTP_H2_RED);
+    httpData += str_h2_red;
     httpData.replace("{v}", str_firmware_update + F("failed."));
 
     httpData += String(F("<pre>")) + firmwareUpdateError + F("</pre>");
@@ -901,12 +960,12 @@ void handleFirmwareUploadComplete() {
 }
 
 void handleFirmwareUpload() {
-  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
+  if (captivePortal())  // If captive portal and not connected by IP address redirect instead of displaying the page.
     return;
   if (!is_authenticated()) {
     return;
   }
-  tempign = millis(); //reset the inactivity timer if someone logs in
+  tempign = millis();   // reset the inactivity timer if someone logs in
 
   HTTPUpload& upload = httpServer.upload();
 
@@ -916,17 +975,18 @@ void handleFirmwareUpload() {
     Serial.setDebugOutput(true);
     logString = str_firmware_update + upload.filename;
     logMessage(app_name_sys, logString, true);
-    delay(100);         // Give time for the syslog packet to be sent by UDP
+    delay(10);          // Give time for the syslog packet to be sent by UDP
     WiFiUDP::stopAll();
 
     httpServer.client().setNoDelay(true);
     httpServer.setContentLength(CONTENT_LENGTH_UNKNOWN);
-    httpServer.send(200, "text/html", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
+    send200Http("");    // Empty content inhibits Content-length header so we have to close the socket ourselves.
 
     httpData = htmlHeader();
     httpData += F("<p style='background-color:#0A0;width:fit-content;font-size:5px;'>");
 
     httpServer.sendContent(httpData);
+    delay(1);           // Allow a moment for the current http data to be sent
 
     uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
     if (!Update.begin(maxSketchSpace)) {                  // start with max available size
@@ -975,29 +1035,6 @@ void handleFirmwareUpload() {
   delay(0);
 }
 
-void handleReboot() {
-  if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
-    return;
-  if (!is_authenticated()) {
-    return;
-  }
-  tempign = millis(); //reset the inactivity timer if someone logs in
-  char buf[50];
-
-  httpData = htmlHeader();
-  sprintf_P( buf, HTTP_META_REFRESH, 10);  // Refresh the page after 10 seconds
-  httpData += String(buf);
-  httpData += str_rebooting;
-  httpData += FPSTR(HTTP_END);
-
-//  httpServer.sendHeader("Content-Length", String(httpData.length()));
-  sendCacheControlHeader(httpData.length());
-  httpServer.send(200, "text/html", httpData);
-  delay(100);
-  ESP.restart();
-  delay(5000);
-}
-
 
 /** Handle the CA certificate upload page */
 void handleCACert() {
@@ -1014,7 +1051,7 @@ void handleCACert() {
 
   if ( SPIFFS.exists(CAcertfilename) ) {
     File certfile = SPIFFS.open(CAcertfilename, "r");
-    httpData += FPSTR(HTTP_H2_RED);
+    httpData += str_h2_red;
     httpData.replace("{v}", F("Existing certificate"));
     httpData += F("There is an existing CA certificate with a size of ");
     httpData += certfile.size();
@@ -1029,9 +1066,8 @@ void handleCACert() {
   httpData += F("<br/><button type='submit'>Upload</button></form>");
 
   httpData += FPSTR(HTTP_END);
-//  httpServer.sendHeader("Content-Length", String(httpData.length()));
   sendCacheControlHeader(httpData.length());
-  httpServer.send(200, "text/html", httpData);
+  send200Http( httpData );
 }
 
 /* Handle a file being uploaded */
@@ -1043,6 +1079,8 @@ void handleCACertUpload() {
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
 
+  rebootRequired = true;        // Making use of a new CA certificate requires a reboot
+
   HTTPUpload& upload = httpServer.upload();
 
   if (upload.status == UPLOAD_FILE_START) {
@@ -1053,16 +1091,17 @@ void handleCACertUpload() {
     if (fsUploadFile)
       fsUploadFile.write(upload.buf, upload.currentSize); // Write the received bytes to the file
   } else if (upload.status == UPLOAD_FILE_END) {
+    logString = F("CA certificate upload ");
     if (fsUploadFile) {                                   // If the file was successfully created
       fsUploadFile.close();                               // Close the file again
       sendLocationHeader(http_page_urls[5]);              // Redirect the client to the "/cacert" page
       httpServer.send(303);
+      logString += str_succeeded;
     } else {
-      httpData = htmlHeader();
-      httpData += F("500: couldn't create file");
-      httpData += FPSTR(HTTP_END);
-      httpServer.send(500, "text/html", httpData );
+      send500HttpUploadFailed();
+      logString += str_failed;
     }
+    logMessage(app_name_http, logString, true);
   }
 }
 
@@ -1078,7 +1117,7 @@ void handleHTTPSCerts() {
 
   httpData = htmlHeader();
 
-  httpData += FPSTR(HTTP_H2_RED);
+  httpData += str_h2_red;
   httpData.replace("{v}", F("Currently unused!"));
   httpData += F("<p>This certificate and key is for the secure HTTPS interface.<br/>It is not needed for MQTT but is a needed for a secure connection to this device's web interface.</p>");
 
@@ -1093,7 +1132,7 @@ void handleHTTPSCerts() {
 
   if ( SPIFFS.exists(HTTPScertfilename) ) {
     File certfile = SPIFFS.open(HTTPScertfilename, "r");
-    httpData += FPSTR(HTTP_H2_RED);
+    httpData += str_h2_red;
     httpData.replace("{v}", F("Existing certificate"));
     httpData += F("There is an existing HTTPS certificate with a size of ");
     httpData += certfile.size();
@@ -1106,7 +1145,7 @@ void handleHTTPSCerts() {
 
   if ( SPIFFS.exists(HTTPSkeyfilename) ) {
     File certfile = SPIFFS.open(HTTPSkeyfilename, "r");
-    httpData += FPSTR(HTTP_H2_RED);
+    httpData += str_h2_red;
     httpData.replace("{v}", F("Existing key"));
     httpData += F("There is an existing HTTPS key with a size of ");
     httpData += certfile.size();
@@ -1119,9 +1158,8 @@ void handleHTTPSCerts() {
   httpData += tableEnd;
 
   httpData += FPSTR(HTTP_END);
-//  httpServer.sendHeader("Content-Length", String(httpData.length()));
   sendCacheControlHeader(httpData.length());
-  httpServer.send(200, "text/html", httpData);
+  send200Http( httpData );
 }
 
 /* Handle the cert file being uploaded */
@@ -1143,16 +1181,17 @@ void handleHTTPSCertUpload() {
     if (fsUploadFile)
       fsUploadFile.write(upload.buf, upload.currentSize); // Write the received bytes to the file
   } else if (upload.status == UPLOAD_FILE_END) {
+    logString = F("HTTPS certificate upload ");
     if (fsUploadFile) {                                   // If the file was successfully created
       fsUploadFile.close();                               // Close the file again
       sendLocationHeader(http_page_urls[6]);              // Redirect the client to the "/https" page
       httpServer.send(303);
+      logString += str_succeeded;
     } else {
-      httpData = htmlHeader();
-      httpData += F("500: couldn't create file");
-      httpData += FPSTR(HTTP_END);
-      httpServer.send(500, "text/html", httpData );
+      send500HttpUploadFailed();
+      logString += str_failed;
     }
+    logMessage(app_name_http, logString, true);
   }
 }
 /* Handle the key file being uploaded */
@@ -1174,15 +1213,16 @@ void handleHTTPSKeyUpload() {
     if (fsUploadFile)
       fsUploadFile.write(upload.buf, upload.currentSize); // Write the received bytes to the file
   } else if (upload.status == UPLOAD_FILE_END) {
+    logString = F("HTTPS key upload ");
     if (fsUploadFile) {                                   // If the file was successfully created
       fsUploadFile.close();                               // Close the file again
       sendLocationHeader(http_page_urls[6]);              // Redirect the client to the "/https" page
       httpServer.send(303);
+      logString += str_succeeded;
     } else {
-      httpData = htmlHeader();
-      httpData += F("500: couldn't create file");
-      httpData += FPSTR(HTTP_END);
-      httpServer.send(500, "text/html", httpData );
+      send500HttpUploadFailed();
+      logString += str_failed;
     }
+    logMessage(app_name_http, logString, true);
   }
 }
