@@ -9,7 +9,7 @@ void sensorSetup() {
 }
 
 void  printSensorConfig(String cfgStr) {
-  mqttSend(String(cfgStr + "sensor"), String(sensor_value), true);
+  mqttSend(String(cfgStr + "config_item"), String(config_item), true);
 }
 
 void sensorImportJSON(JsonObject& json) {
@@ -65,7 +65,7 @@ String httpSensorConfig() {
   if (httpServer.hasArg("config_item")) {
     tmpString = String(config_item);
     if (httpServer.arg("config_item") != tmpString) {
-      kphPerPulse = httpServer.arg("config_item").toFloat();
+      config_item = httpServer.arg("config_item").toFloat();
     }
   }
 }

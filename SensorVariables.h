@@ -8,22 +8,10 @@
 // Unused. Template ONLY.
 #elif FWTYPE == 0
 
-/*
 char fwname[40] =    "esp8266-dummy-sensor";
 char nodes[100] =    "sensor:number";
 
 float    sensor_value = 42.0;
-
-#define WMADDCONFIG \
-  char config_itemStr[8]; \
-  dtostrf(config_item, 6, 2, config_itemStr); \
-  WiFiManagerParameter pressure_text("Config item:"); \
-  wifiManager.addParameter(&pressure_text); \
-  WiFiManagerParameter custom_config_item("config_item", "Config item", config_itemStr, 8); \
-  wifiManager.addParameter(&custom_config_item);
-
-#define WMGETCONFIG \
-    config_item     = atof(custom_config_item.getValue());
 */
 
 
@@ -295,6 +283,25 @@ uint8_t          wind_dirs[WIND_SECS];   // Array of last two minutes of wind di
 uint16_t         wind_array_pos = 0;     // Current position in the array
 bool             wind_array_full = false;
 
+
+
+#elif FWTYPE == 12
+
+char fwname[40] =    "esp8266-mq135";
+char nodes[100] =    "co2:ppm";
+
+#define SENSOR_PIN A0
+
+#define MQ135_DEFAULTPPM 399            // default ppm of CO2 for calibration
+#define MQ135_SCALINGFACTOR 116.6020682 // CO2 gas value
+#define MQ135_EXPONENT -2.769034857     // CO2 gas value
+#define MQ135_MAXRSRO 2.428             // for CO2
+#define MQ135_MINRSRO 0.358             // for CO2
+
+uint32_t mq135_ro = 68550;              // default Ro for MQ135_DEFAULTPPM ppm of CO2
+double   val      = 0;                  // variable to store the value coming from the sensor
+double   valAIQ   = 0;
+//double   lastAIQ  = 0;
 
 
 // ************* UNKNOWN SENSOR TYPE *************

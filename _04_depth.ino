@@ -41,10 +41,8 @@ void sendData() {
     mqttSend(String("distance/cm"), String(distance), false);
     mqttSend(String("depth/cm"),    String(depth),    false);
   } else {
-#ifdef DEBUG
-    dmesg();
-    Serial.println("No valid ping result returned.");
-#endif
+    logString = F("ERROR: No valid distance returned");
+    mqttLog(logString);
     mqttSend(String("distance/cm"), strNaN, false);
     mqttSend(String("depth/cm"),    strNaN, false);
     mqttTime = currentTime - (1000 * (mqtt_interval - 1 ) ); // only wait 1 second before trying again when measurement failed
@@ -53,7 +51,7 @@ void sendData() {
 
 String httpSensorData() {
   String httpData = tableStart;
-  httpData += trStart + "Distance:" + tdBreak;
+  httpData += trStart + F("Distance:") + tdBreak;
   if ( uS != 0 ) {
     httpData += String(distance) + " cm";
   } else {
@@ -61,7 +59,7 @@ String httpSensorData() {
   }
   httpData += trEnd;
 
-  httpData += trStart + "Depth:" + tdBreak;
+  httpData += trStart + F("Depth:") + tdBreak;
   if ( uS != 0 ) {
     httpData += String(depth) + " cm";
   } else {
@@ -75,7 +73,7 @@ String httpSensorData() {
 
 String httpSensorSetup() {
   String httpData;
-  httpData += trStart + "Maximum depth:" + tdBreak + htmlInput("text",     "maxdepth", String(maxdepth)) + trEnd;
+  httpData += trStart + F("Max depth (cm):") + tdBreak + htmlInput("text",     "maxdepth", String(maxdepth)) + trEnd;
   return httpData;
 }
 

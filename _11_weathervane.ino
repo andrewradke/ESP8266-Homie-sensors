@@ -50,7 +50,7 @@ void calcData() {
     voltage = analogRead(WINDVANE_PIN);
     if (voltage < 70) {               // ERROR - Shorted to ground
       dir_reading = 16;
-      logString = "ERROR: Wind vane shorted to ground.";
+      logString = F("ERROR: Wind vane shorted to ground.");
       mqttLog(logString);
     } else if (voltage < 84) {
       dir_reading = 5;
@@ -86,7 +86,7 @@ void calcData() {
       dir_reading = 12;
     } else {                          // ERROR - shorted to 5V
       dir_reading = 17;
-      logString = "ERROR: Wind vane shorted to 5V.";
+      logString = ("ERROR: Wind vane shorted to 5V.");
       mqttLog(logString);
     }
     wind_dirs[wind_array_pos]   = dir_reading;

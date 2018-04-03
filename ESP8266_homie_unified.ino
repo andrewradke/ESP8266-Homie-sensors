@@ -13,6 +13,7 @@
    9  esp8266-sht31
    10 esp8266-air
    11 esp8266-weathervane
+   12 esp8266-mq135
 */
 
 /********************  IMPORTANT NOTE for ADS1115  ********************
@@ -24,7 +25,7 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     3
+#define FWTYPE     12
 #define FWVERSION  "0.9.14"
 #define FWPASSWORD "esp8266."
 //#define USESSD1306                // SSD1306 OLED display
@@ -214,6 +215,7 @@ void setup() {
   memcpy( syslog_server, default_syslog_server, 41);
   memcpy( mqtt_server,   default_mqtt_server,   41);
   memcpy( mqtt_name,     fwname,                21);
+  strcpy(host_name, mqtt_name);
 
   httpUser   = String(FPSTR(default_httpUser));
   httpPasswd = String(FPSTR(default_httpPasswd));

@@ -63,7 +63,8 @@ String htmlHeader() {
   httpHeader += FPSTR(HTTP_SCRIPT);
   httpHeader += FPSTR(HTTP_STYLE);
   httpHeader += FPSTR(HTTP_HEAD_END);
-  httpHeader.replace("{t}", String(host_name) + " (" + String(fwname) + ")");
+//  httpHeader.replace("{t}", String(host_name) + " (" + String(fwname) + ")");
+  httpHeader.replace("{t}", String(host_name));
 
   if (httpServer.uri() != "/login") {
     httpHeader += FPSTR(HTTP_NAV_START);
@@ -309,6 +310,7 @@ void handleSystem() {
 
   httpData += tableStart;
 
+  httpData += trStart + F("Firmware type:")    + tdBreak + String(fwname)    + trEnd;
   httpData += trStart + F("Firmware version:") + tdBreak + String(FWVERSION) + trEnd;
 
   httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
@@ -747,20 +749,22 @@ void handleWifi() {
 
   int signal = WiFi.RSSI();
   ssid = WiFi.SSID();
-  httpData += tableStart;
-  httpData += thStart + String(F("Current config:")) + thBreak + thEnd;
-  httpData += trStart + "SSID:"   + tdBreak + String(ssid) + trEnd;
-  if (! inConfigAP) {
-    httpData += trStart + "Signal:" + tdBreak + String(signal) + " dB" + trEnd;
-    httpData += trStart + "IP:"     + tdBreak + IPtoString(WiFi.localIP()) + trEnd;
+  if (ssid != "") {
+    httpData += tableStart;
+    httpData += thStart + F("Current config:") + thBreak + thEnd;
+    httpData += trStart + F("SSID:")   + tdBreak + String(ssid) + trEnd;
+    if (! inConfigAP) {
+      httpData += trStart + F("Signal:") + tdBreak + String(signal) + " dB" + trEnd;
+      httpData += trStart + F("IP:")     + tdBreak + IPtoString(WiFi.localIP()) + trEnd;
+    }
+    httpData += trEnd;
+    httpData += tableEnd;
+  
+    httpData += "<br/>";
   }
-  httpData += trEnd;
-  httpData += tableEnd;
-
-  httpData += "<br/>";
-
-//  logString = String(F("Web server available by http://")) + String(host_name) + F(".local/");
-
+  if (inConfigAP) {
+    httpData += String(F("After connecting the device will be available on http://")) + String(host_name) + F(".local/<br/>");
+  }
 
   logString = F("scan start");
   logMessage(app_name_wifi, logString, true);
@@ -816,7 +820,7 @@ void handleWifi() {
         item.replace("{i}", "");
       }
       httpData += item;
-      delay(0);
+      yield();
     }
     httpData += tableEnd;
   }
@@ -856,7 +860,8 @@ void handleWifiSave() {
     httpData += FPSTR(HTTP_SCRIPT);
     httpData += FPSTR(HTTP_STYLE);
     httpData += FPSTR(HTTP_HEAD_END);
-    httpData.replace("{t}", String(host_name) + " (" + String(fwname) + ")");
+//    httpData.replace("{t}", String(host_name) + " (" + String(fwname) + ")");
+    httpData.replace("{t}", String(host_name));
     httpData += FPSTR(HTTP_SAVED);
     httpData += FPSTR(HTTP_END);
 
@@ -986,7 +991,7 @@ void handleFirmwareUpload() {
     httpData += F("<p style='background-color:#0A0;width:fit-content;font-size:5px;'>");
 
     httpServer.sendContent(httpData);
-    delay(1);           // Allow a moment for the current http data to be sent
+    delay(10);           // Allow a moment for the current http data to be sent
 
     uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
     if (!Update.begin(maxSketchSpace)) {                  // start with max available size
@@ -1032,7 +1037,7 @@ void handleFirmwareUpload() {
     logString = str_firmware_update + firmwareUpdateError;
     logMessage(app_name_sys, logString, true);
   }
-  delay(0);
+  yield();
 }
 
 
