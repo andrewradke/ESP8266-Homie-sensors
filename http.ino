@@ -212,22 +212,22 @@ void handleLogin() {
       sendCacheControlHeader();
       httpServer.sendHeader("Set-Cookie","c=" + sessioncookie);
       httpServer.send(301);
-      trycount = 0;                                 // With good headers in mind, reset the trycount buffer
+      trycount = 0;                                      // With good headers in mind, reset the trycount buffer
       httpLoggedin = true;
       return;
     }
 
     httpData += "<center><br>";
-    if (trycount != 10 && !lock)
-      trycount++;                                   // If system is not locked up the trycount buffer
-    if (trycount < 10 && !lock) {                   // We go here if systems isn't locked out, we give user 10 times to make a mistake after we lock down the system, thus making brute force attack almost imposible
+    if (trycount != 3 && !lock)
+      trycount++;                                        // If system is not locked up the trycount buffer
+    if (trycount < 3 && !lock) {                         // We go here if systems isn't locked out, we give user 10 times to make a mistake after we lock down the system, thus making brute force attack almost imposible
       httpData += String(F("<p>Wrong username/password</p>You have "));
-      httpData += (10 - trycount);
+      httpData += (3 - trycount);
       httpData += String(F(" tries before system temporarily locks out."));
-      logincld = millis();                          // Reset the logincld timer, since we still have available tries
+      logincld = millis();                               // Reset the logincld timer, since we still have available tries
     }
     
-    if (trycount == 10) {                           // If too many bad tries
+    if (trycount == 3) {                                 // If too many bad tries
       httpData += String(F("Too many invalid login requests, you can try again in "));
       if (lock) {
         httpData += 5 - ((millis() - logincld) / 60000); // Display lock time remaining in minutes

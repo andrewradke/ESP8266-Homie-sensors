@@ -85,7 +85,6 @@ char     syslog_server[41];
 uint16_t loglevel          = LOG_NOTICE;
 WiFiUDP  udpClient;
 Syslog   syslog(udpClient, SYSLOG_PROTO_IETF);
-//char     app_name[10];     // printMessage will use this too so it's always declared
 
 
 #ifdef USESSD1306
