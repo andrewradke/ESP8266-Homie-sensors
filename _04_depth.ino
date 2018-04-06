@@ -42,7 +42,7 @@ void sendData() {
     mqttSend(String("depth/cm"),    String(depth),    false);
   } else {
     logString = F("ERROR: No valid distance returned");
-    mqttLog(logString);
+    mqttLog(app_name_sensors, logString);
     mqttSend(String("distance/cm"), strNaN, false);
     mqttSend(String("depth/cm"),    strNaN, false);
     mqttTime = currentTime - (1000 * (mqtt_interval - 1 ) ); // only wait 1 second before trying again when measurement failed

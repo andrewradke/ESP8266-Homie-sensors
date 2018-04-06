@@ -55,7 +55,7 @@ void sendData() {
 
 void rezero() {
   logString = "Re-zeroing";
-  mqttLog(logString);
+  mqttLog(app_name_sensors, logString);
 
   tare(readings * 2);                       // reset the scale to 0
 
@@ -98,7 +98,7 @@ String httpSensorConfig() {
 
 void calibrate() {
   logString = "Calibrating";
-  mqttLog(logString);
+  mqttLog(app_name_sensors, logString);
 
   float unscaled = get_value(readings * 2);
   scale = unscaled / 100;

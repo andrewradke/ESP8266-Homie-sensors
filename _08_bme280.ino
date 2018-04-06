@@ -16,7 +16,7 @@ void sensorSetup() {
     logString = logString + " NOT";
   }
   logString = logString + "found";
-  mqttLog(logString);
+  mqttLog(app_name_sensors, logString);
 }
 
 void  printSensorConfig(String cfgStr) {
@@ -59,7 +59,7 @@ void sendData() {
   // Start BME280
   if (! bme280Status) {
     logString = "Retrying BME280";
-    mqttLog(logString);
+    mqttLog(app_name_sensors, logString);
 
     bme280Status = bme.begin();
     if (bme280Status) {
@@ -72,7 +72,7 @@ void sendData() {
                       Adafruit_BME280::SAMPLING_X1, // humidity
                       Adafruit_BME280::FILTER_OFF   );
       logString = "BME280 found";
-      mqttLog(logString);
+      mqttLog(app_name_sensors, logString);
     }
 
   } else {
@@ -96,7 +96,7 @@ void sendData() {
       if (bme280ErrorT) {
         if (bme280ErrorT >= error_count_log) {
           logString = "BME280 temperature recovered: " + String(temperature2) + "C";
-          mqttLog(logString);
+          mqttLog(app_name_sensors, logString);
         }
         bme280ErrorT = 0;
       }
@@ -104,7 +104,7 @@ void sendData() {
       bme280ErrorT++;
       if (bme280ErrorT == error_count_log) {
         logString = "BME280 temperature error: " + String(temperature2) + "C";
-        mqttLog(logString);
+        mqttLog(app_name_sensors, logString);
       }
     }
     // End temperature
@@ -119,7 +119,7 @@ void sendData() {
       if (bme280ErrorH) {
         if (bme280ErrorH >= error_count_log) {
           logString = "BME280 humidity recovered: " + String(humidity2) + "%";
-          mqttLog(logString);
+          mqttLog(app_name_sensors, logString);
         }
         bme280ErrorH = 0;
       }
@@ -127,7 +127,7 @@ void sendData() {
       bme280ErrorH++;
       if (bme280ErrorH == error_count_log) {
         logString = "BME280 humidity error: " + String(humidity2) + "%";
-        mqttLog(logString);
+        mqttLog(app_name_sensors, logString);
       }
     }
     // End humidity
@@ -143,7 +143,7 @@ void sendData() {
       if (bme280ErrorP) {
         if (bme280ErrorP >= error_count_log) {
           logString = "BME280 pressure recovered: " + String(sealevel2) + "hpa";
-          mqttLog(logString);
+          mqttLog(app_name_sensors, logString);
         }
         bme280ErrorP = 0;
       }
@@ -151,7 +151,7 @@ void sendData() {
       bme280ErrorP++;
       if (bme280ErrorP == error_count_log) {
         logString = "BME280 pressure error: " + String(sealevel2) + "hpa";
-        mqttLog(logString);
+        mqttLog(app_name_sensors, logString);
       }
     }
     // End pressure

@@ -78,6 +78,7 @@ void logMessage(String app_name, String message, bool oled) {
     char appname[10];
     app_name.toCharArray(appname,10);
     syslog.appName(appname);
+    // An extra character '<feff>' is appearing in the logs before the logstring
     syslog.log(LOG_INFO, logString);
     // The delay is needed to give time for each syslog packet to be sent. Otherwise a few of the later ones can end up being lost
     delay(1);
@@ -99,7 +100,7 @@ void saveConfig() {
   char* cfg_name;
 
   logString = F("Saving config");
-  logMessage(app_name_cfg, logString, true);
+  logMessage(app_name_cfg, logString, false);
 
   DynamicJsonBuffer jsonBuffer;
   JsonObject& json = jsonBuffer.createObject();
@@ -155,7 +156,7 @@ void saveConfig() {
   File configFile = SPIFFS.open(configfilename, "w");
   if (!configFile) {
     logString = F("Failed to open config file for writing.");
-    logMessage(app_name_cfg, logString, true);
+    logMessage(app_name_cfg, logString, false);
   }
 
 #ifdef DEBUG
@@ -172,14 +173,14 @@ void saveConfig() {
 void loadConfig() {
   //read configuration from FS json
   logString = F("Mounting FS...");
-  logMessage(app_name_sys, logString, true);
+  logMessage(app_name_sys, logString, false);
 
   if (SPIFFS.begin()) {
     if (SPIFFS.exists(configfilename)) {
       File configFile = SPIFFS.open(configfilename, "r");
       if (configFile) {
         logString = F("Opened config file.");
-        logMessage(app_name_cfg, logString, true);
+        logMessage(app_name_cfg, logString, false);
 
         size_t size = configFile.size();
         // Allocate a buffer to store contents of the file.
@@ -289,19 +290,19 @@ void loadConfig() {
 
         } else {
           logString = F("Corrupted json config file.");
-          logMessage(app_name_cfg, logString, true);
+          logMessage(app_name_cfg, logString, false);
         }
       } else {
         logString = F("Failed to open config file.");
-        logMessage(app_name_cfg, logString, true);
+        logMessage(app_name_cfg, logString, false);
       }
     } else {
       logString = F("No existing config file.");
-      logMessage(app_name_cfg, logString, true);
+      logMessage(app_name_cfg, logString, false);
     }
   } else {
     logString = F("Failed to mount FS.");
-    logMessage(app_name_sys, logString, true);
+    logMessage(app_name_sys, logString, false);
   }
 }  //end readConfig
 
@@ -347,7 +348,7 @@ void updateConfig(String key, String value) {
 
   } else if (! sensorUpdateConfig(key, value)) {
     logString = String("UNKNOWN config parameter: " + key);
-    mqttLog(logString);
+    mqttLog(app_name_cfg, logString);
     return;
   }
 }
@@ -355,8 +356,9 @@ void updateConfig(String key, String value) {
 void runAction(String key, String value) {
   if ( key == "reboot" ) {
     logString = F("Received reboot command.");
-    mqttLog(logString);
+    mqttLog(app_name_mqtt, logString);
     mqttSend(String(FPSTR(mqttstr_online)), String(FPSTR(str_false)), true);
+    delay(100);
     ESP.restart();
   } else if ( key == "saveconfig" ) {
     saveConfig();
@@ -364,7 +366,7 @@ void runAction(String key, String value) {
     WiFi.begin(ssid.c_str(), psk.c_str(), 0, NULL, false);
   } else if (! sensorRunAction(key, value)) {
     logString = String("UNKNOWN action: " + key);
-    mqttLog(logString);
+    mqttLog(app_name_mqtt, logString);
     return;
   }
 }
@@ -373,7 +375,7 @@ void runAction(String key, String value) {
 void updateFirmware(String url) {
   logString = F("Firmware upgrade requested via MQTT: ");
   logString = logString + url;
-  mqttLog(logString);
+  mqttLog(app_name_mqtt, logString);
 
   t_httpUpdate_return ret = ESPhttpUpdate.update(url);
 
@@ -393,7 +395,7 @@ void updateFirmware(String url) {
       mqttSend(String("$ota/command"), logString, false);
       break;
   }
-  mqttLog(logString);
+  mqttLog(app_name_cfg, logString);
 }
 
 
@@ -401,7 +403,7 @@ void setupSyslog() {
   // Setup syslog
 
   logString = String(F("Syslog server: ")) + String(syslog_server);
-  logMessage(app_name_sys, logString, true);
+  logMessage(app_name_sys, logString, false);
 
   syslog.server(syslog_server, 514);
   syslog.deviceHostname(host_name);
@@ -415,7 +417,7 @@ bool newWiFiCredentials() {
   bool result;
 
   logString = String(F("Request to change WiFi network from '")) + ssid + "' to '" + _ssid + String(F("'. Disconnecting from existing network."));
-  logMessage(app_name_wifi, logString, true);
+  logMessage(app_name_wifi, logString, false);
 
   delay(100);
   WiFi.persistent(true);  // Discard old WiFi credentials, i.e. erase the WiFi credentials
@@ -446,7 +448,7 @@ bool newWiFiCredentials() {
   }
 
   logString = String(F("Connection result: ")) + String(wifiStatus);
-  logMessage(app_name_wifi, logString, true);
+  logMessage(app_name_wifi, logString, false);
 
   if (wifiStatus != WL_CONNECTED) {
     logString    = F("Failed to connect.");

@@ -51,7 +51,7 @@ void calcData() {
     if (voltage < 70) {               // ERROR - Shorted to ground
       dir_reading = 16;
       logString = F("ERROR: Wind vane shorted to ground.");
-      mqttLog(logString);
+      mqttLog(app_name_sensors, logString);
     } else if (voltage < 84) {
       dir_reading = 5;
     } else if (voltage < 98) {
@@ -87,7 +87,7 @@ void calcData() {
     } else {                          // ERROR - shorted to 5V
       dir_reading = 17;
       logString = ("ERROR: Wind vane shorted to 5V.");
-      mqttLog(logString);
+      mqttLog(app_name_sensors, logString);
     }
     wind_dirs[wind_array_pos]   = dir_reading;
 
@@ -168,7 +168,7 @@ void calcData() {
         gust_speed = max_speed * kphPerPulse;
         gust_dir   = max_dir * 22.5;
         logString = "Wind gust: " + String(gust_speed) + " kph, " + String(gust_dir) + " degrees";
-        mqttLog(logString);
+        mqttLog(app_name_sensors, logString);
       }
     }
 #endif

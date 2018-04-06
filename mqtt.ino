@@ -22,9 +22,9 @@ void mqttSend(String topic, String data, bool retain) {
 }
 
 
-void mqttLog(String data) {
-  mqttSend(String(FPSTR(mqttstr_log)), data, false);
-  logMessage(app_name_mqtt, logString, true);
+void mqttLog(String app_name, String message) {
+  mqttSend(String(FPSTR(mqttstr_log)), message, false);
+  logMessage(app_name_mqtt, message, true);
 }
 
 
@@ -66,7 +66,7 @@ void mqttConnect() {
           logString = String(F("ERROR: ")) + logString + F("verification failed! ") + str_rebooting;
           tlsOkay = false;
         }
-        logMessage(app_name_mqtt, logString, true);
+        logMessage(app_name_mqtt, logString, false);
   
         if (! tlsOkay) {
           delay(1000);
@@ -86,7 +86,7 @@ void mqttConnect() {
       tmpString.toCharArray(subTopic, 40);
 
       logString = String(F("Subscribing to ")) + tmpString;
-      logMessage(app_name_mqtt, logString, true);
+      logMessage(app_name_mqtt, logString, false);
 
       mqttClient.subscribe(subTopic);
 
@@ -94,7 +94,7 @@ void mqttConnect() {
       logString = F("Failed to connect to MQTT, ");
       logString += mqtt_rc_states[mqttClient.state() + 4];    // The return codes start from -4 so we have to add four to get the correct array position
       logString += " (rc=" + String(mqttClient.state()) + ")";
-      logMessage(app_name_mqtt, logString, true);
+      logMessage(app_name_mqtt, logString, false);
     }
   }
 }
@@ -183,7 +183,7 @@ void mqttCommand(String cmd, String key, String value) {
     ESP.restart();
   } else {
     logString = String("UNKNOWN command: " + key);
-    mqttLog(logString);
+    mqttLog(app_name_mqtt, logString);
     return;
   }
 }

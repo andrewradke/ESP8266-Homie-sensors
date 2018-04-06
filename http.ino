@@ -676,7 +676,7 @@ void handlePassword() {
           httpData += "<p>Username changed.</p>";
           authChanged = true;
           logString = "Username changed";
-          mqttLog(logString);
+          logMessage(app_name_sys, logString, false);
         }
       } else {
         httpData += String(F("<p><b>Username empty. Not changed.</b></p>"));
@@ -688,7 +688,7 @@ void handlePassword() {
             httpData += String(F("<p>Password changed.</p>"));
             authChanged = true;
             logString = "Password changed";
-            mqttLog(logString);
+            logMessage(app_name_sys, logString, false);
           } else {
             httpData += String(F("<p><b>New password the same as old. Not changed.</b></p>"));
           }
@@ -979,7 +979,7 @@ void handleFirmwareUpload() {
     uploadedFileSize    = 0;
     Serial.setDebugOutput(true);
     logString = str_firmware_update + upload.filename;
-    logMessage(app_name_sys, logString, true);
+    logMessage(app_name_sys, logString, false);
     delay(10);          // Give time for the syslog packet to be sent by UDP
     WiFiUDP::stopAll();
 
@@ -1010,7 +1010,7 @@ void handleFirmwareUpload() {
       Update.printError(str);
       firmwareUpdateError = str.c_str();
       logString = str_firmware_update + firmwareUpdateError;
-      logMessage(app_name_sys, logString, true);
+      logMessage(app_name_sys, logString, false);
     }
   } else if (upload.status == UPLOAD_FILE_END && !firmwareUpdateError.length()) {
     if (Update.end(true)) {                               // true to set the size to the current progress
@@ -1020,7 +1020,7 @@ void handleFirmwareUpload() {
       } else {
         firmwareUpdateError = F("no data uploaded.");
         logString = str_firmware_update + firmwareUpdateError;
-        logMessage(app_name_sys, logString, true);
+        logMessage(app_name_sys, logString, false);
       }
     } else {
       Update.printError(Serial);
@@ -1028,14 +1028,14 @@ void handleFirmwareUpload() {
       Update.printError(str);
       firmwareUpdateError = str.c_str();
       logString = str_firmware_update + firmwareUpdateError;
-      logMessage(app_name_sys, logString, true);
+      logMessage(app_name_sys, logString, false);
     }
     Serial.setDebugOutput(false);
   } else if(upload.status == UPLOAD_FILE_ABORTED) {
     Update.end();
     firmwareUpdateError = F("Update was aborted");
     logString = str_firmware_update + firmwareUpdateError;
-    logMessage(app_name_sys, logString, true);
+    logMessage(app_name_sys, logString, false);
   }
   yield();
 }
@@ -1106,7 +1106,7 @@ void handleCACertUpload() {
       send500HttpUploadFailed();
       logString += str_failed;
     }
-    logMessage(app_name_http, logString, true);
+    logMessage(app_name_http, logString, false);
   }
 }
 
@@ -1196,7 +1196,7 @@ void handleHTTPSCertUpload() {
       send500HttpUploadFailed();
       logString += str_failed;
     }
-    logMessage(app_name_http, logString, true);
+    logMessage(app_name_http, logString, false);
   }
 }
 /* Handle the key file being uploaded */
@@ -1228,6 +1228,6 @@ void handleHTTPSKeyUpload() {
       send500HttpUploadFailed();
       logString += str_failed;
     }
-    logMessage(app_name_http, logString, true);
+    logMessage(app_name_http, logString, false);
   }
 }

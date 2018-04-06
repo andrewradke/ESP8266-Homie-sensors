@@ -66,7 +66,7 @@ const char switchNodeVerb[]   = "switch/switch";
 char fwname[40] =    "esp8266-depth-sensor";
 #define TRIGGER_PIN  2          // WeMos D1 Mini D4
 #define ECHO_PIN     12         // WeMos D1 Mini D6
-#define MAX_DISTANCE 400        // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
+#define MAX_DISTANCE 450        // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 char nodes[100] =    "distance:cm,depth:cm";
 #include <NewPing.h>            // https://bitbucket.org/teckel12/arduino-new-ping/downloads
 #define US_ROUNDTRIP_CM 58      // 58uS per cm distance at around 20-25 C
@@ -75,7 +75,7 @@ NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and
 unsigned int uS = 0;
 
 uint16_t      distance = 0;
-uint16_t      depth    = 0;
+uint16_t      depth    = 450;   // The mas distane reading is around 450cm so use that as a default value until it's changed in the config page
 float         maxdepth = 0;
 byte          readings = 10;
 

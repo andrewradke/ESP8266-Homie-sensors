@@ -16,11 +16,11 @@ void sensorSetup() {
     logString = logString + "NOT ";
   }
   logString = logString + "found";
-  mqttLog(logString);
+  mqttLog(app_name_sensors, logString);
 
   sht31Status = sht31.begin(0x44);   // Set to 0x45 for alternate i2c addr
   logString = "SHT-31 initialised";
-  mqttLog(logString);
+  mqttLog(app_name_sensors, logString);
   // The library always returns true for begin() so it's not much point checking the returned value
   logString = "SHT-31 ";
   uint16_t sht31State = sht31.readStatus();
@@ -30,11 +30,11 @@ void sensorSetup() {
     sht31Status = false;
   }
   logString = logString + "found";
-  mqttLog(logString);
+  mqttLog(app_name_sensors, logString);
 /*
   // The library always returns 0x8010 so this is pretty useless too
   logString = "SHT-31 status: 0x" + String(sht31State, HEX);
-  mqttLog(logString);
+  mqttLog(app_name_sensors, logString);
 */
 }
 
@@ -78,14 +78,14 @@ void sendData() {
   // Start SHT-31
   if (! sht31Status) {
     logString = "Retrying SHT-31";
-    mqttLog(logString);
+    mqttLog(app_name_sensors, logString);
     sht31Status  = sht31.begin();
     uint16_t sht31State = sht31.readStatus();
     if (sht31State != 65535) {          // returns 65535 if no sensor (no I2C device at all?) found
       logString = "SHT-31 found";
       sht31Error = false;
       sht31Status = true;
-      mqttLog(logString);
+      mqttLog(app_name_sensors, logString);
     } else {
       sht31Status = false;
     }
@@ -103,7 +103,7 @@ void sendData() {
       if (sht31ErrorT) {
         if (sht31ErrorT >= error_count_log) {
           logString = "SHT-31 temperature recovered: " + String(temperature1) + "C";
-          mqttLog(logString);
+          mqttLog(app_name_sensors, logString);
         }
         sht31ErrorT = 0;
       }
@@ -111,7 +111,7 @@ void sendData() {
       sht31ErrorT++;
       if (sht31ErrorT == error_count_log) {
         logString = "SHT-31 temperature error: " + String(temperature1) + "C";
-        mqttLog(logString);
+        mqttLog(app_name_sensors, logString);
       }
     }
     // End temperature
@@ -125,7 +125,7 @@ void sendData() {
       if (sht31ErrorH) {
         if (sht31ErrorH >= error_count_log) {
           logString = "SHT-31 humidity recovered: " + String(humidity1) + "%";
-          mqttLog(logString);
+          mqttLog(app_name_sensors, logString);
         }
         sht31ErrorH = 0;
       }
@@ -134,7 +134,7 @@ void sendData() {
       sht31ErrorH++;
       if (sht31ErrorH == error_count_log) {
         logString = "SHT-31 humidity error: " + String(humidity1) + "%";
-        mqttLog(logString);
+        mqttLog(app_name_sensors, logString);
       }
     }
     // End humidity
@@ -146,7 +146,7 @@ void sendData() {
   // Start BME280
   if (! bme280Status) {
     logString = "Retrying BME280";
-    mqttLog(logString);
+    mqttLog(app_name_sensors, logString);
 
     bme280Status = bme.begin();
     if (bme280Status) {
@@ -159,7 +159,7 @@ void sendData() {
                       Adafruit_BME280::SAMPLING_X1, // humidity
                       Adafruit_BME280::FILTER_OFF   );
       logString = "BME280 found";
-      mqttLog(logString);
+      mqttLog(app_name_sensors, logString);
     }
 
   } else {
@@ -184,7 +184,7 @@ void sendData() {
       if (bme280ErrorT) {
         if (bme280ErrorT >= error_count_log) {
           logString = "BME280 temperature recovered: " + String(temperature2) + "C";
-          mqttLog(logString);
+          mqttLog(app_name_sensors, logString);
         }
         bme280ErrorT = 0;
       }
@@ -192,7 +192,7 @@ void sendData() {
       bme280ErrorT++;
       if (bme280ErrorT == error_count_log) {
         logString = "BME280 temperature error: " + String(temperature2) + "C";
-        mqttLog(logString);
+        mqttLog(app_name_sensors, logString);
       }
     }
     // End temperature
@@ -208,7 +208,7 @@ void sendData() {
       if (bme280ErrorH) {
         if (bme280ErrorH >= error_count_log) {
           logString = "BME280 humidity recovered: " + String(humidity2) + "%";
-          mqttLog(logString);
+          mqttLog(app_name_sensors, logString);
         }
         bme280ErrorH = 0;
       }
@@ -216,7 +216,7 @@ void sendData() {
       bme280ErrorH++;
       if (bme280ErrorH == error_count_log) {
         logString = "BME280 humidity error: " + String(humidity2) + "%";
-        mqttLog(logString);
+        mqttLog(app_name_sensors, logString);
       }
     }
     // End humidity
@@ -231,7 +231,7 @@ void sendData() {
       if (bme280ErrorP) {
         if (bme280ErrorP >= error_count_log) {
           logString = "BME280 pressure recovered: " + String(sealevel2) + "hpa";
-          mqttLog(logString);
+          mqttLog(app_name_sensors, logString);
         }
         bme280ErrorP = 0;
       }
@@ -239,7 +239,7 @@ void sendData() {
       bme280ErrorP++;
       if (bme280ErrorP == error_count_log) {
         logString = "BME280 pressure error: " + String(sealevel2) + "hpa";
-        mqttLog(logString);
+        mqttLog(app_name_sensors, logString);
       }
     }
     // End pressure

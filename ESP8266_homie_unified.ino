@@ -25,8 +25,8 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     12
-#define FWVERSION  "0.9.14"
+#define FWTYPE     4
+#define FWVERSION  "0.9.15"
 #define FWPASSWORD "esp8266."
 //#define USESSD1306                // SSD1306 OLED display
 
@@ -416,24 +416,24 @@ void setup() {
   logMessage(app_name_wifi, logString, true);
 
   logString = String(fwname) + " v" + FWVERSION;
-  logMessage(app_name_sys, logString, true);
+  logMessage(app_name_sys, logString, false);
 
   if (use_staticip) {
-    logString = "Static";
+    logString = F("Static");
   } else {
     waitForDHCPLease();
-    logString = "DHCP";
+    logString = F("DHCP");
   }
   logString += String(F(" IP address: ")) + IPtoString(WiFi.localIP());
   logMessage(app_name_net, logString, true);
   logString = String(F("Subnet mask: ")) + IPtoString(WiFi.subnetMask());
-  logMessage(app_name_net, logString, true);
+  logMessage(app_name_net, logString, false);
   logString = "Gateway: " + IPtoString(WiFi.gatewayIP());
-  logMessage(app_name_net, logString, true);
+  logMessage(app_name_net, logString, false);
 
   if (use_staticip) {
     logString = String(F("DNS Server: ")) + IPtoString(dns_ip);
-    logMessage(app_name_net, logString, true);
+    logMessage(app_name_net, logString, false);
   }
 
 /*
@@ -444,15 +444,15 @@ void setup() {
     certfile = SPIFFS.open(HTTPScertfilename, "r");
     if (certfile) {
       logString = F("Opened HTTPS certificate file.");
-      logMessage(app_name_http, logString, true);
+      logMessage(app_name_http, logString, false);
     } else {
       logString = F("Failed to open HTTPS certificate! HTTPS disabled.");
-      logMessage(app_name_http, logString, true);
+      logMessage(app_name_http, logString, false);
       https_files_okay = false;
     }
   } else {
     logString = F("HTTPS certificate doesn't exist! HTTPS disabled.");
-    logMessage(app_name_http, logString, true);
+    logMessage(app_name_http, logString, false);
     https_files_okay = false;
   }
 
@@ -460,15 +460,15 @@ void setup() {
     keyfile = SPIFFS.open(HTTPSkeyfilename, "r");
     if (keyfile) {
       logString = F("Opened HTTPS key file.");
-      logMessage(app_name_http, logString, true);
+      logMessage(app_name_http, logString, false);
     } else {
       logString = F("Failed to open HTTPS key! HTTPS disabled.");
-      logMessage(app_name_http, logString, true);
+      logMessage(app_name_http, logString, false);
       https_files_okay = false;
     }
   } else {
     logString = F("HTTPS key doesn't exist! HTTPS disabled.");
-    logMessage(app_name_http, logString, true);
+    logMessage(app_name_http, logString, false);
     https_files_okay = false;
   }
 
@@ -483,11 +483,11 @@ void setup() {
     httpsServer.begin();
     MDNS.addService("https", "tcp", 443);
     logString = String(F("HTTPS server available by https://")) + String(host_name) + F(".local/");
-    logMessage(app_name_http, logString, true);
+    logMessage(app_name_http, logString, false);
     https_okay = true;
   } else {
     logString = F("Failed to start HTTPS server using supplied certificate and key files! HTTPS disabled.");
-    logMessage(app_name_http, logString, true);
+    logMessage(app_name_http, logString, false);
   }
   if (certfile)
     certfile.close();
@@ -506,7 +506,7 @@ void setup() {
     // Synchronize time useing SNTP. This is necessary to verify that
     // the TLS certificates offered by the server are currently valid.
     logString = F("Setting time using SNTP");
-    logMessage(app_name_sys, logString, true);
+    logMessage(app_name_sys, logString, false);
 
     configTime(8 * 3600, 0, ntp_server1, ntp_server2);
     time_t now = time(nullptr);
@@ -525,22 +525,22 @@ void setup() {
       File CAcertfile = SPIFFS.open(CAcertfilename, "r");
       if (CAcertfile) {
         logString = F("Opened CA certificate file.");
-        logMessage(app_name_mqtt, logString, true);
+        logMessage(app_name_mqtt, logString, false);
 
         if (espSecureClient.loadCACert(CAcertfile, CAcertfile.size()) ) {
           ca_cert_okay = true;
         } else {
           logString = F("Failed to load root CA certificate! MQTT disabled.");
-          logMessage(app_name_mqtt, logString, true);
+          logMessage(app_name_mqtt, logString, false);
         }
         CAcertfile.close();
       } else {
         logString = F("Failed to open CA certificate! MQTT disabled.");
-        logMessage(app_name_mqtt, logString, true);
+        logMessage(app_name_mqtt, logString, false);
       }
     } else {
       logString = F("CA certificate doesn't exist! MQTT disabled.");
-      logMessage(app_name_mqtt, logString, true);
+      logMessage(app_name_mqtt, logString, false);
     }
   } else {
     mqttClient.setClient(espClient);
@@ -553,10 +553,10 @@ void setup() {
   baseTopic = String(baseTopic + '/');
 
   logString = String("topic: " + baseTopic);
-  logMessage(app_name_mqtt, logString, true);
+  logMessage(app_name_mqtt, logString, false);
 
   logString = "server: " + String(mqtt_server) + ':' + String(mqtt_port);
-  logMessage(app_name_mqtt, logString, true);
+  logMessage(app_name_mqtt, logString, false);
 
   mqttClient.setServer(mqtt_server, atoi( mqtt_port ));
   mqttClient.setCallback(mqttCallback);
@@ -580,28 +580,28 @@ void setup() {
 
 #ifdef DEBUG
   logString = String(F("Flash size: ")) + String(realSize/1048576.0) + " MB";
-  logMessage(app_name_sys, logString, true);
+  logMessage(app_name_sys, logString, false);
   logString = String(F("Flash size config: ")) + String(ideSize/1048576.0) + " MB";
-  logMessage(app_name_sys, logString, true);
+  logMessage(app_name_sys, logString, false);
   logString = String(F("Program Size: ")) + String(ESP.getSketchSize() / 1024) + " kB";
-  logMessage(app_name_sys, logString, true);
+  logMessage(app_name_sys, logString, false);
   logString = String(F("Free Program Space: ")) + String(ESP.getFreeSketchSpace() / 1024) + " kB";
-  logMessage(app_name_sys, logString, true);
+  logMessage(app_name_sys, logString, false);
 
   logString = String(F("Free Memory: ")) + String(ESP.getFreeHeap() / 1024) + " kB";
-  logMessage(app_name_sys, logString, true);
+  logMessage(app_name_sys, logString, false);
 
   FSInfo fs_info;
   SPIFFS.info(fs_info);
   logString = String(F("Filesystem size:")) + String(fs_info.totalBytes / 1024) + " kB";
-  logMessage(app_name_sys, logString, true);
+  logMessage(app_name_sys, logString, false);
   logString = String(F("Filesystem free:")) + String((fs_info.totalBytes - fs_info.usedBytes) / 1024) + " kB";
-  logMessage(app_name_sys, logString, true);
+  logMessage(app_name_sys, logString, false);
 
   logString = String(F("ESP Chip Id: ")) + String(ESP.getChipId());
-  logMessage(app_name_sys, logString, true);
+  logMessage(app_name_sys, logString, false);
   logString = String(F("Flash Chip Id: ")) + String(ESP.getFlashChipId());
-  logMessage(app_name_sys, logString, true);
+  logMessage(app_name_sys, logString, false);
 #endif
 
 

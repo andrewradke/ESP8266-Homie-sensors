@@ -3,7 +3,7 @@
 void sensorSetup() {
   sht31Status = sht31.begin(0x44);   // Set to 0x45 for alternate i2c addr
   logString = "SHT-31 initialised";
-  mqttLog(logString);
+  mqttLog(app_name_sensors, logString);
   // The library always returns true for begin() so it's not much point checking the returned value
   logString = "SHT-31 ";
   uint16_t sht31State = sht31.readStatus();
@@ -13,11 +13,11 @@ void sensorSetup() {
     sht31Status = false;
   }
   logString = logString + "found";
-  mqttLog(logString);
+  mqttLog(app_name_sensors, logString);
 /*
   // The library always returns 0x8010 so this is pretty useless too
   logString = "SHT-31 status: 0x" + String(sht31State, HEX);
-  mqttLog(logString);
+  mqttLog(app_name_sensors, logString);
 */
 }
 
@@ -50,14 +50,14 @@ void sendData() {
   // Start SHT-31
   if (! sht31Status) {
     logString = "Retrying SHT-31";
-    mqttLog(logString);
+    mqttLog(app_name_sensors, logString);
     sht31Status  = sht31.begin();
     uint16_t sht31State = sht31.readStatus();
     if (sht31State != 65535) {          // returns 65535 if no sensor (no I2C device at all?) found
       logString = "SHT-31 found";
       sht31Error = false;
       sht31Status = true;
-      mqttLog(logString);
+      mqttLog(app_name_sensors, logString);
     } else {
       sht31Status = false;
     }
@@ -76,7 +76,7 @@ void sendData() {
       if (sht31ErrorT) {
         if (sht31ErrorT >= error_count_log) {
           logString = "SHT-31 temperature recovered: " + String(temperature1) + "C";
-          mqttLog(logString);
+          mqttLog(app_name_sensors, logString);
         }
         sht31ErrorT = 0;
       }
@@ -84,7 +84,7 @@ void sendData() {
       sht31ErrorT++;
       if (sht31ErrorT == error_count_log) {
         logString = "SHT-31 temperature error: " + String(temperature1) + "C";
-        mqttLog(logString);
+        mqttLog(app_name_sensors, logString);
       }
     }
     // End temperature
@@ -98,7 +98,7 @@ void sendData() {
       if (sht31ErrorH) {
         if (sht31ErrorH >= error_count_log) {
           logString = "SHT-31 humidity recovered: " + String(humidity1) + "%";
-          mqttLog(logString);
+          mqttLog(app_name_sensors, logString);
         }
         sht31ErrorH = 0;
       }
@@ -107,7 +107,7 @@ void sendData() {
       sht31ErrorH++;
       if (sht31ErrorH == error_count_log) {
         logString = "SHT-31 humidity error: " + String(humidity1) + "%";
-        mqttLog(logString);
+        mqttLog(app_name_sensors, logString);
       }
     }
     // End humidity
