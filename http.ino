@@ -243,6 +243,7 @@ void handleLogin() {
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
+  httpData = "";
 }
 
 void handleLogout() {
@@ -294,6 +295,7 @@ void handleRoot() {
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
+  httpData = "";
 }
 
 
@@ -313,13 +315,13 @@ void handleSystem() {
   httpData += trStart + F("Firmware type:")    + tdBreak + String(fwname)    + trEnd;
   httpData += trStart + F("Firmware version:") + tdBreak + String(FWVERSION) + trEnd;
 
-  httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
+  httpData += trStart + str_nbsp + tdBreak + trEnd;
 
   httpData += trStart + F("MAC address:") + tdBreak;
   httpData += String(WiFi.macAddress());
   httpData += trEnd;
 
-  httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
+  httpData += trStart + str_nbsp + tdBreak + trEnd;
 
   httpData += trStart + F("Flash size:") + tdBreak;
   httpData += String(ESP.getFlashChipRealSize()/1048576.0) + " MB";
@@ -337,7 +339,7 @@ void handleSystem() {
   httpData += String(ESP.getFreeSketchSpace() / 1024) + " kB";
   httpData += trEnd;
 
-  httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
+  httpData += trStart + str_nbsp + tdBreak + trEnd;
 
   httpData += trStart + F("Free memory:") + tdBreak;
   httpData += String(ESP.getFreeHeap() / 1024) + " kB";
@@ -351,7 +353,7 @@ void handleSystem() {
   httpData += String(ESP.getFlashChipId());
   httpData += trEnd;
 
-  httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
+  httpData += trStart + str_nbsp + tdBreak + trEnd;
 
   FSInfo fs_info;
   SPIFFS.info(fs_info);
@@ -364,19 +366,19 @@ void handleSystem() {
   httpData += String((fs_info.totalBytes - fs_info.usedBytes) / 1024) + " kB";
   httpData += trEnd;
 
-  httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
+  httpData += trStart + str_nbsp + tdBreak + trEnd;
 
   /// send uptime and signal
   unsigned long uptime = millis();
   uptime = uptime / 1000;
   httpData += trStart + F("Uptime:") + tdBreak + String(uptime) + " s" + trEnd;
 
-  httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
+  httpData += trStart + str_nbsp + tdBreak + trEnd;
 
   httpData += trStart + F("SSID:")   + tdBreak + String(ssid) + trEnd;
   httpData += trStart + F("Signal:") + tdBreak + String(WiFi.RSSI()) + " dB" + trEnd;
   httpData += trStart + F("IP:")     + tdBreak + IPtoString(WiFi.localIP()) + trEnd;
-  httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
+  httpData += trStart + str_nbsp + tdBreak + trEnd;
   httpData += tableEnd;
 
   sprintf_P( buf, HTTP_META_REFRESH, 3);  // Refresh the page after 3 seconds
@@ -385,6 +387,7 @@ void handleSystem() {
 
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
+  httpData = "";
 }
 
 
@@ -401,169 +404,242 @@ void handleConfig() {
 
   if (httpServer.args()) {
 
-    if (httpServer.hasArg("staticip")) {
-      if (httpServer.arg("staticip") == String(FPSTR(str_true))) {
+    if (httpServer.hasArg(str_cfg_staticip)) {
+      if (httpServer.arg(str_cfg_staticip) == str_true) {
         if (! use_staticip) {
+          logString      = str_cfg_changed + str_cfg_staticip + str_from + str_false + str_to + str_true;
           rebootRequired = true;        // Changing to a static IP requires a reboot
-          use_staticip = true;
+          use_staticip   = true;
+          logMessage(app_name_cfg, logString, false);
         }
       } else {
         if (use_staticip) {
+          logString      = str_cfg_changed + str_cfg_staticip + str_from + str_true + str_to + str_false;
           rebootRequired = true;        // Changing to a static IP requires a reboot
-          use_staticip = false;
+          use_staticip   = false;
+          logMessage(app_name_cfg, logString, false);
         }
       }
     }
 
-    if (httpServer.hasArg(String(FPSTR(cfg_ip_address)))) {
-      tmpip.fromString(httpServer.arg(String(FPSTR(cfg_ip_address))));
+    if (httpServer.hasArg(cfg_ip_address)) {
+      tmpip.fromString(httpServer.arg(cfg_ip_address));
       if (ip != tmpip) {
+        logString = str_cfg_changed + str_cfg_ip_address + str_from + IPtoString(ip) + str_to + IPtoString(tmpip);
         if (use_staticip)
           rebootRequired = true;        // Changing IP requires a reboot
         ip = tmpip;
+        logMessage(app_name_cfg, logString, false);
       }
     }
-    if (httpServer.hasArg(String(FPSTR(cfg_subnet)))) {
-      tmpip.fromString(httpServer.arg(String(FPSTR(cfg_subnet))));
+    if (httpServer.hasArg(cfg_subnet)) {
+      tmpip.fromString(httpServer.arg(cfg_subnet));
       if (subnet != tmpip) {
+        logString = str_cfg_changed + str_cfg_subnet + str_from + IPtoString(subnet) + str_to + IPtoString(tmpip);
         if (use_staticip)
           rebootRequired = true;        // Changing subnet requires a reboot
         subnet = tmpip;
+        logMessage(app_name_cfg, logString, false);
       }
     }
-    if (httpServer.hasArg(String(FPSTR(cfg_gateway)))) {
-      tmpip.fromString(httpServer.arg(String(FPSTR(cfg_gateway))));
+    if (httpServer.hasArg(cfg_gateway)) {
+      tmpip.fromString(httpServer.arg(cfg_gateway));
       if (gateway != tmpip) {
+        logString = str_cfg_changed + str_cfg_gateway + str_from + IPtoString(gateway) + str_to + IPtoString(tmpip);
         if (use_staticip)
           rebootRequired = true;        // Changing gateway IP requires a reboot
         gateway = tmpip;
+        logMessage(app_name_cfg, logString, false);
       }
     }
-    if (httpServer.hasArg(String(FPSTR(cfg_dns_server)))) {
-      tmpip.fromString(httpServer.arg(String(FPSTR(cfg_dns_server))));
+    if (httpServer.hasArg(cfg_dns_server)) {
+      tmpip.fromString(httpServer.arg(cfg_dns_server));
       if (dns_ip != tmpip) {
+        logString = str_cfg_changed + str_cfg_dns_server + str_from + IPtoString(dns_ip) + str_to + IPtoString(tmpip);
         if (use_staticip)
           rebootRequired = true;        // Changing DNS server requires a reboot
         dns_ip = tmpip;
+        logMessage(app_name_cfg, logString, false);
       }
     }
-    if (httpServer.hasArg(String(FPSTR(cfg_ntp_server1)))) {
+    if (httpServer.hasArg(cfg_ntp_server1)) {
       tmpString = String(ntp_server1);
-      if (httpServer.arg(String(FPSTR(cfg_ntp_server1))) != tmpString) {
+      if (httpServer.arg(cfg_ntp_server1) != tmpString) {
         rebootRequired = true;          // Changing NTP servers requires a reboot
-        httpServer.arg(String(FPSTR(cfg_ntp_server1))).toCharArray(ntp_server1, 40);
+        logString = str_cfg_changed + str_cfg_ntp_server1 + str_from + tmpString + str_to + httpServer.arg(cfg_ntp_server1);
+        httpServer.arg(cfg_ntp_server1).toCharArray(ntp_server1, 40);
+        logMessage(app_name_cfg, logString, false);
       }
     }
-    if (httpServer.hasArg(String(FPSTR(cfg_ntp_server2)))) {
+    if (httpServer.hasArg(cfg_ntp_server2)) {
       tmpString = String(ntp_server2);
-      if (httpServer.arg(String(FPSTR(cfg_ntp_server2))) != tmpString) {
+      if (httpServer.arg(cfg_ntp_server2) != tmpString) {
+        logString = str_cfg_changed + str_cfg_ntp_server1 + str_from + tmpString + str_to + httpServer.arg(cfg_ntp_server1);
         rebootRequired = true;          // Changing NTP servers requires a reboot
-        httpServer.arg(String(FPSTR(cfg_ntp_server2))).toCharArray(ntp_server2, 40);
+        httpServer.arg(cfg_ntp_server2).toCharArray(ntp_server2, 40);
+        logMessage(app_name_cfg, logString, false);
       }
     }
 
-    if (httpServer.hasArg(String(FPSTR(cfg_mqtt_server)))) {
+    if (httpServer.hasArg(cfg_mqtt_server)) {
       tmpString = String(mqtt_server);
-      if (httpServer.arg(String(FPSTR(cfg_mqtt_server))) != tmpString) {
-        httpServer.arg(String(FPSTR(cfg_mqtt_server))).toCharArray(mqtt_server, 40);
+      if (httpServer.arg(cfg_mqtt_server) != tmpString) {
+        logString = str_cfg_changed + str_cfg_mqtt_server + str_from + tmpString + str_to + httpServer.arg(cfg_mqtt_server);
+        httpServer.arg(cfg_mqtt_server).toCharArray(mqtt_server, 40);
         mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
         mqttClient.setServer(mqtt_server, atoi( mqtt_port ));
+        logMessage(app_name_cfg, logString, false);
       }
     }
-    if (httpServer.hasArg(String(FPSTR(cfg_mqtt_port)))) {
+    if (httpServer.hasArg(cfg_mqtt_port)) {
       tmpString = String(mqtt_port);
-      if (httpServer.arg(String(FPSTR(cfg_mqtt_port))) != tmpString) {
-        httpServer.arg(String(FPSTR(cfg_mqtt_port))).toCharArray(mqtt_port, 5);
+      if (httpServer.arg(cfg_mqtt_port) != tmpString) {
+        logString = str_cfg_changed + str_cfg_mqtt_port + str_from + tmpString + str_to + httpServer.arg(cfg_mqtt_port);
+        httpServer.arg(cfg_mqtt_port).toCharArray(mqtt_port, 5);
         mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
         mqttClient.setServer(mqtt_server, atoi( mqtt_port ));
+        logMessage(app_name_cfg, logString, false);
       }
     }
-    if (httpServer.hasArg(String(FPSTR(cfg_mqtt_name)))) {
+    if (httpServer.hasArg(cfg_mqtt_name)) {
       tmpString = String(mqtt_name);
-      if (httpServer.arg(String(FPSTR(cfg_mqtt_name))) != tmpString) {
+      if (httpServer.arg(cfg_mqtt_name) != tmpString) {
+        logString = str_cfg_changed + str_cfg_mqtt_name + str_from + tmpString + str_to + httpServer.arg(cfg_mqtt_name);
         mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
-        httpServer.arg(String(FPSTR(cfg_mqtt_name))).toCharArray(mqtt_name, 20);
+        httpServer.arg(cfg_mqtt_name).toCharArray(mqtt_name, 20);
+        logMessage(app_name_cfg, logString, false);
       }
     }
-    if (httpServer.hasArg(String(FPSTR(cfg_mqtt_tls)))) {
-      if (httpServer.arg(String(FPSTR(cfg_mqtt_tls))) == "on") {
+    if (httpServer.hasArg(cfg_mqtt_tls)) {
+      if (httpServer.arg(cfg_mqtt_tls) == str_on) {
         if (!mqtt_tls) {
+          logString      = str_cfg_changed + str_cfg_mqtt_tls + str_from + str_false + str_to + str_true;
           rebootRequired = true;        // Enabling TLS requires a reboot, as the server certificate verification will fail and force a reboot otherwise
-          mqtt_tls = true;
+          mqtt_tls       = true;
+          logMessage(app_name_cfg, logString, false);
         }
       } else {
         if (mqtt_tls) {
-          mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
-          mqttClient.setClient(espClient);
-          mqtt_tls = false;
+          logString      = str_cfg_changed + str_cfg_mqtt_tls + str_from + str_true + str_to + str_false;
+          rebootRequired = true;        // Disabling TLS requires a reboot, as it might not reconnect properly after this.
+          mqtt_tls       = false;
+//          mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
+//          mqttClient.setClient(espClient);
+          logMessage(app_name_cfg, logString, false);
         }
       }
     } else {
       if (mqtt_tls) {
-        mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
-        mqtt_tls = false;
+        logString      = str_cfg_changed + str_cfg_mqtt_tls + str_from + str_true + str_to + str_false;
+        rebootRequired = true;        // Disabling TLS requires a reboot, as it might not reconnect properly after this.
+        mqtt_tls       = false;
+//        mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+//        mqttClient.setClient(espClient);
+        logMessage(app_name_cfg, logString, false);
       }
     }
-    if (httpServer.hasArg(String(FPSTR(cfg_mqtt_auth)))) {
-      if (httpServer.arg(String(FPSTR(cfg_mqtt_auth))) == "on") {
+    if (httpServer.hasArg(cfg_mqtt_auth)) {
+      if (httpServer.arg(cfg_mqtt_auth) == str_on) {
         if (!mqtt_auth) {
-          mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
+          logString = str_cfg_changed + str_cfg_mqtt_auth + str_from + str_false + str_to + str_true;
           mqtt_auth = true;
+          mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
+          logMessage(app_name_cfg, logString, false);
         }
       } else {
         if (mqtt_auth) {
-          mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
+          logString = str_cfg_changed + str_cfg_mqtt_auth + str_from + str_true + str_to + str_false;
           mqtt_auth = false;
+          mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
+          logMessage(app_name_cfg, logString, false);
         }
       }
     } else {
       if (mqtt_auth) {
-        mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+        logString = str_cfg_changed + str_cfg_mqtt_auth + str_from + str_true + str_to + str_false;
         mqtt_auth = false;
+        mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+        logMessage(app_name_cfg, logString, false);
       }
     }
-    if (httpServer.hasArg(String(FPSTR(cfg_mqtt_user)))) {
+    if (httpServer.hasArg(cfg_mqtt_user)) {
       tmpString = String(mqtt_user);
-      if (httpServer.arg(String(FPSTR(cfg_mqtt_user))) != tmpString) {
+      if (httpServer.arg(cfg_mqtt_user) != tmpString) {
+        logString = str_cfg_changed + str_cfg_mqtt_user + str_from + tmpString + str_to + httpServer.arg(cfg_mqtt_user);
         mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
-        httpServer.arg(String(FPSTR(cfg_mqtt_user))).toCharArray(mqtt_user, 20);
+        httpServer.arg(cfg_mqtt_user).toCharArray(mqtt_user, 20);
+        logMessage(app_name_cfg, logString, false);
       }
     }
-    if (httpServer.hasArg(String(FPSTR(cfg_mqtt_passwd)))) {
+    if (httpServer.hasArg(cfg_mqtt_passwd)) {
       tmpString = String(mqtt_passwd);
-      if (httpServer.arg(String(FPSTR(cfg_mqtt_passwd))) != tmpString) {
+      if (httpServer.arg(cfg_mqtt_passwd) != tmpString) {
+        logString = str_cfg_changed + str_cfg_mqtt_passwd;
         mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
-        httpServer.arg(String(FPSTR(cfg_mqtt_passwd))).toCharArray(mqtt_passwd, 32);
+        httpServer.arg(cfg_mqtt_passwd).toCharArray(mqtt_passwd, 32);
+        logMessage(app_name_cfg, logString, false);
       }
     }
 
-    if (httpServer.hasArg(String(FPSTR(cfg_mqtt_interval))))
-      mqtt_interval = httpServer.arg(String(FPSTR(cfg_mqtt_interval))).toInt();
+    if (httpServer.hasArg(cfg_mqtt_interval)) {
+      if (httpServer.arg(cfg_mqtt_interval).toInt() != mqtt_interval) {
+        logString = str_cfg_changed + str_cfg_mqtt_interval + str_from + String(mqtt_interval) + str_to + httpServer.arg(cfg_mqtt_interval);
+        mqtt_interval = httpServer.arg(cfg_mqtt_interval).toInt();
+        logMessage(app_name_cfg, logString, false);
+      }
+    }
 
-    if (httpServer.hasArg(String(FPSTR(cfg_mqtt_watchdog)))) {
-      mqtt_watchdog = httpServer.arg(String(FPSTR(cfg_mqtt_watchdog))).toInt();
+    if (httpServer.hasArg(cfg_mqtt_watchdog)) {
+      if (httpServer.arg(cfg_mqtt_watchdog).toInt() != mqtt_watchdog) {
+        logString = str_cfg_changed + str_cfg_mqtt_watchdog + str_from + String(mqtt_watchdog) + str_to + httpServer.arg(cfg_mqtt_watchdog);
+        mqtt_watchdog = httpServer.arg(cfg_mqtt_watchdog).toInt();
+        logMessage(app_name_cfg, logString, false);
+      }
       if (mqtt_watchdog <= mqtt_interval) {
+        logString = str_cfg_overridden + str_cfg_mqtt_watchdog + str_from + String(mqtt_watchdog) + str_to + String(mqtt_interval + 1);
         mqtt_watchdog = mqtt_interval + 1;
+        logMessage(app_name_cfg, logString, false);
       }
       if (mqtt_watchdog < 60) {
+        logString = str_cfg_overridden + str_cfg_mqtt_watchdog + str_from + String(mqtt_interval) + str_to + String(60);
         mqtt_watchdog = 60;
+        logMessage(app_name_cfg, logString, false);
       }
     }
 
-    if (httpServer.hasArg(String(FPSTR(cfg_syslog_server))))
-      httpServer.arg(String(FPSTR(cfg_syslog_server))).toCharArray(syslog_server, 40);
-    if (httpServer.hasArg(String(FPSTR(cfg_use_syslog)))) {
-      if (httpServer.arg(String(FPSTR(cfg_use_syslog))) == "on") {
-        if (! use_syslog)
+    if (httpServer.hasArg(cfg_syslog_server)) {
+      tmpString = String(syslog_server);
+      if (httpServer.arg(cfg_syslog_server) != tmpString) {
+        logString = str_cfg_changed + str_cfg_syslog_server + str_from + tmpString + str_to + httpServer.arg(cfg_syslog_server);
+        logMessage(app_name_cfg, logString, false);                       // Log this message BOTH before
+        httpServer.arg(cfg_syslog_server).toCharArray(syslog_server, 40);
+        logMessage(app_name_cfg, logString, false);                       // AND after changing the syslog server
+      }
+    }
+    if (httpServer.hasArg(cfg_use_syslog)) {
+      if (httpServer.arg(cfg_use_syslog) == str_on) {
+        if (! use_syslog) {
+          logString = str_cfg_changed + str_cfg_use_syslog + str_from + str_false + str_to + str_true;
           setupSyslog();      // Syslog changed to enabled
-        use_syslog = true;
+          use_syslog = true;
+          logMessage(app_name_cfg, logString, false);
+        }
       } else {
-        use_syslog = false;
+        if (use_syslog) {
+          logString = str_cfg_changed + str_cfg_use_syslog + str_from + str_true + str_to + str_false;
+          logMessage(app_name_cfg, logString, false);   // Log this message BEFORE turning off syslog
+          use_syslog = false;
+        }
       }
     } else {
-      use_syslog = false;
+      if (use_syslog) {
+        logString = str_cfg_changed + str_cfg_use_syslog + str_from + str_true + str_to + str_false;
+        use_syslog = false;
+        logMessage(app_name_cfg, logString, false);   // Log this message BEFORE turning off syslog
+      }
     }
 
+    // Check for any custom sensor config
     httpSensorConfig();
 
     saveConfig();
@@ -574,28 +650,30 @@ void handleConfig() {
 
   httpData += thStart + F("Network:") + thBreak + thEnd;
   httpData += trStart + "IP:"                 + tdBreak;
-  httpData += htmlRadio("staticip", String(FPSTR(str_true)),          use_staticip)     + F("Static IP");
-  httpData += htmlRadio("staticip", String(FPSTR(str_false)),         (! use_staticip)) + F("DHCP");
+  httpData += htmlRadio(str_cfg_staticip, str_true,          use_staticip)     + str_static;
+  httpData += htmlRadio(str_cfg_staticip, str_false,         (! use_staticip)) + str_dhcp;
   httpData += trEnd;
-  httpData += trStart + "Address:"            + tdBreak + htmlInput("text",     String(FPSTR(cfg_ip_address)),    IPtoString(ip))      + trEnd;
-  httpData += trStart + "Subnet Mask:"        + tdBreak + htmlInput("text",     String(FPSTR(cfg_subnet)),        IPtoString(subnet))  + trEnd;
-  httpData += trStart + "Gateway:"            + tdBreak + htmlInput("text",     String(FPSTR(cfg_gateway)),       IPtoString(gateway)) + trEnd;
-  httpData += trStart + "DNS Server:"         + tdBreak + htmlInput("text",     String(FPSTR(cfg_dns_server)),    IPtoString(dns_ip));
+  httpData += trStart + str_cfg_ip_address    + tdBreak + htmlInput(str_text,     cfg_ip_address,    IPtoString(ip))      + trEnd;
+  httpData += trStart + str_cfg_subnet        + tdBreak + htmlInput(str_text,     cfg_subnet,        IPtoString(subnet))  + trEnd;
+  httpData += trStart + str_cfg_gateway       + tdBreak + htmlInput(str_text,     cfg_gateway,       IPtoString(gateway)) + trEnd;
+  httpData += trStart + str_cfg_dns_server    + tdBreak + htmlInput(str_text,     cfg_dns_server,    IPtoString(dns_ip));
   tmpString = IPtoString(dns_ip);
-  if ( use_staticip && WiFi.hostByName(tmpString.c_str(), tmpip) ) {
-    httpData += str_tick_green;
-  } else {
-    httpData += str_cross_red;
+  if ( use_staticip ) {
+    if ( WiFi.hostByName(tmpString.c_str(), tmpip) ) {
+      httpData += str_tick_green;
+    } else {
+      httpData += str_cross_red;
+    }
   }
   httpData += trEnd;
-  httpData += trStart + "NTP Server 1:"       + tdBreak + htmlInput("text",     String(FPSTR(cfg_ntp_server1)),   ntp_server1);
+  httpData += trStart + str_cfg_ntp_server1   + tdBreak + htmlInput(str_text,     cfg_ntp_server1,   ntp_server1);
   if ( WiFi.hostByName(ntp_server1, tmpip) ) {
     httpData += str_tick_green;
   } else {
     httpData += str_cross_red;
   }
   httpData += trEnd;
-  httpData += trStart + "NTP Server 2:"       + tdBreak + htmlInput("text",     String(FPSTR(cfg_ntp_server2)),   ntp_server2);
+  httpData += trStart + str_cfg_ntp_server2   + tdBreak + htmlInput(str_text,     cfg_ntp_server2,   ntp_server2);
   if ( WiFi.hostByName(ntp_server2, tmpip) ) {
     httpData += str_tick_green;
   } else {
@@ -604,25 +682,25 @@ void handleConfig() {
   httpData += trEnd;
 
   httpData += thStart + F("MQTT:") + thBreak + thEnd;
-  httpData += trStart + "Server:"             + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_server)),   mqtt_server);
+  httpData += trStart + "Server:"             + tdBreak + htmlInput(str_text,     cfg_mqtt_server,   mqtt_server);
   if (mqttClient.connected()) {
     httpData += str_tick_green;
   } else {
     httpData += str_cross_red;
   }
   httpData += trEnd;
-  httpData += trStart + "Port:"               + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_port)),     mqtt_port)     + trEnd;
-  httpData += trStart + "Name:"               + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_name)),     mqtt_name)     + trEnd;
-  httpData += trStart + "Use TLS:"            + tdBreak + htmlCheckbox(         String(FPSTR(cfg_mqtt_tls)),      mqtt_tls)      + trEnd;
-  httpData += trStart + "Use authentication:" + tdBreak + htmlCheckbox(         String(FPSTR(cfg_mqtt_auth)),     mqtt_auth)     + trEnd;
-  httpData += trStart + "Username:"           + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_user)),     mqtt_user)     + trEnd;
-  httpData += trStart + "Password:"           + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_passwd)),   mqtt_passwd)   + trEnd;
-  httpData += trStart + "Data interval (s):"  + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_interval)), String(mqtt_interval)) + trEnd;
-  httpData += trStart + "MQTT watchdog (s):"  + tdBreak + htmlInput("text",     String(FPSTR(cfg_mqtt_watchdog)), String(mqtt_watchdog)) + trEnd;
+  httpData += trStart + "Port:"               + tdBreak + htmlInput(str_text,     cfg_mqtt_port,     mqtt_port)     + trEnd;
+  httpData += trStart + "Name:"               + tdBreak + htmlInput(str_text,     cfg_mqtt_name,     mqtt_name)     + trEnd;
+  httpData += trStart + "Use TLS:"            + tdBreak + htmlCheckbox(           cfg_mqtt_tls,      mqtt_tls)      + trEnd;
+  httpData += trStart + "Use authentication:" + tdBreak + htmlCheckbox(           cfg_mqtt_auth,     mqtt_auth)     + trEnd;
+  httpData += trStart + "Username:"           + tdBreak + htmlInput(str_text,     cfg_mqtt_user,     mqtt_user)     + trEnd;
+  httpData += trStart + "Password:"           + tdBreak + htmlInput(str_text,     cfg_mqtt_passwd,   mqtt_passwd)   + trEnd;
+  httpData += trStart + "Data interval (s):"  + tdBreak + htmlInput(str_text,     cfg_mqtt_interval, String(mqtt_interval)) + trEnd;
+  httpData += trStart + "MQTT watchdog (s):"  + tdBreak + htmlInput(str_text,     cfg_mqtt_watchdog, String(mqtt_watchdog)) + trEnd;
 
   httpData += thStart + F("Syslog:") + thBreak + thEnd;
-  httpData += trStart + "Use Syslog:"         + tdBreak + htmlCheckbox(         String(FPSTR(cfg_use_syslog)),    use_syslog)    + trEnd;
-  httpData += trStart + "Server:"             + tdBreak + htmlInput("text",     String(FPSTR(cfg_syslog_server)), syslog_server);
+  httpData += trStart + str_cfg_use_syslog    + tdBreak + htmlCheckbox(           cfg_use_syslog,    use_syslog)    + trEnd;
+  httpData += trStart + str_cfg_syslog_server + tdBreak + htmlInput(str_text,     cfg_syslog_server, syslog_server);
   if ( use_syslog && WiFi.hostByName(syslog_server, tmpip) ) {
     httpData += str_tick_green;
   } else {
@@ -634,14 +712,13 @@ void handleConfig() {
 
   httpData += httpSensorSetup();
 
-  httpData += trEnd;
   httpData += tableEnd;
-
   httpData += FPSTR(HTTP_FORM_END);
 
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
+  httpData = "";
 }
 
 
@@ -711,11 +788,11 @@ void handlePassword() {
 
   httpData += thStart + String(F("Admin login:")) + thBreak + thEnd;
 
-  httpData += trStart + "Username:"           + tdBreak + htmlInput("text",     "newUser",  httpUser) + trEnd;
-  httpData += trStart + "Current password:"   + tdBreak + htmlInput("password", "currentPasswd", "")  + trEnd;
-  httpData += trStart + String(FPSTR(str_nbsp)) + tdBreak + trEnd;
-  httpData += trStart + "New password:"       + tdBreak + htmlInput("password", "newPasswd1", "")     + trEnd;
-  httpData += trStart + "Repeat new:"         + tdBreak + htmlInput("password", "newPasswd2", "")     + trEnd;
+  httpData += trStart + "Username:"           + tdBreak + htmlInput(str_text,     "newUser",  httpUser) + trEnd;
+  httpData += trStart + "Current password:"   + tdBreak + htmlInput(str_password, "currentPasswd", "")  + trEnd;
+  httpData += trStart + str_nbsp + tdBreak + trEnd;
+  httpData += trStart + "New password:"       + tdBreak + htmlInput(str_password, "newPasswd1", "")     + trEnd;
+  httpData += trStart + "Repeat new:"         + tdBreak + htmlInput(str_password, "newPasswd2", "")     + trEnd;
 
   httpData += trEnd;
   httpData += tableEnd;
@@ -725,6 +802,7 @@ void handlePassword() {
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
+  httpData = "";
 }
 
 
@@ -838,6 +916,7 @@ void handleWifi() {
   httpServer.sendHeader("Expires", "-1");
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
+  httpData = "";
 }
 
 /** Handle the WLAN save form and redirect to WLAN config page again */
@@ -860,7 +939,6 @@ void handleWifiSave() {
     httpData += FPSTR(HTTP_SCRIPT);
     httpData += FPSTR(HTTP_STYLE);
     httpData += FPSTR(HTTP_HEAD_END);
-//    httpData.replace("{t}", String(host_name) + " (" + String(fwname) + ")");
     httpData.replace("{t}", String(host_name));
     httpData += FPSTR(HTTP_SAVED);
     httpData += FPSTR(HTTP_END);
@@ -880,6 +958,7 @@ void handleWifiSave() {
   }
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
+  httpData = "";
 }
 
 
@@ -900,6 +979,7 @@ void handleReboot() {
 
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
+  httpData = "";
   delay(100);
   ESP.restart();
   delay(5000);
@@ -925,6 +1005,7 @@ void handleFirmware() {
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
+  httpData = "";
 }
 
 void handleFirmwareUploadComplete() {
@@ -1073,6 +1154,7 @@ void handleCACert() {
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
+  httpData = "";
 }
 
 /* Handle a file being uploaded */
@@ -1165,6 +1247,7 @@ void handleHTTPSCerts() {
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
+  httpData = "";
 }
 
 /* Handle the cert file being uploaded */

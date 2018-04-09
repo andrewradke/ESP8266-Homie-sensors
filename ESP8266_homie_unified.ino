@@ -25,8 +25,8 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     4
-#define FWVERSION  "0.9.15"
+#define FWTYPE     12
+#define FWVERSION  "0.9.16"
 #define FWPASSWORD "esp8266."
 //#define USESSD1306                // SSD1306 OLED display
 
@@ -358,7 +358,9 @@ void setup() {
     delay(500); // Without delay the IP address may be blank
 #ifdef DEBUG
     dmesg();
-    Serial.print(F("AP IP address: "));
+    Serial.print(F("AP"));
+    Serial.print(str_cfg_ip_address);
+    Serial.print(F(": "));
     Serial.println(WiFi.softAPIP());
 #endif
 
@@ -397,8 +399,10 @@ void setup() {
 
   WiFi.mode(WIFI_STA);
 
+  ssid = WiFi.SSID();
+  psk  = WiFi.psk();
+
   if (use_staticip) {
-    // WiFi.setDNS(dns_ip); // This doesn't work with the ESP8266 so reconfigure everything
     WiFi.config(ip, gateway, subnet, dns_ip);
   }
 
@@ -406,33 +410,50 @@ void setup() {
   if (use_syslog) {
     setupSyslog();
   }
+  logString = str_ipv4 + str_space + cfg_configured;
+  logMessage(app_name_sys, logString, true);
+
+/*
+ *    If the serial speed is greater than 57600 baud sometimes the IP address will not be applied
+ *       https://github.com/esp8266/Arduino/issues/128
+ *    It appears to set the IP but then it uses a DHCP address instead. Putting enough data through the connection,
+ *    such as a syslog message and a DNS lookup, seems to be enough to trigger the behaviour after which setting 
+ *    the IP a second time works properly.
+*/
+  if (use_staticip) {
+    IPAddress tmpip;
+    tmpString = IPtoString(dns_ip);
+    WiFi.hostByName(tmpString.c_str(), tmpip);
+    while (IPtoString(WiFi.localIP()) != IPtoString(ip) ) {
+      Serial.println(str_dot);
+      WiFi.config(ip, gateway, subnet, dns_ip);
+    }
+  }
 
 
-  ssid = WiFi.SSID();
-  psk  = WiFi.psk();
 
   //if you get here you have connected to the WiFi
-  logString = F("Connected");
+  logString = str_connected;
   logMessage(app_name_wifi, logString, true);
 
   logString = String(fwname) + " v" + FWVERSION;
   logMessage(app_name_sys, logString, false);
 
   if (use_staticip) {
-    logString = F("Static");
+    logString = str_static;
   } else {
     waitForDHCPLease();
-    logString = F("DHCP");
+    logString = str_dhcp;
   }
-  logString += String(F(" IP address: ")) + IPtoString(WiFi.localIP());
+  logString += str_space + str_cfg_ip_address + str_colon + IPtoString(WiFi.localIP());
   logMessage(app_name_net, logString, true);
-  logString = String(F("Subnet mask: ")) + IPtoString(WiFi.subnetMask());
+  logString = str_cfg_subnet + str_colon + IPtoString(WiFi.subnetMask());
   logMessage(app_name_net, logString, false);
-  logString = "Gateway: " + IPtoString(WiFi.gatewayIP());
+  logString = str_cfg_gateway + str_colon + IPtoString(WiFi.gatewayIP());
   logMessage(app_name_net, logString, false);
 
   if (use_staticip) {
-    logString = String(F("DNS Server: ")) + IPtoString(dns_ip);
+    logString = str_cfg_dns_server + str_colon + IPtoString(dns_ip);
     logMessage(app_name_net, logString, false);
   }
 
@@ -512,7 +533,7 @@ void setup() {
     time_t now = time(nullptr);
     while (now < 8 * 3600 * 2) {
       delay(500);
-      Serial.print(".");
+      Serial.print(str_dot);
       now = time(nullptr);
     }
     struct tm timeinfo;
@@ -667,14 +688,14 @@ void loop() {
     reconnected = true;   // Records that we have reconnected
   }
   if (reconnected == true) {
-    logString = F("Connected");
+    logString = str_connected;
     logMessage(app_name_wifi, logString, true);
 
     if (!use_staticip) {
       waitForDHCPLease();
     }
 
-    logString = F("Connected");
+    logString = str_connected;
     logMessage(app_name_net, logString, true);
   }
 

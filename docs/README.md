@@ -44,13 +44,15 @@ Once the ESP8266 has been joined to you WiFi network it will be accessible via h
 ## Future planned development
 
 * Better code comments
-* Log web interface activity, particularly failed and successful logins and configuration changes
+* ~~Log web interface activity, particularly failed and successful logins and configuration changes~~
 * Documenting how to use the firmware
 * Implement the more recent versions of the Homie Convention
 * Further reduce RAM and flash usage by moving all strings to flash and making sure only single use strings are referenced using F()
 * Find a reasonable way to support HTTPS for the web interface
 * Add support for multiple DS18B20 temperature sensors using the newer homie conventions and reporting as homie/device ID/1wire-address/temperature
-* Add more supported sensors
+* Reduce RAM usage by web pages, particularly the config page.
+* Ongoing:
+..* Add more supported sensors
 
 ## Contributing
 

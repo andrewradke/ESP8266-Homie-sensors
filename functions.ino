@@ -11,9 +11,9 @@ void dmesg() {
 
 
 String IPtoString(IPAddress address) {
-  return String(address[0]) + "." +
-         String(address[1]) + "." +
-         String(address[2]) + "." +
+  return String(address[0]) + str_dot +
+         String(address[1]) + str_dot +
+         String(address[2]) + str_dot +
          String(address[3]);
 }
 
@@ -86,7 +86,7 @@ void logMessage(String app_name, String message, bool oled) {
 }
 
 void mqtt_send_systeminfo() {
-  mqttSend(String(FPSTR(mqttstr_online)),       String(FPSTR(str_true)), true);
+  mqttSend(String(FPSTR(mqttstr_online)),       str_true, true);
   mqttSend(String(FPSTR(mqttstr_fwname)),       String(fwname), true);
   mqttSend(String(FPSTR(mqttstr_fwversion)),    String(FWVERSION), true);
   mqttSend(String(FPSTR(mqttstr_name)),         String(mqtt_name), true);
@@ -105,51 +105,51 @@ void saveConfig() {
   DynamicJsonBuffer jsonBuffer;
   JsonObject& json = jsonBuffer.createObject();
 
-  json[String(FPSTR(cfg_use_staticip))]  = use_staticip;
+  json[cfg_use_staticip]  = use_staticip;
 
-  JsonArray& json_ip = json.createNestedArray(String(FPSTR(cfg_ip_address)));
+  JsonArray& json_ip = json.createNestedArray(cfg_ip_address);
   json_ip.add(ip[0]);
   json_ip.add(ip[1]);
   json_ip.add(ip[2]);
   json_ip.add(ip[3]);
-  JsonArray& json_subnet = json.createNestedArray(String(FPSTR(cfg_subnet)));
+  JsonArray& json_subnet = json.createNestedArray(cfg_subnet);
   json_subnet.add(subnet[0]);
   json_subnet.add(subnet[1]);
   json_subnet.add(subnet[2]);
   json_subnet.add(subnet[3]);
-  JsonArray& json_gateway = json.createNestedArray(String(FPSTR(cfg_gateway)));
+  JsonArray& json_gateway = json.createNestedArray(cfg_gateway);
   json_gateway.add(gateway[0]);
   json_gateway.add(gateway[1]);
   json_gateway.add(gateway[2]);
   json_gateway.add(gateway[3]);
-  JsonArray& json_dns = json.createNestedArray(String(FPSTR(cfg_dns_server)));
+  JsonArray& json_dns = json.createNestedArray(cfg_dns_server);
   json_dns.add(dns_ip[0]);
   json_dns.add(dns_ip[1]);
   json_dns.add(dns_ip[2]);
   json_dns.add(dns_ip[3]);
 
-  json[String(FPSTR(cfg_ntp_server1))]   = ntp_server1;
-  json[String(FPSTR(cfg_ntp_server2))]   = ntp_server2;
+  json[cfg_ntp_server1]   = ntp_server1;
+  json[cfg_ntp_server2]   = ntp_server2;
 
-  json[String(FPSTR(cfg_mqtt_server))]   = mqtt_server;
-  json[String(FPSTR(cfg_mqtt_port))]     = mqtt_port;
-  json[String(FPSTR(cfg_mqtt_name))]     = mqtt_name;
-  json[String(FPSTR(cfg_mqtt_tls))]      = mqtt_tls;
-  json[String(FPSTR(cfg_mqtt_auth))]     = mqtt_auth;
-  json[String(FPSTR(cfg_mqtt_user))]     = mqtt_user;
-  json[String(FPSTR(cfg_mqtt_passwd))]   = mqtt_passwd;
-  json[String(FPSTR(cfg_mqtt_interval))] = mqtt_interval;
-  json[String(FPSTR(cfg_mqtt_watchdog))] = mqtt_watchdog;
+  json[cfg_mqtt_server]   = mqtt_server;
+  json[cfg_mqtt_port]     = mqtt_port;
+  json[cfg_mqtt_name]     = mqtt_name;
+  json[cfg_mqtt_tls]      = mqtt_tls;
+  json[cfg_mqtt_auth]     = mqtt_auth;
+  json[cfg_mqtt_user]     = mqtt_user;
+  json[cfg_mqtt_passwd]   = mqtt_passwd;
+  json[cfg_mqtt_interval] = mqtt_interval;
+  json[cfg_mqtt_watchdog] = mqtt_watchdog;
 
-  json[String(FPSTR(cfg_use_syslog))]    = use_syslog;
-  json[String(FPSTR(cfg_host_name))]     = host_name;
-  json[String(FPSTR(cfg_syslog_server))] = syslog_server;
+  json[cfg_use_syslog]    = use_syslog;
+  json[cfg_host_name]     = host_name;
+  json[cfg_syslog_server] = syslog_server;
 
-  json[String(FPSTR(cfg_httpUser))]      = httpUser;
-  json[String(FPSTR(cfg_httpPasswd))]    = httpPasswd;
+  json[cfg_httpUser]      = httpUser;
+  json[cfg_httpPasswd]    = httpPasswd;
 
-  configured            = true;
-  json[String(FPSTR(cfg_configured))]    = configured;
+  configured              = true;
+  json[cfg_configured]    = configured;
 
   sensorExportJSON(json);
 
@@ -195,90 +195,90 @@ void loadConfig() {
         Serial.println();
 #endif
         if (json.success()) {
-          if (json[String(FPSTR(cfg_use_staticip))].is<bool>()) {
-            use_staticip = json[String(FPSTR(cfg_use_staticip))];
+          if (json[cfg_use_staticip].is<bool>()) {
+            use_staticip = json[cfg_use_staticip];
           }
-          if (json[String(FPSTR(cfg_ip_address))].is<JsonArray&>()) {
-            ip[0]        = json[String(FPSTR(cfg_ip_address))][0];
-            ip[1]        = json[String(FPSTR(cfg_ip_address))][1];
-            ip[2]        = json[String(FPSTR(cfg_ip_address))][2];
-            ip[3]        = json[String(FPSTR(cfg_ip_address))][3];
+          if (json[cfg_ip_address].is<JsonArray&>()) {
+            ip[0]        = json[cfg_ip_address][0];
+            ip[1]        = json[cfg_ip_address][1];
+            ip[2]        = json[cfg_ip_address][2];
+            ip[3]        = json[cfg_ip_address][3];
           }
-          if (json[String(FPSTR(cfg_subnet))].is<JsonArray&>()) {
-            subnet[0]    = json[String(FPSTR(cfg_subnet))][0];
-            subnet[1]    = json[String(FPSTR(cfg_subnet))][1];
-            subnet[2]    = json[String(FPSTR(cfg_subnet))][2];
-            subnet[3]    = json[String(FPSTR(cfg_subnet))][3];
+          if (json[cfg_subnet].is<JsonArray&>()) {
+            subnet[0]    = json[cfg_subnet][0];
+            subnet[1]    = json[cfg_subnet][1];
+            subnet[2]    = json[cfg_subnet][2];
+            subnet[3]    = json[cfg_subnet][3];
           }
-          if (json[String(FPSTR(cfg_gateway))].is<JsonArray&>()) {
-            gateway[0]   = json[String(FPSTR(cfg_gateway))][0];
-            gateway[1]   = json[String(FPSTR(cfg_gateway))][1];
-            gateway[2]   = json[String(FPSTR(cfg_gateway))][2];
-            gateway[3]   = json[String(FPSTR(cfg_gateway))][3];
+          if (json[cfg_gateway].is<JsonArray&>()) {
+            gateway[0]   = json[cfg_gateway][0];
+            gateway[1]   = json[cfg_gateway][1];
+            gateway[2]   = json[cfg_gateway][2];
+            gateway[3]   = json[cfg_gateway][3];
           }
-          if (json[String(FPSTR(cfg_dns_server))].is<JsonArray&>()) {
-            dns_ip[0]    = json[String(FPSTR(cfg_dns_server))][0];
-            dns_ip[1]    = json[String(FPSTR(cfg_dns_server))][1];
-            dns_ip[2]    = json[String(FPSTR(cfg_dns_server))][2];
-            dns_ip[3]    = json[String(FPSTR(cfg_dns_server))][3];
-          }
-
-          if (json[String(FPSTR(cfg_ntp_server1))].is<const char*>()) {
-            strcpy(ntp_server1, json[String(FPSTR(cfg_ntp_server1))]);
-          }
-          if (json[String(FPSTR(cfg_ntp_server2))].is<const char*>()) {
-            strcpy(ntp_server2, json[String(FPSTR(cfg_ntp_server2))]);
+          if (json[cfg_dns_server].is<JsonArray&>()) {
+            dns_ip[0]    = json[cfg_dns_server][0];
+            dns_ip[1]    = json[cfg_dns_server][1];
+            dns_ip[2]    = json[cfg_dns_server][2];
+            dns_ip[3]    = json[cfg_dns_server][3];
           }
 
-
-          if (json[String(FPSTR(cfg_mqtt_server))].is<const char*>()) {
-            strcpy(mqtt_server,   json[String(FPSTR(cfg_mqtt_server))]);
+          if (json[cfg_ntp_server1].is<const char*>()) {
+            strcpy(ntp_server1, json[cfg_ntp_server1]);
           }
-          if (json[String(FPSTR(cfg_mqtt_port))].is<const char*>()) {
-            strcpy(mqtt_port,     json[String(FPSTR(cfg_mqtt_port))]);
-          }
-          if (json[String(FPSTR(cfg_mqtt_name))].is<const char*>()) {
-            strcpy(mqtt_name,     json[String(FPSTR(cfg_mqtt_name))]);
-          }
-          if (json[String(FPSTR(cfg_mqtt_tls))].is<bool>()) {
-            mqtt_tls = json[String(FPSTR(cfg_mqtt_tls))];
-          }
-          if (json[String(FPSTR(cfg_mqtt_auth))].is<bool>()) {
-            mqtt_auth = json[String(FPSTR(cfg_mqtt_auth))];
-          }
-          if (json[String(FPSTR(cfg_mqtt_user))].is<const char*>()) {
-            strcpy(mqtt_user,     json[String(FPSTR(cfg_mqtt_user))]);
-          }
-          if (json[String(FPSTR(cfg_mqtt_passwd))].is<const char*>()) {
-            strcpy(mqtt_passwd,   json[String(FPSTR(cfg_mqtt_passwd))]);
-          }
-          if (json[String(FPSTR(cfg_mqtt_interval))].is<int>()) {
-            mqtt_interval = json[String(FPSTR(cfg_mqtt_interval))];
-          }
-          if (json[String(FPSTR(cfg_mqtt_watchdog))].is<int>()) {
-            mqtt_watchdog = json[String(FPSTR(cfg_mqtt_watchdog))];
+          if (json[cfg_ntp_server2].is<const char*>()) {
+            strcpy(ntp_server2, json[cfg_ntp_server2]);
           }
 
 
-          if (json[String(FPSTR(cfg_use_syslog))].is<bool>()) {
-            use_syslog = json[String(FPSTR(cfg_use_syslog))];
+          if (json[cfg_mqtt_server].is<const char*>()) {
+            strcpy(mqtt_server,   json[cfg_mqtt_server]);
           }
-          if (json[String(FPSTR(cfg_host_name))].is<const char*>()) {
-            strcpy(host_name,     json[String(FPSTR(cfg_host_name))]);
+          if (json[cfg_mqtt_port].is<const char*>()) {
+            strcpy(mqtt_port,     json[cfg_mqtt_port]);
           }
-          if (json[String(FPSTR(cfg_syslog_server))].is<const char*>()) {
-            strcpy(syslog_server, json[String(FPSTR(cfg_syslog_server))]);
+          if (json[cfg_mqtt_name].is<const char*>()) {
+            strcpy(mqtt_name,     json[cfg_mqtt_name]);
+          }
+          if (json[cfg_mqtt_tls].is<bool>()) {
+            mqtt_tls = json[cfg_mqtt_tls];
+          }
+          if (json[cfg_mqtt_auth].is<bool>()) {
+            mqtt_auth = json[cfg_mqtt_auth];
+          }
+          if (json[cfg_mqtt_user].is<const char*>()) {
+            strcpy(mqtt_user,     json[cfg_mqtt_user]);
+          }
+          if (json[cfg_mqtt_passwd].is<const char*>()) {
+            strcpy(mqtt_passwd,   json[cfg_mqtt_passwd]);
+          }
+          if (json[cfg_mqtt_interval].is<int>()) {
+            mqtt_interval = json[cfg_mqtt_interval];
+          }
+          if (json[cfg_mqtt_watchdog].is<int>()) {
+            mqtt_watchdog = json[cfg_mqtt_watchdog];
           }
 
-          if (json[String(FPSTR(cfg_httpUser))].is<const char*>()) {
-            httpUser = json[String(FPSTR(cfg_httpUser))].as<String>();
+
+          if (json[cfg_use_syslog].is<bool>()) {
+            use_syslog = json[cfg_use_syslog];
           }
-          if (json[String(FPSTR(cfg_httpPasswd))].is<const char*>()) {
-            httpPasswd = json[String(FPSTR(cfg_httpPasswd))].as<String>();
+          if (json[cfg_host_name].is<const char*>()) {
+            strcpy(host_name,     json[cfg_host_name]);
+          }
+          if (json[cfg_syslog_server].is<const char*>()) {
+            strcpy(syslog_server, json[cfg_syslog_server]);
           }
 
-          if (json[String(FPSTR(cfg_configured))].is<bool>()) {
-            configured = json[String(FPSTR(cfg_configured))];
+          if (json[cfg_httpUser].is<const char*>()) {
+            httpUser = json[cfg_httpUser].as<String>();
+          }
+          if (json[cfg_httpPasswd].is<const char*>()) {
+            httpPasswd = json[cfg_httpPasswd].as<String>();
+          }
+
+          if (json[cfg_configured].is<bool>()) {
+            configured = json[cfg_configured];
           }
 
           strcpy(host_name, mqtt_name); // We use the MQTT name as the host name since there is little value in having both and it just adds another config item and potential confusion.
@@ -313,37 +313,37 @@ void updateConfig(String key, String value) {
   } else if ( key == "psk" ) {
     psk = value;
 
-  } else if ( key == String(FPSTR(cfg_ip_address)) ) {
+  } else if ( key == cfg_ip_address ) {
     ip.fromString(value);
-  } else if ( key == String(FPSTR(cfg_dns_server)) ) {
+  } else if ( key == cfg_dns_server ) {
     dns_ip.fromString(value);
-  } else if ( key == String(FPSTR(cfg_subnet)) ) {
+  } else if ( key == cfg_subnet ) {
     subnet.fromString(value);
-  } else if ( key == String(FPSTR(cfg_gateway)) ) {
+  } else if ( key == cfg_gateway ) {
     gateway.fromString(value);
-  } else if ( key == String(FPSTR(cfg_ntp_server1)) ) {
+  } else if ( key == cfg_ntp_server1 ) {
     value.toCharArray(ntp_server1, 40);
-  } else if ( key == String(FPSTR(cfg_ntp_server2)) ) {
+  } else if ( key == cfg_ntp_server2 ) {
     value.toCharArray(ntp_server2, 40);
 
-  } else if ( key == String(FPSTR(cfg_mqtt_server)) ) {
+  } else if ( key == cfg_mqtt_server ) {
     value.toCharArray(mqtt_server, 40);
-  } else if ( key == String(FPSTR(cfg_mqtt_port)) ) {
+  } else if ( key == cfg_mqtt_port ) {
     value.toCharArray(mqtt_port, 6);
-  } else if ( key == String(FPSTR(cfg_mqtt_name)) ) {
+  } else if ( key == cfg_mqtt_name ) {
     value.toCharArray(mqtt_name, 21);
-  } else if ( key == String(FPSTR(cfg_mqtt_user)) ) {
+  } else if ( key == cfg_mqtt_user ) {
     value.toCharArray(mqtt_user, 21);
-  } else if ( key == String(FPSTR(cfg_mqtt_passwd)) ) {
+  } else if ( key == cfg_mqtt_passwd ) {
     value.toCharArray(mqtt_passwd, 33);
-  } else if ( key == String(FPSTR(cfg_mqtt_interval)) ) {
+  } else if ( key == cfg_mqtt_interval ) {
     mqtt_interval = value.toInt();
-  } else if ( key == String(FPSTR(cfg_mqtt_watchdog)) ) {
+  } else if ( key == cfg_mqtt_watchdog ) {
     mqtt_watchdog = value.toInt();
 
-  } else if ( key == String(FPSTR(cfg_host_name)) ) {
+  } else if ( key == cfg_host_name ) {
     value.toCharArray(host_name, 21);
-  } else if ( key == String(FPSTR(cfg_syslog_server)) ) {
+  } else if ( key == cfg_syslog_server ) {
     value.toCharArray(syslog_server, 40);
 
   } else if (! sensorUpdateConfig(key, value)) {
@@ -357,7 +357,7 @@ void runAction(String key, String value) {
   if ( key == "reboot" ) {
     logString = F("Received reboot command.");
     mqttLog(app_name_mqtt, logString);
-    mqttSend(String(FPSTR(mqttstr_online)), String(FPSTR(str_false)), true);
+    mqttSend(String(FPSTR(mqttstr_online)), str_false, true);
     delay(100);
     ESP.restart();
   } else if ( key == "saveconfig" ) {
@@ -402,7 +402,7 @@ void updateFirmware(String url) {
 void setupSyslog() {
   // Setup syslog
 
-  logString = String(F("Syslog server: ")) + String(syslog_server);
+  logString = str_cfg_syslog_server + str_colon + String(syslog_server);
   logMessage(app_name_sys, logString, false);
 
   syslog.server(syslog_server, 514);
@@ -455,7 +455,7 @@ bool newWiFiCredentials() {
     result       = false;
     httpLoggedin = false;  // If this was done over a network connection record it as no-one logged in to allow the watchdog to reboot quicker.
   } else {
-    logString = F("Connected.");
+    logString = str_connected;
     WiFi.mode(WIFI_STA);
     ssid   = _ssid;
     psk    = _psk;

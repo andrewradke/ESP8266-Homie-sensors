@@ -21,28 +21,28 @@ const String app_name_sensors = "Sensors";
 
 ///// strings used for config
 
-static const char cfg_use_staticip[17]  PROGMEM = "use_staticip";
-static const char cfg_ip_address[17]    PROGMEM = "ip_address";
-static const char cfg_subnet[17]        PROGMEM = "subnet";
-static const char cfg_gateway[17]       PROGMEM = "gateway";
-static const char cfg_dns_server[17]    PROGMEM = "dns_server";
-static const char cfg_ntp_server1[17]   PROGMEM = "ntp_server1";
-static const char cfg_ntp_server2[17]   PROGMEM = "ntp_server2";
-static const char cfg_mqtt_server[17]   PROGMEM = "mqtt_server";
-static const char cfg_mqtt_port[17]     PROGMEM = "mqtt_port";
-static const char cfg_mqtt_name[17]     PROGMEM = "mqtt_name";
-static const char cfg_mqtt_tls[17]      PROGMEM = "mqtt_tls";
-static const char cfg_mqtt_auth[17]     PROGMEM = "mqtt_auth";
-static const char cfg_mqtt_user[17]     PROGMEM = "mqtt_user";
-static const char cfg_mqtt_passwd[17]   PROGMEM = "mqtt_passwd";
-static const char cfg_mqtt_interval[17] PROGMEM = "mqtt_interval";
-static const char cfg_mqtt_watchdog[17] PROGMEM = "mqtt_watchdog";
-static const char cfg_use_syslog[17]    PROGMEM = "use_syslog";
-static const char cfg_host_name[17]     PROGMEM = "host_name";
-static const char cfg_syslog_server[17] PROGMEM = "syslog_server";
-static const char cfg_httpUser[17]      PROGMEM = "httpUser";
-static const char cfg_httpPasswd[17]    PROGMEM = "httpPasswd";
-static const char cfg_configured[17]    PROGMEM = "configured";
+const String cfg_use_staticip  = "use_staticip";
+const String cfg_ip_address    = "ip_address";
+const String cfg_subnet        = "subnet";
+const String cfg_gateway       = "gateway";
+const String cfg_dns_server    = "dns_server";
+const String cfg_ntp_server1   = "ntp_server1";
+const String cfg_ntp_server2   = "ntp_server2";
+const String cfg_mqtt_server   = "mqtt_server";
+const String cfg_mqtt_port     = "mqtt_port";
+const String cfg_mqtt_name     = "mqtt_name";
+const String cfg_mqtt_tls      = "mqtt_tls";
+const String cfg_mqtt_auth     = "mqtt_auth";
+const String cfg_mqtt_user     = "mqtt_user";
+const String cfg_mqtt_passwd   = "mqtt_passwd";
+const String cfg_mqtt_interval = "mqtt_interval";
+const String cfg_mqtt_watchdog = "mqtt_watchdog";
+const String cfg_use_syslog    = "use_syslog";
+const String cfg_host_name     = "host_name";
+const String cfg_syslog_server = "syslog_server";
+const String cfg_httpUser      = "httpUser";
+const String cfg_httpPasswd    = "httpPasswd";
+const String cfg_configured    = "configured";
 
 
 static const char mqttstr_log[]       PROGMEM = "$log";
@@ -58,11 +58,23 @@ static const char mqttstr_ota[]       PROGMEM = "$ota/";
 
 static const char str_command[]    PROGMEM = "command";
 static const char str_error[]      PROGMEM = "error";
-static const char str_true[]       PROGMEM = "true";
-static const char str_false[]      PROGMEM = "false";
-static const char str_nbsp[]       PROGMEM = "&nbsp;";
-const String str_succeeded = "succeeded";
-const String str_failed    = "failed";
+
+const String str_on         = "on";
+const String str_true       = "true";
+const String str_false      = "false";
+const String str_from       = " from ";
+const String str_to         = " to ";
+const String str_nbsp       = "&nbsp;";
+const String str_succeeded  = "succeeded";
+const String str_failed     = "failed";
+const String str_text       = "text";
+const String str_password   = "password";
+const String str_static     = "Static";
+const String str_dhcp       = "DHCP";
+const String str_space      = " ";
+const String str_dot        = ".";
+const String str_colon      = ": ";
+const String str_ipv4       = "IPv4";
 
 const String httpFooter = "</body></html>";
 const String tableStart = "<table>";
@@ -76,4 +88,27 @@ const String thBreak    = "</th><th>";
 
 const String str_firmware_update = "Firmware update: ";
 const String str_rebooting       = "Rebooting.";
+const String str_connected       = "Connected";
 
+const String str_cfg_changed     = "Config changed for ";
+const String str_cfg_overridden  = "Config overridden for ";
+
+const String str_cfg_staticip      = "staticip";
+const String str_cfg_ip_address    = "IP address";
+const String str_cfg_subnet        = "Subnet mask";
+const String str_cfg_gateway       = "Gateway";
+const String str_cfg_dns_server    = "DNS server";
+const String str_cfg_ntp_server1   = "NTP server 1";
+const String str_cfg_ntp_server2   = "NTP server 2";
+const String str_cfg_mqtt_server   = "MQTT server";
+const String str_cfg_mqtt_port     = "MQTT port";
+const String str_cfg_mqtt_name     = "MQTT name";
+const String str_cfg_mqtt_tls      = "MQTT TLS";
+const String str_cfg_mqtt_auth     = "MQTT authentication";
+const String str_cfg_mqtt_user     = "MQTT user";
+const String str_cfg_mqtt_passwd   = "MQTT password";
+const String str_cfg_mqtt_interval = "MQTT interval";
+const String str_cfg_mqtt_watchdog = "MQTT watchdog timer";
+const String str_cfg_use_syslog    = "Use syslog";
+const String str_cfg_host_name     = "hostname";
+const String str_cfg_syslog_server = "Syslog server";
