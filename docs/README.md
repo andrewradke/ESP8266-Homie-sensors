@@ -4,11 +4,17 @@ A ESP8266 firmware that includes support for a range of sensors sending to MQTT 
 
 The aim is to be as secure as possible (HTTPS for the config page is the only significant outstanding issue) and make it easy to add another sensor type in without having to ready any non-sensor specific code.
 
+## Project goals
+
+* Secure communication
+* Reliable sensing with logging of events where necessary
+* Easy implementation of new sensors
+
 ## Getting Started
 
 This code is compiled through the Arduino IDE with ESP8266 support added.
 
-### PrerequisitesG
+### Prerequisites
 
 Some extra libraries are required:
 
@@ -29,7 +35,7 @@ Change the FWTYPE to match the sensor type being used. For example to use a flow
 #define FWTYPE     2
 ```
 
-After compiling and uploading the firmware to the ESP8266 a WiFi acess point will be available with the same name as the sensor type. The default password is "esp8266." without quotes. Once connected you can access it's web configuration page on http://192.168.4.1/ and set it to join your local WiFi network.
+After compiling and uploading the firmware to the ESP8266 a WiFi access point will be available with the same name as the sensor type. The default password is "esp8266." without quotes. Once connected you can access it's web configuration page on http://192.168.4.1/ and set it to join your local WiFi network.
 
 The default MQTT name of the sensor will be the same as it's firmware type name, e.g. esp8266-flow-counter. This can be changed on the Configuration page of the web interface.
 
@@ -38,6 +44,7 @@ Once the ESP8266 has been joined to you WiFi network it will be accessible via h
 ## Future planned development
 
 * Better code comments
+* Log web interface activity, particularly failed and successful logins and configuration changes
 * Documenting how to use the firmware
 * Implement the more recent versions of the Homie Convention
 * Further reduce RAM and flash usage by moving all strings to flash and making sure only single use strings are referenced using F()
@@ -47,7 +54,7 @@ Once the ESP8266 has been joined to you WiFi network it will be accessible via h
 
 ## Contributing
 
-All contributions, ideas and critisism is welcome. :-)
+All contributions, ideas and criticism is welcome. :-)
 
 ## Authors
 
