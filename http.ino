@@ -26,6 +26,7 @@ const String str_cross_red                = "<span style='color:red'>&#10008;</s
 const byte   MENU_COUNT = 10;
 const String http_page_urls[MENU_COUNT]  = { "/", "/config", "/system", "/wifi", "/password", "/cacert", "/https", "/firmware", "/reboot", "/logout" };
 const String http_page_names[MENU_COUNT] = { "Home", "Configuration", "Device Info", "WiFi", "Password", "CA Certificate", "HTTPS Certificate", "Update firmware", "Reboot", "Logout" };
+const String login_url                   = "/login";
 
 
 File     fsUploadFile;           // a File object to temporarily store the received files
@@ -35,25 +36,25 @@ uint32_t uploadedFileSize;       // Conatins the size of any file uploaded
 void httpSetup() {
   gencookie(); //generate new cookie on device start
 
-  httpServer.on("/",             handleRoot );
-  httpServer.on("/config",       handleConfig );
-  httpServer.on("/system",       handleSystem );
-  httpServer.on("/wifi",         handleWifi);
-  httpServer.on("/wifisave",     handleWifiSave);
-  httpServer.on("/generate_204", handleRoot);  // Android captive portal. Maybe not needed. Might be handled by notFound handler.   HTTP only
-  httpServer.on("/fwlink",       handleRoot);  // Microsoft captive portal. Maybe not needed. Might be handled by notFound handler. HTTP only
-  httpServer.on("/password",     handlePassword );
-  httpServer.on("/cacert",       HTTP_GET,  handleCACert);
-  httpServer.on("/cacert",       HTTP_POST, [](){ send200Http(""); },     handleCACertUpload);
-  httpServer.on("/https",        HTTP_GET,  handleHTTPSCerts);
-  httpServer.on("/httpscert",    HTTP_POST, [](){ send200Http(""); },     handleHTTPSCertUpload);
-  httpServer.on("/httpskey",     HTTP_POST, [](){ send200Http(""); },     handleHTTPSKeyUpload);
-  httpServer.on("/firmware",     HTTP_GET,  handleFirmware);
-  httpServer.on("/firmware",     HTTP_POST, handleFirmwareUploadComplete, handleFirmwareUpload);
-  httpServer.on("/reboot",       handleReboot );
-  httpServer.on("/login",        handleLogin );
-  httpServer.on("/logout",       handleLogout );
-  httpServer.onNotFound(         handleNotFound );
+  httpServer.on(http_page_urls[0], handleRoot );
+  httpServer.on(http_page_urls[1], handleConfig );
+  httpServer.on(http_page_urls[2], handleSystem );
+  httpServer.on(http_page_urls[3], handleWifi);
+  httpServer.on("/wifisave",       handleWifiSave);
+  httpServer.on("/generate_204",   handleRoot);  // Android captive portal. Maybe not needed. Might be handled by notFound handler.   HTTP only
+  httpServer.on("/fwlink",         handleRoot);  // Microsoft captive portal. Maybe not needed. Might be handled by notFound handler. HTTP only
+  httpServer.on(http_page_urls[4], handlePassword );
+  httpServer.on(http_page_urls[5], HTTP_GET,  handleCACert);
+  httpServer.on(http_page_urls[5], HTTP_POST, [](){ send200Http(""); },     handleCACertUpload);
+  httpServer.on(http_page_urls[6], HTTP_GET,  handleHTTPSCerts);
+  httpServer.on("/httpscert",      HTTP_POST, [](){ send200Http(""); },     handleHTTPSCertUpload);
+  httpServer.on("/httpskey",       HTTP_POST, [](){ send200Http(""); },     handleHTTPSKeyUpload);
+  httpServer.on(http_page_urls[7], HTTP_GET,  handleFirmware);
+  httpServer.on(http_page_urls[7], HTTP_POST, handleFirmwareUploadComplete, handleFirmwareUpload);
+  httpServer.on(http_page_urls[8], handleReboot );
+  httpServer.on(login_url,         handleLogin );
+  httpServer.on(http_page_urls[9], handleLogout );
+  httpServer.onNotFound(           handleNotFound );
 
 }
 
@@ -66,7 +67,7 @@ String htmlHeader() {
 //  httpHeader.replace("{t}", String(host_name) + " (" + String(fwname) + ")");
   httpHeader.replace("{t}", String(host_name));
 
-  if (httpServer.uri() != "/login") {
+  if (httpServer.uri() != login_url) {
     httpHeader += FPSTR(HTTP_NAV_START);
     for (byte i = 0; i < MENU_COUNT; i++){
       String tmpString  = FPSTR(HTTP_NAV_LI);
@@ -93,11 +94,11 @@ String htmlHeader() {
   return httpHeader;
 }
 
-String htmlInput(String inputType, String inputName, String inputValue) {
+String htmlInput(const String &inputType, const String &inputName, const String &inputValue) {
   return String("<input type='" + inputType + "' name='" + inputName + "' value='" + inputValue + "'>");
 }
 
-String htmlCheckbox(String inputName, const bool inputChecked) {
+String htmlCheckbox(const String &inputName, const bool inputChecked) {
   String tmpString = String(F("<input type='checkbox' name='")) + inputName + "'";
   if (inputChecked) {
     tmpString += " checked";
@@ -106,7 +107,7 @@ String htmlCheckbox(String inputName, const bool inputChecked) {
   return tmpString;
 }
 
-String htmlRadio(String inputName, String inputValue, const bool inputChecked) {
+String htmlRadio(const String &inputName, const String &inputValue, const bool inputChecked) {
   String tmpString = String(F("<input type='radio' name='")) + inputName + "' value='" + inputValue + "'";
   if (inputChecked) {
     tmpString += " checked";
@@ -115,7 +116,7 @@ String htmlRadio(String inputName, String inputValue, const bool inputChecked) {
   return tmpString;
 }
 
-void sendLocationHeader(String loc) {
+void sendLocationHeader(const String &loc) {
   httpServer.sendHeader(F("Location"),loc);         // Redirect the client to loc
 }
 void sendCacheControlHeader() {
@@ -124,11 +125,11 @@ void sendCacheControlHeader() {
 void sendCacheControlHeader(uint16_t len) {
   httpServer.sendHeader(F("Content-Length"), String(len));
 }
-void send200Http(String httpData) {
+void send200Http(const String &httpData) {
   httpServer.send(200, String(F("text/html")), httpData );
 }
 void send500HttpUploadFailed() {
-  httpData = htmlHeader();
+  String httpData = htmlHeader();
   httpData += F("500: couldn't create file");
   httpData += FPSTR(HTTP_END);
   httpServer.send(500, "text/html", httpData );
@@ -149,7 +150,7 @@ bool is_authenticated() {
     if (cookie.indexOf(authk) != -1)
       return true;
   }
-  sendLocationHeader("/login");
+  sendLocationHeader(login_url);
   sendCacheControlHeader();
   httpServer.send(301);
 
@@ -158,7 +159,7 @@ bool is_authenticated() {
 
 
 /** Is this an IP? */
-boolean isIp(String str) {
+boolean isIp(const String &str) {
   for (int i = 0; i < str.length(); i++) {
     int c = str.charAt(i);
     if (c != '.' && (c < '0' || c > '9')) {
@@ -183,7 +184,7 @@ boolean captivePortal() {
 void handleNotFound() {
   if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the error page.
     return;
-  httpData = htmlHeader();
+  String httpData = htmlHeader();
   httpData += F("404: not found: ");
   httpData += httpServer.uri();
   httpData += FPSTR(HTTP_END);
@@ -195,7 +196,7 @@ void handleLogin() {
   if (captivePortal()) // If captive portal and not connected by IP address redirect instead of displaying the page.
     return;
 
-  httpData = htmlHeader();
+  String httpData = htmlHeader();
 
   httpData += F("<div id=\"login\"><form action='/login' method='POST'>Login:<br/><input type='text' name='user' placeholder='User name'></p><p><input type='password' name='pass' placeholder='Password'></p><br/><button type='submit' name='submit'>login</button></center></form></body></html>");
 
@@ -243,7 +244,6 @@ void handleLogin() {
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
-  httpData = "";
 }
 
 void handleLogout() {
@@ -252,7 +252,7 @@ void handleLogout() {
 
   //Set 'c=0', it users header, effectively deleting it's header
   httpServer.sendHeader("Set-Cookie","c=0");
-  sendLocationHeader("/login");
+  sendLocationHeader(login_url);
   sendCacheControlHeader();
   httpServer.send(301);
   httpLoggedin = false;
@@ -268,7 +268,7 @@ void handleRoot() {
   tempign = millis(); //reset the inactivity timer if someone logs in
   char buf[50];
 
-  httpData = htmlHeader();
+  String httpData = htmlHeader();
 
   httpData += httpSensorData();
   httpData += "<br/>";
@@ -295,7 +295,6 @@ void handleRoot() {
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
-  httpData = "";
 }
 
 
@@ -308,7 +307,7 @@ void handleSystem() {
   tempign = millis(); //reset the inactivity timer if someone logs in
   char buf[50];
 
-  httpData = htmlHeader();
+  String httpData = htmlHeader();
 
   httpData += tableStart;
 
@@ -387,7 +386,6 @@ void handleSystem() {
 
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
-  httpData = "";
 }
 
 
@@ -400,7 +398,7 @@ void handleConfig() {
   tempign = millis(); //reset the inactivity timer if someone logs in
 
   IPAddress tmpip;
-  httpData = htmlHeader();
+  String httpData = htmlHeader();
 
   if (httpServer.args()) {
 
@@ -424,11 +422,11 @@ void handleConfig() {
 
     if (httpServer.hasArg(cfg_ip_address)) {
       tmpip.fromString(httpServer.arg(cfg_ip_address));
-      if (ip != tmpip) {
-        logString = str_cfg_changed + str_cfg_ip_address + str_from + IPtoString(ip) + str_to + IPtoString(tmpip);
+      if (local_ip != tmpip) {
+        logString = str_cfg_changed + str_cfg_ip_address + str_from + IPtoString(local_ip) + str_to + IPtoString(tmpip);
         if (use_staticip)
           rebootRequired = true;        // Changing IP requires a reboot
-        ip = tmpip;
+        local_ip = tmpip;
         logMessage(app_name_cfg, logString, false);
       }
     }
@@ -452,13 +450,23 @@ void handleConfig() {
         logMessage(app_name_cfg, logString, false);
       }
     }
-    if (httpServer.hasArg(cfg_dns_server)) {
-      tmpip.fromString(httpServer.arg(cfg_dns_server));
-      if (dns_ip != tmpip) {
-        logString = str_cfg_changed + str_cfg_dns_server + str_from + IPtoString(dns_ip) + str_to + IPtoString(tmpip);
+    if (httpServer.hasArg(cfg_dns_server1)) {
+      tmpip.fromString(httpServer.arg(cfg_dns_server1));
+      if (dns1 != tmpip) {
+        logString = str_cfg_changed + str_cfg_dns_server1 + str_from + IPtoString(dns1) + str_to + IPtoString(tmpip);
         if (use_staticip)
           rebootRequired = true;        // Changing DNS server requires a reboot
-        dns_ip = tmpip;
+        dns1 = tmpip;
+        logMessage(app_name_cfg, logString, false);
+      }
+    }
+    if (httpServer.hasArg(cfg_dns_server2)) {
+      tmpip.fromString(httpServer.arg(cfg_dns_server2));
+      if (dns2 != tmpip) {
+        logString = str_cfg_changed + str_cfg_dns_server2 + str_from + IPtoString(dns2) + str_to + IPtoString(tmpip);
+        if (use_staticip)
+          rebootRequired = true;        // Changing DNS server requires a reboot
+        dns2 = tmpip;
         logMessage(app_name_cfg, logString, false);
       }
     }
@@ -487,17 +495,16 @@ void handleConfig() {
         logString = str_cfg_changed + str_cfg_mqtt_server + str_from + tmpString + str_to + httpServer.arg(cfg_mqtt_server);
         httpServer.arg(cfg_mqtt_server).toCharArray(mqtt_server, 40);
         mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
-        mqttClient.setServer(mqtt_server, atoi( mqtt_port ));
+        mqttClient.setServer(mqtt_server, mqtt_port);
         logMessage(app_name_cfg, logString, false);
       }
     }
     if (httpServer.hasArg(cfg_mqtt_port)) {
-      tmpString = String(mqtt_port);
-      if (httpServer.arg(cfg_mqtt_port) != tmpString) {
-        logString = str_cfg_changed + str_cfg_mqtt_port + str_from + tmpString + str_to + httpServer.arg(cfg_mqtt_port);
-        httpServer.arg(cfg_mqtt_port).toCharArray(mqtt_port, 5);
+      if (httpServer.arg(cfg_mqtt_port).toInt() != mqtt_port) {
+        logString = str_cfg_changed + str_cfg_mqtt_port + str_from + String(mqtt_port) + str_to + httpServer.arg(cfg_mqtt_port);
+        mqtt_port = httpServer.arg(cfg_mqtt_port).toInt();
         mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
-        mqttClient.setServer(mqtt_server, atoi( mqtt_port ));
+        mqttClient.setServer(mqtt_server, mqtt_port);
         logMessage(app_name_cfg, logString, false);
       }
     }
@@ -653,11 +660,21 @@ void handleConfig() {
   httpData += htmlRadio(str_cfg_staticip, str_true,          use_staticip)     + str_static;
   httpData += htmlRadio(str_cfg_staticip, str_false,         (! use_staticip)) + str_dhcp;
   httpData += trEnd;
-  httpData += trStart + str_cfg_ip_address    + tdBreak + htmlInput(str_text,     cfg_ip_address,    IPtoString(ip))      + trEnd;
+  httpData += trStart + str_cfg_ip_address    + tdBreak + htmlInput(str_text,     cfg_ip_address,    IPtoString(local_ip))      + trEnd;
   httpData += trStart + str_cfg_subnet        + tdBreak + htmlInput(str_text,     cfg_subnet,        IPtoString(subnet))  + trEnd;
   httpData += trStart + str_cfg_gateway       + tdBreak + htmlInput(str_text,     cfg_gateway,       IPtoString(gateway)) + trEnd;
-  httpData += trStart + str_cfg_dns_server    + tdBreak + htmlInput(str_text,     cfg_dns_server,    IPtoString(dns_ip));
-  tmpString = IPtoString(dns_ip);
+  httpData += trStart + str_cfg_dns_server1   + tdBreak + htmlInput(str_text,     cfg_dns_server1,   IPtoString(dns1));
+  tmpString = IPtoString(dns1);
+  if ( use_staticip ) {
+    if ( WiFi.hostByName(tmpString.c_str(), tmpip) ) {
+      httpData += str_tick_green;
+    } else {
+      httpData += str_cross_red;
+    }
+  }
+  httpData += trEnd;
+  httpData += trStart + str_cfg_dns_server2   + tdBreak + htmlInput(str_text,     cfg_dns_server2,   IPtoString(dns2));
+  tmpString = IPtoString(dns2);
   if ( use_staticip ) {
     if ( WiFi.hostByName(tmpString.c_str(), tmpip) ) {
       httpData += str_tick_green;
@@ -689,7 +706,7 @@ void handleConfig() {
     httpData += str_cross_red;
   }
   httpData += trEnd;
-  httpData += trStart + "Port:"               + tdBreak + htmlInput(str_text,     cfg_mqtt_port,     mqtt_port)     + trEnd;
+  httpData += trStart + "Port:"               + tdBreak + htmlInput(str_text,     cfg_mqtt_port,     String(mqtt_port))     + trEnd;
   httpData += trStart + "Name:"               + tdBreak + htmlInput(str_text,     cfg_mqtt_name,     mqtt_name)     + trEnd;
   httpData += trStart + "Use TLS:"            + tdBreak + htmlCheckbox(           cfg_mqtt_tls,      mqtt_tls)      + trEnd;
   httpData += trStart + "Use authentication:" + tdBreak + htmlCheckbox(           cfg_mqtt_auth,     mqtt_auth)     + trEnd;
@@ -718,7 +735,6 @@ void handleConfig() {
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
-  httpData = "";
 }
 
 
@@ -730,7 +746,7 @@ void handlePassword() {
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
 
-  httpData = htmlHeader();
+  String httpData = htmlHeader();
 
   bool authChanged = false;
   if (httpServer.args()) {
@@ -802,7 +818,6 @@ void handlePassword() {
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
-  httpData = "";
 }
 
 
@@ -816,7 +831,7 @@ void handleWifi() {
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
 
-  httpData = htmlHeader();
+  String httpData = htmlHeader();
 
   if (! inConfigAP) {
     httpData += str_h2_red;
@@ -916,7 +931,6 @@ void handleWifi() {
   httpServer.sendHeader("Expires", "-1");
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
-  httpData = "";
 }
 
 /** Handle the WLAN save form and redirect to WLAN config page again */
@@ -928,6 +942,7 @@ void handleWifiSave() {
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
   char buf[50];
+  String httpData;
 
   // Store new credentials here for checking later
   _ssid = httpServer.arg("s");
@@ -958,7 +973,6 @@ void handleWifiSave() {
   }
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
-  httpData = "";
 }
 
 
@@ -971,7 +985,7 @@ void handleReboot() {
   tempign = millis(); //reset the inactivity timer if someone logs in
   char buf[50];
 
-  httpData = htmlHeader();
+  String httpData = htmlHeader();
   sprintf_P( buf, HTTP_META_REFRESH, 10);  // Refresh the page after 10 seconds
   httpData += String(buf);
   httpData += str_rebooting;
@@ -979,7 +993,7 @@ void handleReboot() {
 
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
-  httpData = "";
+
   delay(100);
   ESP.restart();
   delay(5000);
@@ -995,7 +1009,7 @@ void handleFirmware() {
   }
   tempign = millis();  // reset the inactivity timer if someone logs in
 
-  httpData = htmlHeader();
+  String httpData = htmlHeader();
 
   httpData += F("Select a firmware file to upload.<br />Be certain to make sure it's compiled with the same SPIFFS size or the next boot will fail.<br/>");
   httpData += F("<form action='#' method='POST' enctype='multipart/form-data'>");
@@ -1005,7 +1019,6 @@ void handleFirmware() {
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
-  httpData = "";
 }
 
 void handleFirmwareUploadComplete() {
@@ -1017,7 +1030,7 @@ void handleFirmwareUploadComplete() {
   tempign = millis();  // reset the inactivity timer if someone logs in
   char buf[50];
 
-  httpData = "</p>";   // Finishes the progress bar
+  String httpData = "</p>";   // Finishes the progress bar
 
   if (Update.hasError() || firmwareUpdateError != "") {
     httpData += str_h2_red;
@@ -1052,6 +1065,7 @@ void handleFirmwareUpload() {
     return;
   }
   tempign = millis();   // reset the inactivity timer if someone logs in
+  String httpData;
 
   HTTPUpload& upload = httpServer.upload();
 
@@ -1082,7 +1096,7 @@ void handleFirmwareUpload() {
       firmwareUpdateError = str.c_str();
     }
   } else if (upload.status == UPLOAD_FILE_WRITE && !firmwareUpdateError.length()) {
-    Serial.print(".");
+    Serial.print(str_dot);
     httpServer.sendContent("_");
 
     if (Update.write(upload.buf, upload.currentSize) != upload.currentSize){
@@ -1131,7 +1145,7 @@ void handleCACert() {
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
 
-  httpData = htmlHeader();
+  String httpData = htmlHeader();
 
   httpData += F("<p>This CA certificate is for the secure TLS MQTT connection.</p>");
 
@@ -1154,7 +1168,6 @@ void handleCACert() {
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
-  httpData = "";
 }
 
 /* Handle a file being uploaded */
@@ -1202,7 +1215,7 @@ void handleHTTPSCerts() {
   }
   tempign = millis(); //reset the inactivity timer if someone logs in
 
-  httpData = htmlHeader();
+  String httpData = htmlHeader();
 
   httpData += str_h2_red;
   httpData.replace("{v}", F("Currently unused!"));
@@ -1247,7 +1260,6 @@ void handleHTTPSCerts() {
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
   send200Http( httpData );
-  httpData = "";
 }
 
 /* Handle the cert file being uploaded */

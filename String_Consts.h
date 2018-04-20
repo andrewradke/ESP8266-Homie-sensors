@@ -1,11 +1,16 @@
+///// Legacy settings
+const String cfg_dns_server   = "dns_server";
+
+
+
 ///// Default values
 
-static const char default_ntp_server1[41]   PROGMEM = "0.pool.ntp.org";
-static const char default_ntp_server2[41]   PROGMEM = "1.pool.ntp.org";
-static const char default_syslog_server[41] PROGMEM = "syslog.local";
-static const char default_mqtt_server[41]   PROGMEM = "mqtt.local";
-static const char default_httpUser[]        PROGMEM = "admin";
-static const char default_httpPasswd[]      PROGMEM = "esp8266";
+static const char default_ntp_server1[]   PROGMEM = "0.pool.ntp.org";
+static const char default_ntp_server2[]   PROGMEM = "1.pool.ntp.org";
+static const char default_syslog_server[] PROGMEM = "syslog.local";
+static const char default_mqtt_server[]   PROGMEM = "mqtt.local";
+static const char default_httpUser[]      PROGMEM = "admin";
+static const char default_httpPasswd[]    PROGMEM = "esp8266";
 
 
 ///// strings used in various places
@@ -25,7 +30,8 @@ const String cfg_use_staticip  = "use_staticip";
 const String cfg_ip_address    = "ip_address";
 const String cfg_subnet        = "subnet";
 const String cfg_gateway       = "gateway";
-const String cfg_dns_server    = "dns_server";
+const String cfg_dns_server1   = "dns_server1";
+const String cfg_dns_server2   = "dns_server2";
 const String cfg_ntp_server1   = "ntp_server1";
 const String cfg_ntp_server2   = "ntp_server2";
 const String cfg_mqtt_server   = "mqtt_server";
@@ -75,6 +81,7 @@ const String str_space      = " ";
 const String str_dot        = ".";
 const String str_colon      = ": ";
 const String str_ipv4       = "IPv4";
+const String str_NaN        = "nan";
 
 const String httpFooter = "</body></html>";
 const String tableStart = "<table>";
@@ -97,7 +104,8 @@ const String str_cfg_staticip      = "staticip";
 const String str_cfg_ip_address    = "IP address";
 const String str_cfg_subnet        = "Subnet mask";
 const String str_cfg_gateway       = "Gateway";
-const String str_cfg_dns_server    = "DNS server";
+const String str_cfg_dns_server1   = "DNS server 1";
+const String str_cfg_dns_server2   = "DNS server 2";
 const String str_cfg_ntp_server1   = "NTP server 1";
 const String str_cfg_ntp_server2   = "NTP server 2";
 const String str_cfg_mqtt_server   = "MQTT server";

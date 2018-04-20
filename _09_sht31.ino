@@ -21,7 +21,7 @@ void sensorSetup() {
 */
 }
 
-void  printSensorConfig(String cfgStr) {
+void  printSensorConfig(const String &cfgStr) {
 }
 
 void sensorImportJSON(JsonObject& json) {
@@ -30,11 +30,11 @@ void sensorImportJSON(JsonObject& json) {
 void sensorExportJSON(JsonObject& json) {
 }
 
-bool sensorUpdateConfig(String key, String value) {
+bool sensorUpdateConfig(const String &key, const String &value) {
   return false;
 }
 
-bool sensorRunAction(String key, String value) {
+bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
 
@@ -118,20 +118,20 @@ void sendData() {
   if (temperature != 1000) {
     mqttSend(String("temperature/celsius"),   String(temperature), false);
   } else {
-    mqttSend(String("temperature/celsius"),   strNaN,        false);
+    mqttSend(String("temperature/celsius"),   str_NaN,          false);
   }
 
   if (humidity != 1000) {
     mqttSend(String("humidity/percentage"),   String(humidity), false);
   } else {
-    mqttSend(String("humidity/percentage"),   strNaN,        false);
+    mqttSend(String("humidity/percentage"),   str_NaN,          false);
   }
 
   if ( (temperature != 1000) && (humidity != 1000) ) {
     dewpoint = 5351/(5351/(temperature + 273.15) - log(humidity/100)) - 273.15;
     mqttSend(String("dewpoint/celsius"),      String(dewpoint), false);
   } else {
-    mqttSend(String("dewpoint/celsius"),      strNaN,        false);
+    mqttSend(String("dewpoint/celsius"),      str_NaN,          false);
   }
 }
 

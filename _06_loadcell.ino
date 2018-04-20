@@ -4,7 +4,7 @@ void sensorSetup() {
   hx711.begin(PIN_SCALE_DOUT, PIN_SCALE_SCK);
 }
 
-void  printSensorConfig(String cfgStr) {
+void  printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + "offset"), String(offset), true);
   mqttSend(String(cfgStr + "scale"), String(scale), true);
 }
@@ -23,7 +23,7 @@ void sensorExportJSON(JsonObject& json) {
   json["scale"]  = scale;
 }
 
-bool sensorUpdateConfig(String key, String value) {
+bool sensorUpdateConfig(const String &key, const String &value) {
   if ( key == "offset" ) {
     offset = value.toInt();
   } else if ( key == "scale" ) {
@@ -34,7 +34,7 @@ bool sensorUpdateConfig(String key, String value) {
   return true;
 }
 
-bool sensorRunAction(String key, String value) {
+bool sensorRunAction(const String &key, const String &value) {
   if ( ( key == "tare" ) || ( key == "rezero" ) ) {
     rezero();
   } else if ( ( key == "scale" ) || ( key == "calibrate" ) ) {

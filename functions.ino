@@ -18,7 +18,7 @@ String IPtoString(IPAddress address) {
 }
 
 
-void printMessage(String app_name, String message, bool oled) {
+void printMessage(const String &app_name, const String &message, bool oled) {
   dmesg();
   Serial.print(app_name);
   Serial.print(": ");
@@ -71,7 +71,7 @@ void printMessage(String app_name, String message, bool oled) {
 #endif
 }
 
-void logMessage(String app_name, String message, bool oled) {
+void logMessage(const String &app_name, const String &message, bool oled) {
   printMessage(app_name, logString, oled);
 
   if (use_syslog) {
@@ -108,10 +108,10 @@ void saveConfig() {
   json[cfg_use_staticip]  = use_staticip;
 
   JsonArray& json_ip = json.createNestedArray(cfg_ip_address);
-  json_ip.add(ip[0]);
-  json_ip.add(ip[1]);
-  json_ip.add(ip[2]);
-  json_ip.add(ip[3]);
+  json_ip.add(local_ip[0]);
+  json_ip.add(local_ip[1]);
+  json_ip.add(local_ip[2]);
+  json_ip.add(local_ip[3]);
   JsonArray& json_subnet = json.createNestedArray(cfg_subnet);
   json_subnet.add(subnet[0]);
   json_subnet.add(subnet[1]);
@@ -122,11 +122,16 @@ void saveConfig() {
   json_gateway.add(gateway[1]);
   json_gateway.add(gateway[2]);
   json_gateway.add(gateway[3]);
-  JsonArray& json_dns = json.createNestedArray(cfg_dns_server);
-  json_dns.add(dns_ip[0]);
-  json_dns.add(dns_ip[1]);
-  json_dns.add(dns_ip[2]);
-  json_dns.add(dns_ip[3]);
+  JsonArray& json_dns1 = json.createNestedArray(cfg_dns_server1);
+  json_dns1.add(dns1[0]);
+  json_dns1.add(dns1[1]);
+  json_dns1.add(dns1[2]);
+  json_dns1.add(dns1[3]);
+  JsonArray& json_dns2 = json.createNestedArray(cfg_dns_server2);
+  json_dns2.add(dns2[0]);
+  json_dns2.add(dns2[1]);
+  json_dns2.add(dns2[2]);
+  json_dns2.add(dns2[3]);
 
   json[cfg_ntp_server1]   = ntp_server1;
   json[cfg_ntp_server2]   = ntp_server2;
@@ -199,10 +204,10 @@ void loadConfig() {
             use_staticip = json[cfg_use_staticip];
           }
           if (json[cfg_ip_address].is<JsonArray&>()) {
-            ip[0]        = json[cfg_ip_address][0];
-            ip[1]        = json[cfg_ip_address][1];
-            ip[2]        = json[cfg_ip_address][2];
-            ip[3]        = json[cfg_ip_address][3];
+            local_ip[0]  = json[cfg_ip_address][0];
+            local_ip[1]  = json[cfg_ip_address][1];
+            local_ip[2]  = json[cfg_ip_address][2];
+            local_ip[3]  = json[cfg_ip_address][3];
           }
           if (json[cfg_subnet].is<JsonArray&>()) {
             subnet[0]    = json[cfg_subnet][0];
@@ -216,11 +221,17 @@ void loadConfig() {
             gateway[2]   = json[cfg_gateway][2];
             gateway[3]   = json[cfg_gateway][3];
           }
-          if (json[cfg_dns_server].is<JsonArray&>()) {
-            dns_ip[0]    = json[cfg_dns_server][0];
-            dns_ip[1]    = json[cfg_dns_server][1];
-            dns_ip[2]    = json[cfg_dns_server][2];
-            dns_ip[3]    = json[cfg_dns_server][3];
+          if (json[cfg_dns_server1].is<JsonArray&>()) {
+            dns1[0]      = json[cfg_dns_server1][0];
+            dns1[1]      = json[cfg_dns_server1][1];
+            dns1[2]      = json[cfg_dns_server1][2];
+            dns1[3]      = json[cfg_dns_server1][3];
+          }
+          if (json[cfg_dns_server2].is<JsonArray&>()) {
+            dns2[0]      = json[cfg_dns_server2][0];
+            dns2[1]      = json[cfg_dns_server2][1];
+            dns2[2]      = json[cfg_dns_server2][2];
+            dns2[3]      = json[cfg_dns_server2][3];
           }
 
           if (json[cfg_ntp_server1].is<const char*>()) {
@@ -234,8 +245,8 @@ void loadConfig() {
           if (json[cfg_mqtt_server].is<const char*>()) {
             strcpy(mqtt_server,   json[cfg_mqtt_server]);
           }
-          if (json[cfg_mqtt_port].is<const char*>()) {
-            strcpy(mqtt_port,     json[cfg_mqtt_port]);
+          if (json[cfg_mqtt_port].is<int>()) {
+            mqtt_port = json[cfg_mqtt_port];
           }
           if (json[cfg_mqtt_name].is<const char*>()) {
             strcpy(mqtt_name,     json[cfg_mqtt_name]);
@@ -285,6 +296,17 @@ void loadConfig() {
 
           sensorImportJSON(json);
 
+/////////////////// Legacy config settings //////////////////////
+          if (json[cfg_mqtt_port].is<const char*>()) {
+            mqtt_port = atoi( json[cfg_mqtt_port] );
+          }
+          if (json[cfg_dns_server].is<JsonArray&>()) {
+            dns1[0]     = json[cfg_dns_server][0];
+            dns1[1]     = json[cfg_dns_server][1];
+            dns1[2]     = json[cfg_dns_server][2];
+            dns1[3]     = json[cfg_dns_server][3];
+          }
+
           // The config file has been found, opened and is good json
           configLoaded = true;
 
@@ -307,16 +329,18 @@ void loadConfig() {
 }  //end readConfig
 
 
-void updateConfig(String key, String value) {
+void updateConfig(const String &key, const String &value) {
   if ( key == "ssid" ) {
     ssid = value;
   } else if ( key == "psk" ) {
     psk = value;
 
   } else if ( key == cfg_ip_address ) {
-    ip.fromString(value);
-  } else if ( key == cfg_dns_server ) {
-    dns_ip.fromString(value);
+    local_ip.fromString(value);
+  } else if ( key == cfg_dns_server1 ) {
+    dns1.fromString(value);
+  } else if ( key == cfg_dns_server2 ) {
+    dns2.fromString(value);
   } else if ( key == cfg_subnet ) {
     subnet.fromString(value);
   } else if ( key == cfg_gateway ) {
@@ -329,7 +353,7 @@ void updateConfig(String key, String value) {
   } else if ( key == cfg_mqtt_server ) {
     value.toCharArray(mqtt_server, 40);
   } else if ( key == cfg_mqtt_port ) {
-    value.toCharArray(mqtt_port, 6);
+    mqtt_port = value.toInt();
   } else if ( key == cfg_mqtt_name ) {
     value.toCharArray(mqtt_name, 21);
   } else if ( key == cfg_mqtt_user ) {
@@ -353,7 +377,7 @@ void updateConfig(String key, String value) {
   }
 }
 
-void runAction(String key, String value) {
+void runAction(const String &key, const String &value) {
   if ( key == "reboot" ) {
     logString = F("Received reboot command.");
     mqttLog(app_name_mqtt, logString);
@@ -372,7 +396,7 @@ void runAction(String key, String value) {
 }
 
 
-void updateFirmware(String url) {
+void updateFirmware(const String &url) {
   logString = F("Firmware upgrade requested via MQTT: ");
   logString = logString + url;
   mqttLog(app_name_mqtt, logString);

@@ -8,7 +8,7 @@ void sensorSetup() {
   sei();                                                                 // Enable interrupts
 }
 
-void  printSensorConfig(String cfgStr) {
+void  printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + "kphPerPulse"), String(kphPerPulse), true);
   mqttSend(String(cfgStr + "mmPerPulse"),  String(mmPerPulse),  true);
 }
@@ -27,7 +27,7 @@ void sensorExportJSON(JsonObject& json) {
   json["mmPerPulse"]  = mmPerPulse;
 }
 
-bool sensorUpdateConfig(String key, String value) {
+bool sensorUpdateConfig(const String &key, const String &value) {
   if ( key == "kphPerPulse" ) {
     kphPerPulse = value.toFloat();
   } else if ( key == "mmPerPulse" ) {
@@ -38,7 +38,7 @@ bool sensorUpdateConfig(String key, String value) {
   return true;
 }
 
-bool sensorRunAction(String key, String value) {
+bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
 
@@ -190,8 +190,8 @@ void sendData() {
     mqttSend(String("wind_direction/degrees"),   String(wind_dir),     false);
     mqttSend(String("gust_direction/degrees"),   String(gust_dir),     false);
   } else {
-    mqttSend(String("wind_direction/degrees"),   strNaN,            false);
-    mqttSend(String("gust_direction/degrees"),   strNaN,            false);
+    mqttSend(String("wind_direction/degrees"),   str_NaN,              false);
+    mqttSend(String("gust_direction/degrees"),   str_NaN,              false);
   }
   mqttSend(String("wind_speed/kph"),             String(wind_speed),   false);
   mqttSend(String("gust_speed/kph"),             String(gust_speed),   false);

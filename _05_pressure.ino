@@ -16,7 +16,7 @@ void sensorSetup() {
   tmpString.toCharArray(nodes, 100);
 }
 
-void  printSensorConfig(String cfgStr) {
+void  printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + "pressurerange1"), String(pressureRanges[0]), true);
   mqttSend(String(cfgStr + "pressurerange2"), String(pressureRanges[1]), true);
   mqttSend(String(cfgStr + "pressurerange3"), String(pressureRanges[2]), true);
@@ -40,7 +40,7 @@ void sensorExportJSON(JsonObject& json) {
   json_pressureRanges.add(pressureRanges[3]);
 }
 
-bool sensorUpdateConfig(String key, String value) {
+bool sensorUpdateConfig(const String &key, const String &value) {
   if ( key == "pressurerange1" ) {
     pressureRanges[0] = value.toFloat();
   } else if ( key == "pressurerange2" ) {
@@ -55,7 +55,7 @@ bool sensorUpdateConfig(String key, String value) {
   return true;
 }
 
-bool sensorRunAction(String key, String value) {
+bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
 

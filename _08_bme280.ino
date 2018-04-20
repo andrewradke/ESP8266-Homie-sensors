@@ -19,7 +19,7 @@ void sensorSetup() {
   mqttLog(app_name_sensors, logString);
 }
 
-void  printSensorConfig(String cfgStr) {
+void  printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + "elevation"), String(elevation), true);
 }
 
@@ -33,7 +33,7 @@ void sensorExportJSON(JsonObject& json) {
   json["elevation"] = elevation;
 }
 
-bool sensorUpdateConfig(String key, String value) {
+bool sensorUpdateConfig(const String &key, const String &value) {
   if ( key == "elevation" ) {
     elevation = value.toFloat();
   } else {
@@ -42,7 +42,7 @@ bool sensorUpdateConfig(String key, String value) {
   return true;
 }
 
-bool sensorRunAction(String key, String value) {
+bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
 
@@ -163,28 +163,28 @@ void sendData() {
   if (temperature != 1000) {
     mqttSend(String("temperature/celsius"),   String(temperature), false);
   } else {
-    mqttSend(String("temperature/celsius"),   strNaN,        false);
+    mqttSend(String("temperature/celsius"),   str_NaN,          false);
   }
 
   if (humidity != 1000) {
     mqttSend(String("humidity/percentage"),   String(humidity), false);
   } else {
-    mqttSend(String("humidity/percentage"),   strNaN,        false);
+    mqttSend(String("humidity/percentage"),   str_NaN,          false);
   }
 
   if ( (temperature != 1000) && (humidity != 1000) ) {
     dewpoint = 5351/(5351/(temperature + 273.15) - log(humidity/100)) - 273.15;
     mqttSend(String("dewpoint/celsius"),      String(dewpoint), false);
   } else {
-    mqttSend(String("dewpoint/celsius"),      strNaN,        false);
+    mqttSend(String("dewpoint/celsius"),      str_NaN,          false);
   }
 
   if (pressure != 0) {
     mqttSend(String("pressure/hpa"),          String(pressure), false);
     mqttSend(String("pressure-sealevel/hpa"), String(sealevel), false);
   } else {
-    mqttSend(String("pressure/hpa"),          strNaN,        false);
-    mqttSend(String("pressure-sealevel/hpa"), strNaN,        false);
+    mqttSend(String("pressure/hpa"),          str_NaN,          false);
+    mqttSend(String("pressure-sealevel/hpa"), str_NaN,          false);
   }
 
 }

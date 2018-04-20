@@ -3,7 +3,7 @@
 void sensorSetup() {
 }
 
-void  printSensorConfig(String cfgStr) {
+void  printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + "maxdepth"), String(maxdepth), true);
 }
 
@@ -17,7 +17,7 @@ void sensorExportJSON(JsonObject& json) {
   json["maxdepth"] = maxdepth;
 }
 
-bool sensorUpdateConfig(String key, String value) {
+bool sensorUpdateConfig(const String &key, const String &value) {
   if ( key == "maxdepth" ) {
     maxdepth = value.toFloat();
   } else {
@@ -26,7 +26,7 @@ bool sensorUpdateConfig(String key, String value) {
   return true;
 }
 
-bool sensorRunAction(String key, String value) {
+bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
 
@@ -43,8 +43,8 @@ void sendData() {
   } else {
     logString = F("ERROR: No valid distance returned");
     mqttLog(app_name_sensors, logString);
-    mqttSend(String("distance/cm"), strNaN, false);
-    mqttSend(String("depth/cm"),    strNaN, false);
+    mqttSend(String("distance/cm"), str_NaN, false);
+    mqttSend(String("depth/cm"),    str_NaN, false);
     mqttTime = currentTime - (1000 * (mqtt_interval - 1 ) ); // only wait 1 second before trying again when measurement failed
   }
 }

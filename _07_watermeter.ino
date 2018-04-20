@@ -15,7 +15,7 @@ void sensorSetup() {
   sei();                                                                   // Enable interrupts
 }
 
-void  printSensorConfig(String cfgStr) {
+void  printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + "pressurerange"), String(pressureRange), true);  
 }
 
@@ -29,7 +29,7 @@ void sensorExportJSON(JsonObject& json) {
   json["pressureRange"] = pressureRange;
 }
 
-bool sensorUpdateConfig(String key, String value) {
+bool sensorUpdateConfig(const String &key, const String &value) {
   if ( key == "pressurerange" ) {
     pressureRange = value.toFloat();
   } else {
@@ -38,7 +38,7 @@ bool sensorUpdateConfig(String key, String value) {
   return true;
 }
 
-bool sensorRunAction(String key, String value) {
+bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
 

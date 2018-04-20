@@ -8,7 +8,7 @@
 void sensorSetup() {
 }
 
-void  printSensorConfig(String cfgStr) {
+void  printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + "config_item"), String(config_item), true);
 }
 
@@ -22,7 +22,7 @@ void sensorExportJSON(JsonObject& json) {
   json["config_item"] = config_item;
 }
 
-bool sensorUpdateConfig(String key, String value) {
+bool sensorUpdateConfig(const String &key, const String &value) {
 // return true if any config item matches, false if none match
   if ( key == "config_item" ) {
     config_item = value.toFloat();
@@ -32,7 +32,7 @@ bool sensorUpdateConfig(String key, String value) {
   return true;
 }
 
-bool sensorRunAction(String key, String value) {
+bool sensorRunAction(const String &key, const String &value) {
 // return true if any action matches, false if none match
   return false;
 }

@@ -3,7 +3,7 @@
 void sensorSetup() {
 }
 
-void  printSensorConfig(String cfgStr) {
+void  printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + "mq135_ro"), String(mq135_ro), true);
 }
 
@@ -17,7 +17,7 @@ void sensorExportJSON(JsonObject& json) {
   json["mq135_ro"] = mq135_ro;
 }
 
-bool sensorUpdateConfig(String key, String value) {
+bool sensorUpdateConfig(const String &key, const String &value) {
 // return true if any config item matches, false if none match
   if ( key == "mq135_ro" ) {
     mq135_ro = value.toInt();
@@ -27,7 +27,7 @@ bool sensorUpdateConfig(String key, String value) {
   return true;
 }
 
-bool sensorRunAction(String key, String value) {
+bool sensorRunAction(const String &key, const String &value) {
 // return true if any action matches, false if none match
   return false;
 }

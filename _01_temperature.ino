@@ -3,7 +3,7 @@
 void sensorSetup() {
 }
 
-void  printSensorConfig(String cfgStr) {
+void  printSensorConfig(const String &cfgStr) {
 }
 
 void sensorImportJSON(JsonObject& json) {
@@ -12,11 +12,11 @@ void sensorImportJSON(JsonObject& json) {
 void sensorExportJSON(JsonObject& json) {
 }
 
-bool sensorUpdateConfig(String key, String value) {
+bool sensorUpdateConfig(const String &key, const String &value) {
   return false;
 }
 
-bool sensorRunAction(String key, String value) {
+bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
 
@@ -32,7 +32,7 @@ void sendData() {
     dmesg();
     Serial.println("No valid temperature returned.");
 #endif
-    mqttSend(String("temperature/celsius"), strNaN, false);
+    mqttSend(String("temperature/celsius"), str_NaN, false);
     mqttTime = currentTime - (1000 * (mqtt_interval - 1 ) );                       // only wait 1 second before trying again when measurement failed
   }
 }

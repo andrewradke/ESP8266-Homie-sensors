@@ -7,7 +7,7 @@ void sensorSetup() {
   sei();                                    // Enable interrupts
 }
 
-void  printSensorConfig(String cfgStr) {
+void  printSensorConfig(const String &cfgStr) {
   return;
 }
 
@@ -17,11 +17,11 @@ void sensorImportJSON(JsonObject& json) {
 void sensorExportJSON(JsonObject& json) {
 }
 
-bool sensorUpdateConfig(String key, String value) {
+bool sensorUpdateConfig(const String &key, const String &value) {
   return false;
 }
 
-bool sensorRunAction(String key, String value) {
+bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
 

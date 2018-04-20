@@ -26,7 +26,7 @@
 
 
 #define FWTYPE     12
-#define FWVERSION  "0.9.16"
+#define FWVERSION  "0.9.17"
 #define FWPASSWORD "esp8266."
 //#define USESSD1306                // SSD1306 OLED display
 
@@ -112,17 +112,16 @@ uint16_t displaySleep = 30;       // Seconds before the display goes to sleep
 
 
 //define the default MQTT values here, if there are different values in config.json, they are overwritten.
-char mqtt_server[41];
-bool mqtt_tls          = false;
-bool mqtt_auth         = false;
-char mqtt_port[6]      = "1883";
-char mqtt_name[21];
-char mqtt_user[21];
-char mqtt_passwd[33];
-int  mqtt_interval     = 5;         // interval in seconds between updates
-int  mqtt_watchdog     = 60;        // seconds with mqtt data before watchdog reboots device
-unsigned long watchdog = millis();  // timer to keep last watchdog packet
-const String strNaN    = "nan";
+char     mqtt_server[41];
+bool     mqtt_tls          = false;
+bool     mqtt_auth         = false;
+uint16_t mqtt_port         = 1883;
+char     mqtt_name[21];
+char     mqtt_user[21];
+char     mqtt_passwd[33];
+int      mqtt_interval     = 5;         // interval in seconds between updates
+int      mqtt_watchdog     = 60;        // seconds with mqtt data before watchdog reboots device
+unsigned long watchdog     = millis();  // timer to keep last watchdog packet
 
 int  error_count_log   = 2;         // How many errors need to be encountered for a sensor before it's logged, if it's more or less don't log
 
@@ -142,7 +141,6 @@ PubSubClient mqttClient;
 ESP8266WebServer       httpServer(80);
 //ESP8266WebServerSecure httpsServer(443);
 
-String httpData;
 bool   lock = false;                // This bool is used to control device lockout 
 String httpUser;
 String httpPasswd;
@@ -155,8 +153,9 @@ bool rebootRequired = false;
 
 
 bool      use_staticip   = false;
-IPAddress ip(192, 168, 0, 99);
-IPAddress dns_ip(192, 168, 0, 1);
+IPAddress local_ip(192, 168, 0, 99);
+IPAddress dns1(192, 168, 0, 1);
+IPAddress dns2(0, 0, 0, 0);
 IPAddress subnet(255, 255, 255, 0);
 IPAddress gateway(192, 168, 0, 1);
 
@@ -209,11 +208,11 @@ void setup() {
 
 
 // Load all the defaults into memory
-  memcpy( ntp_server1,   default_ntp_server1,   41);
-  memcpy( ntp_server2,   default_ntp_server2,   41);
-  memcpy( syslog_server, default_syslog_server, 41);
-  memcpy( mqtt_server,   default_mqtt_server,   41);
-  memcpy( mqtt_name,     fwname,                21);
+  strncpy_P( ntp_server1,   default_ntp_server1,   41);
+  strncpy_P( ntp_server2,   default_ntp_server2,   41);
+  strncpy_P( syslog_server, default_syslog_server, 41);
+  strncpy_P( mqtt_server,   default_mqtt_server,   41);
+  strncpy_P( mqtt_name,     fwname,                21);
   strcpy(host_name, mqtt_name);
 
   httpUser   = String(FPSTR(default_httpUser));
@@ -403,7 +402,14 @@ void setup() {
   psk  = WiFi.psk();
 
   if (use_staticip) {
-    WiFi.config(ip, gateway, subnet, dns_ip);
+    bool configstatus = WiFi.config(local_ip, gateway, subnet, dns1, dns2);
+    logString = str_static + str_space + str_ipv4 + str_space;
+    if (configstatus) {
+      logString += str_succeeded;
+    } else {
+      logString += str_failed;
+    }
+    printMessage(app_name_net, logString, false);
   }
 
 
@@ -411,7 +417,7 @@ void setup() {
     setupSyslog();
   }
   logString = str_ipv4 + str_space + cfg_configured;
-  logMessage(app_name_sys, logString, true);
+  logMessage(app_name_net, logString, true);
 
 /*
  *    If the serial speed is greater than 57600 baud sometimes the IP address will not be applied
@@ -422,11 +428,18 @@ void setup() {
 */
   if (use_staticip) {
     IPAddress tmpip;
-    tmpString = IPtoString(dns_ip);
+    tmpString = IPtoString(dns1);
     WiFi.hostByName(tmpString.c_str(), tmpip);
-    while (IPtoString(WiFi.localIP()) != IPtoString(ip) ) {
+    while (IPtoString(WiFi.localIP()) != IPtoString(local_ip) ) {
       Serial.println(str_dot);
-      WiFi.config(ip, gateway, subnet, dns_ip);
+      bool configstatus = WiFi.config(local_ip, gateway, subnet, dns1, dns2);
+      logString = str_static + str_space + str_ipv4 + str_space;
+      if (configstatus) {
+        logString += str_succeeded;
+      } else {
+        logString += str_failed;
+      }
+      printMessage(app_name_net, logString, false);
     }
   }
 
@@ -453,7 +466,9 @@ void setup() {
   logMessage(app_name_net, logString, false);
 
   if (use_staticip) {
-    logString = str_cfg_dns_server + str_colon + IPtoString(dns_ip);
+    logString = str_cfg_dns_server1 + str_colon + IPtoString(dns1);
+    logMessage(app_name_net, logString, false);
+    logString = str_cfg_dns_server2 + str_colon + IPtoString(dns2);
     logMessage(app_name_net, logString, false);
   }
 
@@ -579,7 +594,7 @@ void setup() {
   logString = "server: " + String(mqtt_server) + ':' + String(mqtt_port);
   logMessage(app_name_mqtt, logString, false);
 
-  mqttClient.setServer(mqtt_server, atoi( mqtt_port ));
+  mqttClient.setServer(mqtt_server, mqtt_port);
   mqttClient.setCallback(mqttCallback);
 
   mqttConnect();

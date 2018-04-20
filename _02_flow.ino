@@ -6,7 +6,7 @@ void sensorSetup() {
   sei();                                                           // Enable interrupts
 }
 
-void  printSensorConfig(String cfgStr) {
+void  printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + "pulsesPerLitre"), String(pulsesPerLitre), true);
 }
 
@@ -22,7 +22,7 @@ void sensorExportJSON(JsonObject& json) {
   json["pulsesPerLitre"] = pulsesPerLitre;
 }
 
-bool sensorUpdateConfig(String key, String value) {
+bool sensorUpdateConfig(const String &key, const String &value) {
   if ( key == "pulsesPerLitre" ) {
     pulsesPerLitre = value.toFloat();
   } else {
@@ -31,7 +31,7 @@ bool sensorUpdateConfig(String key, String value) {
   return true;
 }
 
-bool sensorRunAction(String key, String value) {
+bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
 
