@@ -396,6 +396,8 @@ void setup() {
     WiFi.begin();
   }
 
+  WiFi.hostname(host_name);
+
   WiFi.mode(WIFI_STA);
 
   ssid = WiFi.SSID();
