@@ -1,6 +1,6 @@
 const String mqtt_rc_states[10]  = { "Connection timeout", "Connection lost", "Connect failed", "Disconnected", "Connected", "Connect: bad protocol", "Connect: bad client ID", "Connect: unavailable", "Connect: bad credentials", "Connect: unauthorised" };
 
-void mqttSend(String topic, String data, bool retain) {
+void mqttSend(const String &topic, const String &data, bool retain) {
 
 #ifdef DEBUG
   dmesg();
@@ -22,9 +22,9 @@ void mqttSend(String topic, String data, bool retain) {
 }
 
 
-void mqttLog(String app_name, String message) {
+void mqttLog(const String &app_name, const String &message) {
   mqttSend(String(FPSTR(mqttstr_log)), message, false);
-  logMessage(app_name_mqtt, message, true);
+  logMessage(app_name, message, true);
 }
 
 
@@ -140,7 +140,7 @@ void mqttCallback(char* subTopic, byte* payload, unsigned int length) {
   mqttCommand(mqttSubCmd, mqttSubKey, mqttSubValue);
 }
 
-void mqttCommand(String cmd, String key, String value) {
+void mqttCommand(const String &cmd, const String &key, const String &value) {
 #ifdef DEBUG
   dmesg();
   Serial.print("  cmd:  ");
