@@ -81,14 +81,11 @@ void mqttConnect() {
       // Publush $online as true with pubTopic still correct from will above
       mqttSend(String(FPSTR(mqttstr_online)), str_true, true);
 
-      char subTopic[40];
-      tmpString = String(baseTopic) + String(FPSTR(mqttstr_ota)) + String(FPSTR(str_command));
-      tmpString.toCharArray(subTopic, 40);
-
-      logString = String(F("Subscribing to ")) + tmpString;
+      logString = String(F("Subscribing to ")) + String(subTopic);
       logMessage(app_name_mqtt, logString, false);
 
       mqttClient.subscribe(subTopic);
+      sensorMqttSubs();  // Any extra subscriptions that a sensor may want
 
     } else {
       logString = F("Failed to connect to MQTT, ");
@@ -100,44 +97,48 @@ void mqttConnect() {
 }
 
 /// The MQTT callback function for received messages
-void mqttCallback(char* subTopic, byte* payload, unsigned int length) {
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String mqttSubString = "";
   String mqttSubCmd    = "";
   String mqttSubKey    = "";
   String mqttSubValue  = "";
-  char checkTopic[40];
 
   watchdog = millis();    // feed the watchdog
 
 #ifdef DEBUG
   dmesg();
   Serial.print("Message arrived [");
-  Serial.print(subTopic);
+  Serial.print(topic);
   Serial.print("] ");
   Serial.println("");
 #endif
 
-  for (int i = 0; i < length; i++) {
-    if ( ( (char)payload[i] == ':' ) && (mqttSubKey == "") ) {
-      if (mqttSubCmd == "")        mqttSubCmd   = mqttSubString;
-      else if (mqttSubKey == "")   mqttSubKey   = mqttSubString;
-      mqttSubString = "";
-    } else if ( (char)payload[i] == ',' ) {
-      mqttSubValue = mqttSubString;
-      mqttCommand(mqttSubCmd, mqttSubKey, mqttSubValue);
-      mqttSubString = "";
-      mqttSubCmd    = "";
-      mqttSubKey    = "";
-      mqttSubValue  = "";
-    } else {
-      mqttSubString = String(mqttSubString + String((char)payload[i]));
-    }
-  }
-  if (mqttSubCmd == "")        mqttSubCmd   = mqttSubString;
-  else if (mqttSubKey == "")   mqttSubKey   = mqttSubString;
-  else                         mqttSubValue = mqttSubString;
 
-  mqttCommand(mqttSubCmd, mqttSubKey, mqttSubValue);
+  if ( strcmp(subTopic, topic) == 0 ) {     // The topic matches the main subTopic
+    for (int i = 0; i < length; i++) {
+      if ( ( (char)payload[i] == ':' ) && (mqttSubKey == "") ) {
+        if (mqttSubCmd == "")        mqttSubCmd   = mqttSubString;
+        else if (mqttSubKey == "")   mqttSubKey   = mqttSubString;
+        mqttSubString = "";
+      } else if ( (char)payload[i] == ',' ) {
+        mqttSubValue = mqttSubString;
+        mqttCommand(mqttSubCmd, mqttSubKey, mqttSubValue);
+        mqttSubString = "";
+        mqttSubCmd    = "";
+        mqttSubKey    = "";
+        mqttSubValue  = "";
+      } else {
+        mqttSubString = String(mqttSubString + String((char)payload[i]));
+      }
+    }
+    if (mqttSubCmd == "")        mqttSubCmd   = mqttSubString;
+    else if (mqttSubKey == "")   mqttSubKey   = mqttSubString;
+    else                         mqttSubValue = mqttSubString;
+  
+    mqttCommand(mqttSubCmd, mqttSubKey, mqttSubValue);
+  } else {                                  // The topic belongs to a sensor subscription
+    sensorMqttCallback(topic, payload, length);
+  }
 }
 
 void mqttCommand(const String &cmd, const String &key, const String &value) {

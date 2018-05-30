@@ -135,9 +135,11 @@ void saveConfig() {
 
   json[cfg_ntp_server1]   = ntp_server1;
   json[cfg_ntp_server2]   = ntp_server2;
+  json[cfg_tzoffset]      = tzoffset;
 
   json[cfg_mqtt_server]   = mqtt_server;
   json[cfg_mqtt_port]     = mqtt_port;
+  json[cfg_mqtt_topicbase] = mqtt_topicbase;
   json[cfg_mqtt_name]     = mqtt_name;
   json[cfg_mqtt_tls]      = mqtt_tls;
   json[cfg_mqtt_auth]     = mqtt_auth;
@@ -240,6 +242,9 @@ void loadConfig() {
           if (json[cfg_ntp_server2].is<const char*>()) {
             strcpy(ntp_server2, json[cfg_ntp_server2]);
           }
+          if (json["tzoffset"].is<float>()) {
+            tzoffset = json[cfg_tzoffset];
+          }
 
 
           if (json[cfg_mqtt_server].is<const char*>()) {
@@ -247,6 +252,9 @@ void loadConfig() {
           }
           if (json[cfg_mqtt_port].is<int>()) {
             mqtt_port = json[cfg_mqtt_port];
+          }
+          if (json[cfg_mqtt_topicbase].is<const char*>()) {
+            strcpy(mqtt_topicbase, json[cfg_mqtt_topicbase]);
           }
           if (json[cfg_mqtt_name].is<const char*>()) {
             strcpy(mqtt_name,     json[cfg_mqtt_name]);
@@ -345,15 +353,20 @@ void updateConfig(const String &key, const String &value) {
     subnet.fromString(value);
   } else if ( key == cfg_gateway ) {
     gateway.fromString(value);
+
   } else if ( key == cfg_ntp_server1 ) {
     value.toCharArray(ntp_server1, 40);
   } else if ( key == cfg_ntp_server2 ) {
     value.toCharArray(ntp_server2, 40);
+  } else if ( key == cfg_tzoffset ) {
+    tzoffset = value.toFloat();
 
   } else if ( key == cfg_mqtt_server ) {
     value.toCharArray(mqtt_server, 40);
   } else if ( key == cfg_mqtt_port ) {
     mqtt_port = value.toInt();
+  } else if ( key == cfg_mqtt_topicbase ) {
+    value.toCharArray(mqtt_topicbase, 21);
   } else if ( key == cfg_mqtt_name ) {
     value.toCharArray(mqtt_name, 21);
   } else if ( key == cfg_mqtt_user ) {

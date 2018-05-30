@@ -80,6 +80,9 @@ String httpSensorConfig() {
   }
 }
 
+void sensorMqttCallback(char* topic, byte* payload, unsigned int length) {}
+void sensorMqttSubs() {}
+
 
 /*
  * get the calibrated ro based upon read resistance, and a know ppm

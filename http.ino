@@ -406,14 +406,18 @@ void handleConfig() {
       if (httpServer.arg(str_cfg_staticip) == str_true) {
         if (! use_staticip) {
           logString      = str_cfg_changed + str_cfg_staticip + str_from + str_false + str_to + str_true;
-          rebootRequired = true;        // Changing to a static IP requires a reboot
+          if (!inConfigAP) {
+            rebootRequired = true;        // Changing to a static IP requires a reboot
+          }
           use_staticip   = true;
           logMessage(app_name_cfg, logString, false);
         }
       } else {
         if (use_staticip) {
           logString      = str_cfg_changed + str_cfg_staticip + str_from + str_true + str_to + str_false;
-          rebootRequired = true;        // Changing to a static IP requires a reboot
+          if (!inConfigAP) {
+            rebootRequired = true;        // Changing to a static IP requires a reboot
+          }
           use_staticip   = false;
           logMessage(app_name_cfg, logString, false);
         }
@@ -424,7 +428,7 @@ void handleConfig() {
       tmpip.fromString(httpServer.arg(cfg_ip_address));
       if (local_ip != tmpip) {
         logString = str_cfg_changed + str_cfg_ip_address + str_from + IPtoString(local_ip) + str_to + IPtoString(tmpip);
-        if (use_staticip)
+        if ( (use_staticip) && (!inConfigAP) )
           rebootRequired = true;        // Changing IP requires a reboot
         local_ip = tmpip;
         logMessage(app_name_cfg, logString, false);
@@ -434,7 +438,7 @@ void handleConfig() {
       tmpip.fromString(httpServer.arg(cfg_subnet));
       if (subnet != tmpip) {
         logString = str_cfg_changed + str_cfg_subnet + str_from + IPtoString(subnet) + str_to + IPtoString(tmpip);
-        if (use_staticip)
+        if ( (use_staticip) && (!inConfigAP) )
           rebootRequired = true;        // Changing subnet requires a reboot
         subnet = tmpip;
         logMessage(app_name_cfg, logString, false);
@@ -454,7 +458,7 @@ void handleConfig() {
       tmpip.fromString(httpServer.arg(cfg_dns_server1));
       if (dns1 != tmpip) {
         logString = str_cfg_changed + str_cfg_dns_server1 + str_from + IPtoString(dns1) + str_to + IPtoString(tmpip);
-        if (use_staticip)
+        if ( (use_staticip) && (!inConfigAP) )
           rebootRequired = true;        // Changing DNS server requires a reboot
         dns1 = tmpip;
         logMessage(app_name_cfg, logString, false);
@@ -464,7 +468,7 @@ void handleConfig() {
       tmpip.fromString(httpServer.arg(cfg_dns_server2));
       if (dns2 != tmpip) {
         logString = str_cfg_changed + str_cfg_dns_server2 + str_from + IPtoString(dns2) + str_to + IPtoString(tmpip);
-        if (use_staticip)
+        if ( (use_staticip) && (!inConfigAP) )
           rebootRequired = true;        // Changing DNS server requires a reboot
         dns2 = tmpip;
         logMessage(app_name_cfg, logString, false);
@@ -473,7 +477,8 @@ void handleConfig() {
     if (httpServer.hasArg(cfg_ntp_server1)) {
       tmpString = String(ntp_server1);
       if (httpServer.arg(cfg_ntp_server1) != tmpString) {
-        rebootRequired = true;          // Changing NTP servers requires a reboot
+        if (!inConfigAP)
+          rebootRequired = true;          // Changing NTP servers requires a reboot
         logString = str_cfg_changed + str_cfg_ntp_server1 + str_from + tmpString + str_to + httpServer.arg(cfg_ntp_server1);
         httpServer.arg(cfg_ntp_server1).toCharArray(ntp_server1, 40);
         logMessage(app_name_cfg, logString, false);
@@ -482,9 +487,19 @@ void handleConfig() {
     if (httpServer.hasArg(cfg_ntp_server2)) {
       tmpString = String(ntp_server2);
       if (httpServer.arg(cfg_ntp_server2) != tmpString) {
-        logString = str_cfg_changed + str_cfg_ntp_server1 + str_from + tmpString + str_to + httpServer.arg(cfg_ntp_server1);
-        rebootRequired = true;          // Changing NTP servers requires a reboot
+        logString = str_cfg_changed + str_cfg_ntp_server2 + str_from + tmpString + str_to + httpServer.arg(cfg_ntp_server2);
+        if (!inConfigAP)
+          rebootRequired = true;          // Changing NTP servers requires a reboot
         httpServer.arg(cfg_ntp_server2).toCharArray(ntp_server2, 40);
+        logMessage(app_name_cfg, logString, false);
+      }
+    }
+    if (httpServer.hasArg(cfg_tzoffset)) {
+      if (httpServer.arg(cfg_tzoffset).toFloat() != tzoffset) {
+        if (!inConfigAP)
+          rebootRequired = true;          // Changing Time Zones requires a reboot
+        logString = str_cfg_changed + str_cfg_tzoffset + str_from + String(tzoffset) + str_to + httpServer.arg(cfg_tzoffset);
+        tzoffset = httpServer.arg(cfg_tzoffset).toFloat();
         logMessage(app_name_cfg, logString, false);
       }
     }
@@ -494,8 +509,10 @@ void handleConfig() {
       if (httpServer.arg(cfg_mqtt_server) != tmpString) {
         logString = str_cfg_changed + str_cfg_mqtt_server + str_from + tmpString + str_to + httpServer.arg(cfg_mqtt_server);
         httpServer.arg(cfg_mqtt_server).toCharArray(mqtt_server, 40);
-        mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
-        mqttClient.setServer(mqtt_server, mqtt_port);
+        if (!inConfigAP) {
+          mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+          mqttClient.setServer(mqtt_server, mqtt_port);
+        }
         logMessage(app_name_cfg, logString, false);
       }
     }
@@ -503,8 +520,20 @@ void handleConfig() {
       if (httpServer.arg(cfg_mqtt_port).toInt() != mqtt_port) {
         logString = str_cfg_changed + str_cfg_mqtt_port + str_from + String(mqtt_port) + str_to + httpServer.arg(cfg_mqtt_port);
         mqtt_port = httpServer.arg(cfg_mqtt_port).toInt();
-        mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
-        mqttClient.setServer(mqtt_server, mqtt_port);
+        if (!inConfigAP) {
+          mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+          mqttClient.setServer(mqtt_server, mqtt_port);
+        }
+        logMessage(app_name_cfg, logString, false);
+      }
+    }
+    if (httpServer.hasArg(cfg_mqtt_topicbase)) {
+      tmpString = String(mqtt_topicbase);
+      if (httpServer.arg(cfg_mqtt_topicbase) != tmpString) {
+        logString = str_cfg_changed + str_cfg_mqtt_topicbase + str_from + tmpString + str_to + httpServer.arg(cfg_mqtt_topicbase);
+        if (!inConfigAP)
+          mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+        httpServer.arg(cfg_mqtt_topicbase).toCharArray(mqtt_topicbase, 20);
         logMessage(app_name_cfg, logString, false);
       }
     }
@@ -512,7 +541,8 @@ void handleConfig() {
       tmpString = String(mqtt_name);
       if (httpServer.arg(cfg_mqtt_name) != tmpString) {
         logString = str_cfg_changed + str_cfg_mqtt_name + str_from + tmpString + str_to + httpServer.arg(cfg_mqtt_name);
-        mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+        if (!inConfigAP)
+          mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
         httpServer.arg(cfg_mqtt_name).toCharArray(mqtt_name, 20);
         logMessage(app_name_cfg, logString, false);
       }
@@ -521,27 +551,26 @@ void handleConfig() {
       if (httpServer.arg(cfg_mqtt_tls) == str_on) {
         if (!mqtt_tls) {
           logString      = str_cfg_changed + str_cfg_mqtt_tls + str_from + str_false + str_to + str_true;
-          rebootRequired = true;        // Enabling TLS requires a reboot, as the server certificate verification will fail and force a reboot otherwise
+          if (!inConfigAP)
+            rebootRequired = true;        // Enabling TLS requires a reboot, as the server certificate verification will fail and force a reboot otherwise
           mqtt_tls       = true;
           logMessage(app_name_cfg, logString, false);
         }
       } else {
         if (mqtt_tls) {
           logString      = str_cfg_changed + str_cfg_mqtt_tls + str_from + str_true + str_to + str_false;
-          rebootRequired = true;        // Disabling TLS requires a reboot, as it might not reconnect properly after this.
+          if (!inConfigAP)
+            rebootRequired = true;        // Disabling TLS requires a reboot, as it might not reconnect properly after this.
           mqtt_tls       = false;
-//          mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
-//          mqttClient.setClient(espClient);
           logMessage(app_name_cfg, logString, false);
         }
       }
     } else {
       if (mqtt_tls) {
         logString      = str_cfg_changed + str_cfg_mqtt_tls + str_from + str_true + str_to + str_false;
-        rebootRequired = true;        // Disabling TLS requires a reboot, as it might not reconnect properly after this.
+        if (!inConfigAP)
+          rebootRequired = true;        // Disabling TLS requires a reboot, as it might not reconnect properly after this.
         mqtt_tls       = false;
-//        mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
-//        mqttClient.setClient(espClient);
         logMessage(app_name_cfg, logString, false);
       }
     }
@@ -550,14 +579,16 @@ void handleConfig() {
         if (!mqtt_auth) {
           logString = str_cfg_changed + str_cfg_mqtt_auth + str_from + str_false + str_to + str_true;
           mqtt_auth = true;
-          mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
+          if (!inConfigAP)
+            mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
           logMessage(app_name_cfg, logString, false);
         }
       } else {
         if (mqtt_auth) {
           logString = str_cfg_changed + str_cfg_mqtt_auth + str_from + str_true + str_to + str_false;
           mqtt_auth = false;
-          mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
+          if (!inConfigAP)
+            mqttClient.disconnect();      // MQTT will reconnect automatically with the new value
           logMessage(app_name_cfg, logString, false);
         }
       }
@@ -565,7 +596,8 @@ void handleConfig() {
       if (mqtt_auth) {
         logString = str_cfg_changed + str_cfg_mqtt_auth + str_from + str_true + str_to + str_false;
         mqtt_auth = false;
-        mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+        if (!inConfigAP)
+          mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
         logMessage(app_name_cfg, logString, false);
       }
     }
@@ -573,7 +605,8 @@ void handleConfig() {
       tmpString = String(mqtt_user);
       if (httpServer.arg(cfg_mqtt_user) != tmpString) {
         logString = str_cfg_changed + str_cfg_mqtt_user + str_from + tmpString + str_to + httpServer.arg(cfg_mqtt_user);
-        mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+        if (!inConfigAP)
+          mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
         httpServer.arg(cfg_mqtt_user).toCharArray(mqtt_user, 20);
         logMessage(app_name_cfg, logString, false);
       }
@@ -582,7 +615,8 @@ void handleConfig() {
       tmpString = String(mqtt_passwd);
       if (httpServer.arg(cfg_mqtt_passwd) != tmpString) {
         logString = str_cfg_changed + str_cfg_mqtt_passwd;
-        mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
+        if (!inConfigAP)
+          mqttClient.disconnect();        // MQTT will reconnect automatically with the new value
         httpServer.arg(cfg_mqtt_passwd).toCharArray(mqtt_passwd, 32);
         logMessage(app_name_cfg, logString, false);
       }
@@ -627,7 +661,8 @@ void handleConfig() {
       if (httpServer.arg(cfg_use_syslog) == str_on) {
         if (! use_syslog) {
           logString = str_cfg_changed + str_cfg_use_syslog + str_from + str_false + str_to + str_true;
-          setupSyslog();      // Syslog changed to enabled
+          if (!inConfigAP)
+            setupSyslog();      // Syslog changed to enabled
           use_syslog = true;
           logMessage(app_name_cfg, logString, false);
         }
@@ -683,6 +718,7 @@ void handleConfig() {
     }
   }
   httpData += trEnd;
+
   httpData += trStart + str_cfg_ntp_server1   + tdBreak + htmlInput(str_text,     cfg_ntp_server1,   ntp_server1);
   if ( WiFi.hostByName(ntp_server1, tmpip) ) {
     httpData += str_tick_green;
@@ -697,6 +733,8 @@ void handleConfig() {
     httpData += str_cross_red;
   }
   httpData += trEnd;
+  httpData += trStart + str_cfg_tzoffset      + tdBreak + htmlInput(str_text,     cfg_tzoffset,     String(tzoffset)) + F("(in hours, e.g. UTC+10 is 10, UTC-5 is -5)") + trEnd;
+
 
   httpData += thStart + F("MQTT:") + thBreak + thEnd;
   httpData += trStart + "Server:"             + tdBreak + htmlInput(str_text,     cfg_mqtt_server,   mqtt_server);
@@ -706,14 +744,15 @@ void handleConfig() {
     httpData += str_cross_red;
   }
   httpData += trEnd;
-  httpData += trStart + "Port:"               + tdBreak + htmlInput(str_text,     cfg_mqtt_port,     String(mqtt_port))     + trEnd;
-  httpData += trStart + "Name:"               + tdBreak + htmlInput(str_text,     cfg_mqtt_name,     mqtt_name)     + trEnd;
-  httpData += trStart + "Use TLS:"            + tdBreak + htmlCheckbox(           cfg_mqtt_tls,      mqtt_tls)      + trEnd;
-  httpData += trStart + "Use authentication:" + tdBreak + htmlCheckbox(           cfg_mqtt_auth,     mqtt_auth)     + trEnd;
-  httpData += trStart + "Username:"           + tdBreak + htmlInput(str_text,     cfg_mqtt_user,     mqtt_user)     + trEnd;
-  httpData += trStart + "Password:"           + tdBreak + htmlInput(str_text,     cfg_mqtt_passwd,   mqtt_passwd)   + trEnd;
-  httpData += trStart + "Data interval (s):"  + tdBreak + htmlInput(str_text,     cfg_mqtt_interval, String(mqtt_interval)) + trEnd;
-  httpData += trStart + "MQTT watchdog (s):"  + tdBreak + htmlInput(str_text,     cfg_mqtt_watchdog, String(mqtt_watchdog)) + trEnd;
+  httpData += trStart + "Port:"               + tdBreak + htmlInput(str_text,     cfg_mqtt_port,      String(mqtt_port))     + trEnd;
+  httpData += trStart + "Topic base:"         + tdBreak + htmlInput(str_text,     cfg_mqtt_topicbase, mqtt_topicbase)        + trEnd;
+  httpData += trStart + "Name:"               + tdBreak + htmlInput(str_text,     cfg_mqtt_name,      mqtt_name)             + trEnd;
+  httpData += trStart + "Use TLS:"            + tdBreak + htmlCheckbox(           cfg_mqtt_tls,       mqtt_tls)              + trEnd;
+  httpData += trStart + "Use authentication:" + tdBreak + htmlCheckbox(           cfg_mqtt_auth,      mqtt_auth)             + trEnd;
+  httpData += trStart + "Username:"           + tdBreak + htmlInput(str_text,     cfg_mqtt_user,      mqtt_user)             + trEnd;
+  httpData += trStart + "Password:"           + tdBreak + htmlInput(str_text,     cfg_mqtt_passwd,    mqtt_passwd)           + trEnd;
+  httpData += trStart + "Data interval (s):"  + tdBreak + htmlInput(str_text,     cfg_mqtt_interval,  String(mqtt_interval)) + trEnd;
+  httpData += trStart + "MQTT watchdog (s):"  + tdBreak + htmlInput(str_text,     cfg_mqtt_watchdog,  String(mqtt_watchdog)) + trEnd;
 
   httpData += thStart + F("Syslog:") + thBreak + thEnd;
   httpData += trStart + str_cfg_use_syslog    + tdBreak + htmlCheckbox(           cfg_use_syslog,    use_syslog)    + trEnd;
@@ -1011,7 +1050,22 @@ void handleFirmware() {
 
   String httpData = htmlHeader();
 
-  httpData += F("Select a firmware file to upload.<br />Be certain to make sure it's compiled with the same SPIFFS size or the next boot will fail.<br/>");
+  httpData += F("Select a firmware file to upload.<br />Be certain to make sure it's compiled with the same SPIFFS size and config pin or the next boot will fail.<br/>");
+
+  httpData += F("<table style='border:2px solid red;'>");
+  httpData += trStart + F("Flash size config:") + tdBreak;
+  httpData += String(ESP.getFlashChipSize()/1048576.0) + " MB";
+  httpData += trEnd;
+  FSInfo fs_info;
+  SPIFFS.info(fs_info);
+  httpData += trStart + F("SPIFFS size:") + tdBreak;
+  httpData += String(fs_info.totalBytes / 1024) + " kB";
+  httpData += trEnd;
+  httpData += trStart + F("Config pin:") + tdBreak;
+  httpData += String(CONFIG_PIN);
+  httpData += trEnd;
+  httpData += tableEnd;
+
   httpData += F("<form action='#' method='POST' enctype='multipart/form-data'>");
   httpData += F("<input type='file' name='firmware'>");
   httpData += F("<br/><button type='submit'>Update</button></form>");

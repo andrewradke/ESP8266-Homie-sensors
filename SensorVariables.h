@@ -285,6 +285,7 @@ bool             wind_array_full = false;
 
 
 
+// ************* esp8266-mq135 *************
 #elif FWTYPE == 12
 
 char fwname[40] =    "esp8266-mq135";
@@ -302,6 +303,25 @@ uint32_t mq135_ro = 68550;              // default Ro for MQ135_DEFAULTPPM ppm o
 double   val      = 0;                  // variable to store the value coming from the sensor
 double   valAIQ   = 0;
 //double   lastAIQ  = 0;
+
+
+
+// ************* esp8266-timer *************
+#elif FWTYPE == 13
+
+#define NUM_TIMERS 10
+char fwname[40] =    "esp8266-timer";
+
+// This should be built by a loop based on the NUM_TIMERS
+char nodes[100] =    "timers[]:timer";
+
+uint16_t timers[NUM_TIMERS][3];         // 3 numbers per timer: day of week bits, minute of day, length of timer
+uint8_t  relay_pin    = LED_BUILTIN;    // Config setting will override this default
+uint32_t lastTimer    = 0;              // The last *millis* a check was made for a timer
+uint16_t lastMinute   = 0;              // The last *minute* that the timer check was made
+bool     relay_state  = false;
+uint32_t relayOffTime = 0;              // The *seconds* at which the relay needs to be turned off
+
 
 
 // ************* UNKNOWN SENSOR TYPE *************

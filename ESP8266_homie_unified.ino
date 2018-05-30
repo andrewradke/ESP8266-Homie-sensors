@@ -14,6 +14,7 @@
    10 esp8266-air
    11 esp8266-weathervane
    12 esp8266-mq135
+   13 esp8266-timer
 */
 
 /********************  IMPORTANT NOTE for ADS1115  ********************
@@ -26,9 +27,13 @@
 
 
 #define FWTYPE     12
-#define FWVERSION  "0.9.17"
+#define FWVERSION  "0.9.18"
 #define FWPASSWORD "esp8266."
 //#define USESSD1306                // SSD1306 OLED display
+
+// 13 = D7 on a WeMos D1 mini
+// 2  = BTN1 on ElectroDragon relay
+#define CONFIG_PIN 13
 
 
 //#define DEBUG
@@ -68,6 +73,7 @@ const uint16_t configPortalTimeout = 300;   // 5 minute timeout on config portal
 #include <time.h>
 char     ntp_server1[41];
 char     ntp_server2[41];
+float    tzoffset = 10;           // Default timezone offset in minutes (AEST)
 
 #include <WiFiClientSecure.h>
 bool tlsOkay = false;
@@ -102,9 +108,6 @@ uint16_t displaySleep = 30;       // Seconds before the display goes to sleep
 #endif
 
 
-// D7 on a WeMos D1 mini
-#define CONFIG_PIN 13
-
 
 // ########### Sensor Variables ############
 #include "SensorVariables.h"
@@ -117,6 +120,7 @@ bool     mqtt_tls          = false;
 bool     mqtt_auth         = false;
 uint16_t mqtt_port         = 1883;
 char     mqtt_name[21];
+char     mqtt_topicbase[21];
 char     mqtt_user[21];
 char     mqtt_passwd[33];
 int      mqtt_interval     = 5;         // interval in seconds between updates
@@ -132,6 +136,7 @@ char output[OUT_STR_MAX];
 
 String baseTopic;
 char pubTopic[50];
+char subTopic[50];
 
 /// The MQTT client
 PubSubClient mqttClient;
@@ -212,6 +217,7 @@ void setup() {
   strncpy_P( ntp_server2,   default_ntp_server2,   41);
   strncpy_P( syslog_server, default_syslog_server, 41);
   strncpy_P( mqtt_server,   default_mqtt_server,   41);
+  strncpy_P( mqtt_topicbase, default_mqtt_topicbase, 21);
   strncpy_P( mqtt_name,     fwname,                21);
   strcpy(host_name, mqtt_name);
 
@@ -367,7 +373,7 @@ void setup() {
     dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
     dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
-    inConfigAP     = true;    // We don't need to ask for a password on the webpage
+    inConfigAP     = true;    // We don't need to ask for a password on the webpage and shouldn't act on anything yet
     connectNewWifi = false;
 
     unsigned long configPortalStart = millis();
@@ -391,7 +397,7 @@ void setup() {
       }
       yield();
     }
-    inConfigAP     = true;
+    inConfigAP     = false;
   } else {
     WiFi.begin();
   }
@@ -543,18 +549,19 @@ void setup() {
 
     // Synchronize time useing SNTP. This is necessary to verify that
     // the TLS certificates offered by the server are currently valid.
-    logString = F("Setting time using SNTP");
+    logString = F("Setting time using SNTP. Time zone: ");
+    logString += String(tzoffset);
     logMessage(app_name_sys, logString, false);
 
-    configTime(8 * 3600, 0, ntp_server1, ntp_server2);
+    configTime(tzoffset * 3600, 0, ntp_server1, ntp_server2);
     time_t now = time(nullptr);
-    while (now < 8 * 3600 * 2) {
+    while (now < tzoffset * 3600 * 2) {
       delay(500);
       Serial.print(str_dot);
       now = time(nullptr);
     }
     struct tm timeinfo;
-    gmtime_r(&now, &timeinfo);
+    localtime_r(&now, &timeinfo);
     logString = String(asctime(&timeinfo));
     logString.trim();
     logMessage(app_name_sys, logString, true);
@@ -586,15 +593,16 @@ void setup() {
 
 
   /// The MQTT baseTopic
-  baseTopic = String(mqtt_name);
-  baseTopic = String("homie/" + baseTopic);
-  baseTopic = String(baseTopic + '/');
+  baseTopic = String(mqtt_topicbase) + String('/') + String(mqtt_name) + String('/');
+
+  logString = "server: " + String(mqtt_server) + ':' + String(mqtt_port);
+  logMessage(app_name_mqtt, logString, false);
 
   logString = String("topic: " + baseTopic);
   logMessage(app_name_mqtt, logString, false);
 
-  logString = "server: " + String(mqtt_server) + ':' + String(mqtt_port);
-  logMessage(app_name_mqtt, logString, false);
+  tmpString = String(baseTopic) + String(FPSTR(mqttstr_ota)) + String(FPSTR(str_command));
+  tmpString.toCharArray(subTopic, 50);
 
   mqttClient.setServer(mqtt_server, mqtt_port);
   mqttClient.setCallback(mqttCallback);

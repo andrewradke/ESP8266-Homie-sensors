@@ -60,6 +60,9 @@ String httpSensorSetup() {
 String httpSensorConfig() {
 }
 
+void sensorMqttCallback(char* topic, byte* payload, unsigned int length) {}
+void sensorMqttSubs() {}
+
 float getTemperature() {
   byte i;
   byte present = 0;
