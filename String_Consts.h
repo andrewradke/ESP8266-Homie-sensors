@@ -96,6 +96,7 @@ const String tdBreak    = "</td><td>";
 const String thStart    = "<tr><th>";
 const String thEnd      = "</th></tr>";
 const String thBreak    = "</th><th>";
+const String htmlBR     = "<br/>";
 
 const String str_firmware_update = "Firmware update: ";
 const String str_rebooting       = "Rebooting.";

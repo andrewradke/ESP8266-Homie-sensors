@@ -198,7 +198,11 @@ void handleLogin() {
 
   String httpData = htmlHeader();
 
-  httpData += F("<div id=\"login\"><form action='/login' method='POST'>Login:<br/><input type='text' name='user' placeholder='User name'></p><p><input type='password' name='pass' placeholder='Password'></p><br/><button type='submit' name='submit'>login</button></center></form></body></html>");
+  httpData += F("<div id=\"login\"><form action='/login' method='POST'>Login:");
+  httpData += htmlBR;
+  httpData += F("<input type='text' name='user' placeholder='User name'></p><p><input type='password' name='pass' placeholder='Password'></p>");
+  httpData += htmlBR;
+  httpData += F("<button type='submit' name='submit'>login</button></center></form></body></html>");
 
   if (httpServer.hasHeader("Cookie")) {   
     String cookie = httpServer.header("Cookie"); // Copy the Cookie header to this buffer
@@ -218,7 +222,8 @@ void handleLogin() {
       return;
     }
 
-    httpData += "<center><br>";
+    httpData += "<center>";
+    httpData += htmlBR;
     if (trycount != 3 && !lock)
       trycount++;                                        // If system is not locked up the trycount buffer
     if (trycount < 3 && !lock) {                         // We go here if systems isn't locked out, we give user 10 times to make a mistake after we lock down the system, thus making brute force attack almost imposible
@@ -271,7 +276,7 @@ void handleRoot() {
   String httpData = htmlHeader();
 
   httpData += httpSensorData();
-  httpData += "<br/>";
+  httpData += htmlBR;
 
   /// send uptime and signal
   unsigned long uptime = millis();
@@ -875,7 +880,7 @@ void handleWifi() {
   if (! inConfigAP) {
     httpData += str_h2_red;
     httpData.replace("{v}", F("Warning"));
-    httpData += (String(F("<p>You are connected through the wifi network: ")) + ssid + "<br/>");
+    httpData += (String(F("<p>You are connected through the wifi network: ")) + ssid + htmlBR);
     httpData += (String(F("<b>If you change WiFi networks you may not be able to reconnect to the device.</b></p>")));
   }
 
@@ -892,10 +897,10 @@ void handleWifi() {
     httpData += trEnd;
     httpData += tableEnd;
   
-    httpData += "<br/>";
+    httpData += htmlBR;
   }
   if (inConfigAP) {
-    httpData += String(F("After connecting the device will be available on http://")) + String(host_name) + F(".local/<br/>");
+    httpData += String(F("After connecting the device will be available on http://")) + String(host_name) + F(".local/") + htmlBR;
   }
 
   logString = F("scan start");
@@ -1050,9 +1055,9 @@ void handleFirmware() {
 
   String httpData = htmlHeader();
 
-  httpData += F("Select a firmware file to upload.<br />Be certain to make sure it's compiled with the same SPIFFS size and config pin or the next boot will fail.<br/>");
+  httpData += String(F("Select a firmware file to upload.")) + htmlBR + F("Be certain to make sure it's compiled with the same SPIFFS size and config pin or the next boot will fail.") + htmlBR;
 
-  httpData += F("<table style='border:2px solid red;'>");
+  httpData += F("<table style='border:2px solid red;margin:1em;'>");
   httpData += trStart + F("Flash size config:") + tdBreak;
   httpData += String(ESP.getFlashChipSize()/1048576.0) + " MB";
   httpData += trEnd;
@@ -1068,7 +1073,8 @@ void handleFirmware() {
 
   httpData += F("<form action='#' method='POST' enctype='multipart/form-data'>");
   httpData += F("<input type='file' name='firmware'>");
-  httpData += F("<br/><button type='submit'>Update</button></form>");
+  httpData += htmlBR;
+  httpData += F("<button type='submit'>Update</button></form>");
 
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
@@ -1102,7 +1108,7 @@ void handleFirmwareUploadComplete() {
     httpData += String(buf);
 
     httpData += String(F("<p>")) + str_firmware_update + F("Success, ");
-    httpData += String(uploadedFileSize) + F(" bytes uploaded.<br/>") + str_rebooting + F("</p></body></html>");
+    httpData += String(uploadedFileSize) + F(" bytes uploaded.") + htmlBR + str_rebooting + F("</p></body></html>");
     httpServer.client().setNoDelay(true);
     httpServer.sendContent(httpData);
     delay(100);
@@ -1205,19 +1211,22 @@ void handleCACert() {
 
   if ( SPIFFS.exists(CAcertfilename) ) {
     File certfile = SPIFFS.open(CAcertfilename, "r");
+    httpData += F("<div style='border:2px solid red;margin:1em;'>");
     httpData += str_h2_red;
     httpData.replace("{v}", F("Existing certificate"));
     httpData += F("There is an existing CA certificate with a size of ");
     httpData += certfile.size();
-    httpData += F(" bytes<hr>");
+    httpData += F(" bytes</div>");
   }
 
-  httpData += F("Select a file to upload with the CA certificate in DER format.<br/>");
+  httpData += F("Select a file to upload with the CA certificate in DER format.");
+  httpData += htmlBR;
   httpData += F("A certificate can be converted to DER format with openssl with the following command edited as appropriate:");
   httpData += F("<pre>openssl x509 -in CACert.pem -out CACert.der -outform DER</pre>");
   httpData += F("<form action='#' method='POST' enctype='multipart/form-data'>");
   httpData += F("<input type='file' name='cacert'>");
-  httpData += F("<br/><button type='submit'>Upload</button></form>");
+  httpData += htmlBR;
+  httpData += F("<button type='submit'>Upload</button></form>");
 
   httpData += FPSTR(HTTP_END);
   sendCacheControlHeader(httpData.length());
@@ -1273,9 +1282,12 @@ void handleHTTPSCerts() {
 
   httpData += str_h2_red;
   httpData.replace("{v}", F("Currently unused!"));
-  httpData += F("<p>This certificate and key is for the secure HTTPS interface.<br/>It is not needed for MQTT but is a needed for a secure connection to this device's web interface.</p>");
+  httpData += F("<p>This certificate and key is for the secure HTTPS interface.");
+  httpData += htmlBR;
+  httpData += F("It is not needed for MQTT but is a needed for a secure connection to this device's web interface.</p>");
 
-  httpData += F("The files need to be uploaded in DER format.<br/>");
+  httpData += F("The files need to be uploaded in DER format.");
+  httpData += htmlBR;
   httpData += F("A certificate can be converted to DER format with openssl with the following command edited as appropriate:");
   httpData += F("<pre>openssl x509 -in filename.pem -out filename.pem.der -outform DER</pre>");
   httpData += F("and the key can be converted with:");
@@ -1294,7 +1306,8 @@ void handleHTTPSCerts() {
   }
   httpData += F("<form action='/httpscert' method='POST' enctype='multipart/form-data'>");
   httpData += F("<input type='file' name='httpscert'>");
-  httpData += F("<br/><button type='submit'>Upload certificate</button></form>");
+  httpData += htmlBR;
+  httpData += F("<button type='submit'>Upload certificate</button></form>");
   httpData += tdBreak;
 
   if ( SPIFFS.exists(HTTPSkeyfilename) ) {
@@ -1307,7 +1320,8 @@ void handleHTTPSCerts() {
   }
   httpData += F("<form action='/httpskey' method='POST' enctype='multipart/form-data'>");
   httpData += F("<input type='file' name='httpskey'>");
-  httpData += F("<br/><button type='submit'>Upload key</button></form>");
+  httpData += htmlBR;
+  httpData += F("<button type='submit'>Upload key</button></form>");
   httpData += trEnd;
   httpData += tableEnd;
 
