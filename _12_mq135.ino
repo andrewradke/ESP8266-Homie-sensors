@@ -1,7 +1,6 @@
 #if FWTYPE == 12      // esp8266-mq135
 
-void sensorSetup() {
-}
+void sensorSetup() {}
 
 void  printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + "mq135_ro"), String(mq135_ro), true);
@@ -32,9 +31,7 @@ bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
 
-
-void calcData() {
-}
+void calcData() {}
 
 void sendData() {
   double valr = analogRead(SENSOR_PIN);     // Get AIQ value

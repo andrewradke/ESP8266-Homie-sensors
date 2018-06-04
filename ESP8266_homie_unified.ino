@@ -27,13 +27,9 @@
 
 
 #define FWTYPE     13
-#define FWVERSION  "0.9.18"
+#define FWVERSION  "0.9.19"
 #define FWPASSWORD "esp8266."
 //#define USESSD1306                // SSD1306 OLED display
-
-// 13 = D7 on a WeMos D1 mini
-// 2  = BTN1 on ElectroDragon relay
-#define CONFIG_PIN 13
 
 
 //#define DEBUG
@@ -112,6 +108,9 @@ uint16_t displaySleep = 30;       // Seconds before the display goes to sleep
 // ########### Sensor Variables ############
 #include "SensorVariables.h"
 
+#ifndef CONFIG_PIN
+#define CONFIG_PIN   13         // WeMos D1 Mini D7
+#endif
 
 
 //define the default MQTT values here, if there are different values in config.json, they are overwritten.

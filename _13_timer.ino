@@ -62,13 +62,16 @@ bool sensorRunAction(const String &key, const String &value) {
 
 void sensorMqttSubs() {
   char extraSubTopic[50];
+  char istr[2];
   for (byte i = 0; i < NUM_TIMERS; i++) {
-    //homie/Test/timer_0/timer/set
-    tmpString = String(baseTopic) + String(F("timer_")) + String(i) + String(F("/timer/set"));
+    //homie/Test/timer_00/timer/set
+    baseTopic.toCharArray(extraSubTopic, 50);
+    strcat_P(extraSubTopic, PSTR("timer_"));
+    sprintf_P(istr, (PGM_P)F("%02d"), i);
+    strcat(extraSubTopic, istr);
+    strcat_P(extraSubTopic, PSTR("/timer/set"));
 
-    tmpString.toCharArray(extraSubTopic, 50);
-
-    logString = String(F("Subscribing to ")) + tmpString;
+    logString = String(F("Subscribing to ")) + String(extraSubTopic);
     logMessage(app_name_mqtt, logString, false);
 
     mqttClient.subscribe(extraSubTopic);
@@ -87,14 +90,17 @@ void sensorMqttCallback(char* topic, byte* payload, unsigned int length) {
   uint16_t timerLength = 0;
 
   // This only allows a maximum of 10 (0-9) timers
-  timer = topic[strlen(topic)-11];   // Find the 11th char from the end which will be the timer number
-  timer -= 48;                       // 0 is the 48th ASCII char, so subtract 48 and you get the actual number
-  if (timer < 0 || timer > 9) {
-    logString = F("Timer is not a value from 0 to 9: ");
+  timer = topic[strlen(topic)-11];     // Find the 11th char from the end which will be the timer 1's column
+  timer -= 48;                         // 0 is the 48th ASCII char, so subtract 48 and you get the actual number
+  byte tens = topic[strlen(topic)-12]; // Find the 12th char from the end which is the 10's column
+  tens -= 48;                          // 0 is the 48th ASCI char
+  if (tens < 0 || tens > 9 || timer < 0 || timer > 9) {
+    logString = F("Timer is not a value from 00 to 90: ");
     logString += String(topic[strlen(topic)-11]);
     logMessage(app_name_sys, logString, false);
     return;
   }
+  timer += (tens * 10);                // Add the tens into the timer number
 
 //  dmesg();
 //  Serial.print("topic length: ");
@@ -137,19 +143,6 @@ void sensorMqttCallback(char* topic, byte* payload, unsigned int length) {
   timers[timer][0] = timerDow;
   timers[timer][1] = timerMinute;
   timers[timer][2] = timerLength;
-
-  dmesg();
-  Serial.print("timer: ");
-  Serial.println(timer);
-  dmesg();
-  Serial.print("dow: ");
-  Serial.println(timerDow);
-  dmesg();
-  Serial.print("minute: ");
-  Serial.println(timerMinute);
-  dmesg();
-  Serial.print("length: ");
-  Serial.println(timerLength);
 }
 
 void calcData() {
@@ -190,8 +183,7 @@ void calcData() {
   }
 }
 
-void sendData() {
-}
+void sendData() {}
 
 String httpSensorData() {
   String httpData = tableStart;

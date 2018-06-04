@@ -11,11 +11,8 @@ void  printSensorConfig(const String &cfgStr) {
   return;
 }
 
-void sensorImportJSON(JsonObject& json) {
-}
-
-void sensorExportJSON(JsonObject& json) {
-}
+void sensorImportJSON(JsonObject& json) {}
+void sensorExportJSON(JsonObject& json) {}
 
 bool sensorUpdateConfig(const String &key, const String &value) {
   return false;
@@ -71,9 +68,7 @@ String httpSensorSetup() {
   return httpData;
 }
 
-String httpSensorConfig() {
-}
-
+String httpSensorConfig() {}
 void sensorMqttCallback(char* topic, byte* payload, unsigned int length) {}
 void sensorMqttSubs() {}
 

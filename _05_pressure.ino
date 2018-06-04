@@ -59,9 +59,7 @@ bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
 
-void calcData() {
-  return; // read the values when they are being sent
-}
+void calcData() {}
 
 void sendData() {
   float adsA, pressure;

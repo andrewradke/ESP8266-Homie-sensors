@@ -65,8 +65,7 @@ bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
 
-void calcData() {
-}
+void calcData() {}
 
 void sendData() {
   temperature = 1000;

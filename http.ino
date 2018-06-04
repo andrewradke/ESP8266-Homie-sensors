@@ -1069,6 +1069,7 @@ void handleFirmware() {
   httpData += trStart + F("Config pin:") + tdBreak;
   httpData += String(CONFIG_PIN);
   httpData += trEnd;
+  httpData += trStart + F("Firmware type:")    + tdBreak + String(fwname)    + trEnd;
   httpData += tableEnd;
 
   httpData += F("<form action='#' method='POST' enctype='multipart/form-data'>");
@@ -1137,6 +1138,7 @@ void handleFirmwareUpload() {
     logMessage(app_name_sys, logString, false);
     delay(10);          // Give time for the syslog packet to be sent by UDP
     WiFiUDP::stopAll();
+    mqttClient.disconnect();        // Disconnect from MQTT to save some RAM during firmware update
 
     httpServer.client().setNoDelay(true);
     httpServer.setContentLength(CONTENT_LENGTH_UNKNOWN);
@@ -1146,7 +1148,7 @@ void handleFirmwareUpload() {
     httpData += F("<p style='background-color:#0A0;width:fit-content;font-size:5px;'>");
 
     httpServer.sendContent(httpData);
-    delay(10);           // Allow a moment for the current http data to be sent
+    delay(100);         // Allow a moment for the current http data to be sent
 
     uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
     if (!Update.begin(maxSketchSpace)) {                  // start with max available size

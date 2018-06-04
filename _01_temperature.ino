@@ -1,30 +1,19 @@
 #if FWTYPE == 1      // esp8266-temperature-sensor
 
-void sensorSetup() {
-}
-
-void  printSensorConfig(const String &cfgStr) {
-}
-
-void sensorImportJSON(JsonObject& json) {
-}
-
-void sensorExportJSON(JsonObject& json) {
-}
-
+void sensorSetup() {}
+void printSensorConfig(const String &cfgStr) {}
+void sensorImportJSON(JsonObject& json) {}
+void sensorExportJSON(JsonObject& json) {}
 bool sensorUpdateConfig(const String &key, const String &value) {
   return false;
 }
-
 bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
-
-void calcData() {
-  temperature = getTemperature();
-}
+void calcData() {}
 
 void sendData() {
+  temperature = getTemperature();
   if ( temperature != 1000) {
     mqttSend(String("temperature/celsius"), String(temperature), false);
   } else {
@@ -57,9 +46,7 @@ String httpSensorSetup() {
   return httpData;
 }
 
-String httpSensorConfig() {
-}
-
+String httpSensorConfig() {}
 void sensorMqttCallback(char* topic, byte* payload, unsigned int length) {}
 void sensorMqttSubs() {}
 

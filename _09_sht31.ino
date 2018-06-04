@@ -21,26 +21,16 @@ void sensorSetup() {
 */
 }
 
-void  printSensorConfig(const String &cfgStr) {
-}
-
-void sensorImportJSON(JsonObject& json) {
-}
-
-void sensorExportJSON(JsonObject& json) {
-}
-
+void  printSensorConfig(const String &cfgStr) {}
+void sensorImportJSON(JsonObject& json) {}
+void sensorExportJSON(JsonObject& json) {}
 bool sensorUpdateConfig(const String &key, const String &value) {
   return false;
 }
-
 bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
-
-
-void calcData() {
-}
+void calcData() {}
 
 void sendData() {
   temperature = 1000;

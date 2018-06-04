@@ -12,6 +12,7 @@ char fwname[40] =    "esp8266-dummy-sensor";
 char nodes[100] =    "sensor:number";
 
 float    sensor_value = 42.0;
+#define CONFIG_PIN 13
 */
 
 
@@ -20,6 +21,7 @@ float    sensor_value = 42.0;
 
 char fwname[40] =    "esp8266-temperature-sensor";
 #define ONEWIRE_PIN  2          // WeMos D1 Mini D4
+#define CONFIG_PIN   13         // WeMos D1 Mini D7
 char nodes[100] =    "temperature:celsius";
 #include <OneWire.h>
 OneWire ds(ONEWIRE_PIN);        // Setup of the 1-wire bus
@@ -32,6 +34,7 @@ float   temperature  = 1000;
 
 char fwname[40] =    "esp8266-flow-counter";
 #define PULSE_PIN    12         // WeMos D1 Mini D6
+#define CONFIG_PIN   13         // WeMos D1 Mini D7
 char nodes[100] =    "counter:counter,litres:litres,lph:lph";
 volatile long flow_counter = 0; // Measures flow meter pulses
 unsigned long flow_hz      = 0; // Measures last seconds flow
@@ -48,6 +51,7 @@ float         litrerate    = 60 * pulsesPerLitre;
 
 char fwname[40] =    "esp8266-switch";
 #define SWITCH_PIN   12         // WeMos D1 Mini D6
+#define CONFIG_PIN   13         // WeMos D1 Mini D7
 char nodes[100] =    "switch:switch";
 bool          switchOpen     = false;
 bool          switchPrevOpen = false;
@@ -66,6 +70,7 @@ const char switchNodeVerb[]   = "switch/switch";
 char fwname[40] =    "esp8266-depth-sensor";
 #define TRIGGER_PIN  2          // WeMos D1 Mini D4
 #define ECHO_PIN     12         // WeMos D1 Mini D6
+#define CONFIG_PIN   13         // WeMos D1 Mini D7
 #define MAX_DISTANCE 450        // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 char nodes[100] =    "distance:cm,depth:cm";
 #include <NewPing.h>            // https://bitbucket.org/teckel12/arduino-new-ping/downloads
@@ -86,6 +91,7 @@ byte          readings = 10;
 
 char fwname[40] =    "esp8266-pressure-sensors";
 char nodes[100] =    "pressure0:pressure,pressure1:pressure,pressure2:pressure,pressure3:pressure";
+#define CONFIG_PIN   13         // WeMos D1 Mini D7
 #include <Adafruit_ADS1015.h>
 Adafruit_ADS1115 ads1115;
 float pressureRanges[5] = {1, 1, 1, 1};
@@ -99,6 +105,7 @@ char fwname[40] =    "esp8266-loadcell";
 #define PIN_SCALE_DOUT 16     // WeMos D1 Mini D0
 #define PIN_SCALE_SCK  14     // WeMos D1 Mini D5
 #define PIN_SCALE_PDWN 12     // WeMos D1 Mini D6
+#define CONFIG_PIN     13     // WeMos D1 Mini D7
 char nodes[100] =    "weight:grams";
 #include <HX711.h>                // https://github.com/bogde/HX711
 HX711 hx711;
@@ -121,6 +128,7 @@ char nodes[100] =    "voltage:volts,pressure:psi,counter:counter,litres:litres,l
 // D7 = GPIO13
 #define PULSE_PIN      12     // WeMos D1 Mini D6
 #define SWITCH_PIN     14     // WeMos D1 Mini D5
+#define CONFIG_PIN     13     // WeMos D1 Mini D7
 
 #ifdef USEI2CADC
 #include <Wire.h>
@@ -156,6 +164,7 @@ const char switchClosedNoun[] = "closed";
 
 char fwname[40] =    "esp8266-bme280";
 char nodes[100] =    "temperature:celsius,humidity:percentage,pressure:hpa,pressure-sealevel:hpa";
+#define CONFIG_PIN   13         // WeMos D1 Mini D7
 
 float    temperature  = 1000;
 uint16_t humidity     = 1000;
@@ -187,6 +196,7 @@ int      bme280ErrorP = 0;
 
 char fwname[40] =    "esp8266-sht31";
 char nodes[100] =    "temperature:celsius,humidity:percentage";
+#define CONFIG_PIN   13         // WeMos D1 Mini D7
 
 float    temperature  = 1000;
 float    humidity     = 1000;
@@ -212,6 +222,7 @@ int      sht31ErrorH  = 0;
 
 char fwname[40] =    "esp8266-air";
 char nodes[100] =    "temperature:celsius,humidity:percentage,dewpoint:celsius,pressure:hpa,pressure-sealevel:hpa";
+#define CONFIG_PIN   13         // WeMos D1 Mini D7
 
 float    temperature  = 1000;
 float    humidity     = 1000;
@@ -261,6 +272,7 @@ float mmPerPulse  = 0.2794;          // mm per pulse
 #define RAINGAUGE_PIN  12            // pin tied to the pulse output of the rain gauge
 #define ANEMOMETER_PIN 14            // pin tied to the pulse output of the anemometer
 #define WINDVANE_PIN   A0            // pin tied to the analog output of the wind vane
+#define CONFIG_PIN     13            // WeMos D1 Mini D7
 
 char nodes[106] =    "rain:mm,rain_counter:counter,wind_direction:degrees,wind_speed:kph,gust_direction:degrees,gust_speed:kph";
 
@@ -291,7 +303,8 @@ bool             wind_array_full = false;
 char fwname[40] =    "esp8266-mq135";
 char nodes[100] =    "co2:ppm";
 
-#define SENSOR_PIN A0
+#define SENSOR_PIN   A0
+#define CONFIG_PIN   13         // WeMos D1 Mini D7
 
 #define MQ135_DEFAULTPPM 399            // default ppm of CO2 for calibration
 #define MQ135_SCALINGFACTOR 116.6020682 // CO2 gas value
@@ -309,14 +322,15 @@ double   valAIQ   = 0;
 // ************* esp8266-timer *************
 #elif FWTYPE == 13
 
-#define NUM_TIMERS 10
+#define NUM_TIMERS 100
 char fwname[40] =    "esp8266-timer";
+#define CONFIG_PIN   2          // 2  = BTN1 on ElectroDragon relay
 
 // This should be built by a loop based on the NUM_TIMERS
 char nodes[100] =    "timers[]:timer";
 
 uint16_t timers[NUM_TIMERS][3];         // 3 numbers per timer: day of week bits, minute of day, length of timer
-uint8_t  relay_pin    = LED_BUILTIN;    // Config setting will override this default
+uint8_t  relay_pin    = 12;             // Config setting will override this default (Electrodragon relay 1)
 uint32_t lastTimer    = 0;              // The last *millis* a check was made for a timer
 uint16_t lastMinute   = 0;              // The last *minute* that the timer check was made
 bool     relay_state  = false;

@@ -1,7 +1,6 @@
 #if FWTYPE == 4      // esp8266-depth-sensor
 
-void sensorSetup() {
-}
+void sensorSetup() {}
 
 void  printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + "maxdepth"), String(maxdepth), true);
