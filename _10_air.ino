@@ -240,6 +240,7 @@ void sendData() {
         logString = "BME280 pressure error: " + String(sealevel2) + "hpa";
         mqttLog(app_name_sensors, logString);
       }
+      pressure = 0;   // This is a bad pressure so set it to 0 so it's ignored later
     }
     // End pressure
 

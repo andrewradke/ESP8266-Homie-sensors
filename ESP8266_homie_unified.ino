@@ -26,16 +26,14 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     13
-#define FWVERSION  "0.9.19"
+#define FWTYPE     14
+#define FWVERSION  "0.9.19j"
 #define FWPASSWORD "esp8266."
 //#define USESSD1306                // SSD1306 OLED display
 
 
 //#define DEBUG
 #define SERIALSPEED 74880
-
-//#define LED_BUILTIN 2
 
 #include <ESP8266WiFi.h>          // ESP8266 Core WiFi Library
 

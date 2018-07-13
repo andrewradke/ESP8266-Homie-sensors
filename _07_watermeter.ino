@@ -1,5 +1,16 @@
 #if FWTYPE == 7      // esp8266-watermeter
 
+const char str_pressureRange[]  = "pressureRange";
+const char str_pulsesPerLitre[] = "pulsesPerLitre";
+
+const char str_switchSwitch[]   = "switch/Switch";
+const char str_voltageVolts[]   = "voltage/volts";
+const char str_pressurePsi[]    = "pressure/psi";
+const char str_counterCounter[] = "counter/counter";
+const char str_litresCounter[]  = "litres/counter";
+const char str_lphLph[]         = "lph/lph";
+
+
 void sensorSetup() {
 #ifdef USEI2CADC
   Wire.begin();
@@ -16,21 +27,21 @@ void sensorSetup() {
 }
 
 void  printSensorConfig(const String &cfgStr) {
-  mqttSend(String(cfgStr + "pressurerange"), String(pressureRange), true);  
+  mqttSend(String(cfgStr) + String(str_pressureRange), String(pressureRange), true);  
 }
 
 void sensorImportJSON(JsonObject& json) {
-  if (json["pressureRange"].is<float>()) {
-    pressureRange = json["pressureRange"];
+  if (json[str_pressureRange].is<float>()) {
+    pressureRange = json[str_pressureRange];
   }
 }
 
 void sensorExportJSON(JsonObject& json) {
-  json["pressureRange"] = pressureRange;
+  json[str_pressureRange] = pressureRange;
 }
 
 bool sensorUpdateConfig(const String &key, const String &value) {
-  if ( key == "pressurerange" ) {
+  if ( key == str_pressureRange ) {
     pressureRange = value.toFloat();
   } else {
     return false;
@@ -65,29 +76,23 @@ void calcData() {
 
   switchCheck();                                  // This is driven by interrupts but this will catch any state change that may have been missed
   if ( switchOpen != switchPrevOpen ) {           // Send the state *immediately* if it has changed, it can be sent again later without problems
-    if (switchOpen) {
-      tmpString = String(switchOpenNoun);
-    } else {
-      tmpString = String(switchClosedNoun);
-    }
-    mqttSend(String("switch/switch"), tmpString, false);
+//    if (switchOpen) {
+//      tmpString = String(switchOpenNoun);
+//    } else {
+//      tmpString = String(switchClosedNoun);
+//    }
+    mqttSend(String(str_switchSwitch), String(switchOpen), false);
     switchPrevOpen = switchOpen;
   }
 }
 
 void sendData() {
-  mqttSend(String("voltage/volts"),   String(voltage),      false);
-  mqttSend(String("pressure/psi"),    String(pressure),     false);
-  mqttSend(String("counter/counter"), String(flow_counter), false);
-  mqttSend(String("litres/counter"),  String(litres),       false);
-  mqttSend(String("lph/lph"),         String(l_hour),       false);
-
-  if (switchOpen) {
-    tmpString = String(switchOpenNoun);
-  } else {
-    tmpString = String(switchClosedNoun);
-  }
-  mqttSend(String("switch/switch"), tmpString, false);
+  mqttSend(String(str_voltageVolts),   String(voltage),      false);
+  mqttSend(String(str_pressurePsi),    String(pressure),     false);
+  mqttSend(String(str_counterCounter), String(flow_counter), false);
+  mqttSend(String(str_litresCounter),  String(litres),       false);
+  mqttSend(String(str_lphLph),         String(l_hour),       false);
+  mqttSend(String(str_switchSwitch),   String(switchOpen),   false);
 }
 
 void flow () {                     // Interrupt function
@@ -101,32 +106,33 @@ void switchCheck () {               // Interrupt function
 String httpSensorData() {
   String httpData = tableStart;
 
-  httpData += trStart + "Voltage:" + tdBreak;
+  httpData += trStart + F("Voltage:") + tdBreak;
   httpData += String(voltage) + " V";
   httpData += trEnd;
 
-  httpData += trStart + "Pressure:" + tdBreak;
+  httpData += trStart + F("Pressure:") + tdBreak;
   httpData += String(pressure) + " psi";
   httpData += trEnd;
 
-  httpData += trStart + "Flow counter:" + tdBreak;
+  httpData += trStart + F("Flow counter:") + tdBreak;
   httpData += String(flow_counter);
   httpData += trEnd;
 
-  httpData += trStart + "Litres:" + tdBreak;
+  httpData += trStart + F("Litres:") + tdBreak;
   httpData += String(litres) + " l";
   httpData += trEnd;
 
-  httpData += trStart + "Flow rate:" + tdBreak;
+  httpData += trStart + F("Flow rate:") + tdBreak;
   httpData += String(l_hour) + " lph";
   httpData += trEnd;
 
-  httpData += trStart + "Switch:" + tdBreak;
+  httpData += trStart + F("Switch:") + tdBreak;
   if (switchOpen) {
     tmpString = String(switchOpenNoun);
   } else {
     tmpString = String(switchClosedNoun);
   }
+  httpData += tmpString;
   httpData += trEnd;
 
   httpData += tableEnd;
@@ -135,15 +141,15 @@ String httpSensorData() {
 
 String httpSensorSetup() {
   String httpData;
-  httpData += trStart + "Pressure range:" + tdBreak + htmlInput("text", "pressureRange", String(pressureRange)) + trEnd;
+  httpData += trStart + F("Pressure range:") + tdBreak + htmlInput(str_text, str_pressureRange, String(pressureRange)) + trEnd;
   return httpData;
 }
 
 String httpSensorConfig() {
-  if (httpServer.hasArg("pressureRange")) {
+  if (httpServer.hasArg(str_pressureRange)) {
     tmpString = String(pressureRange);
-    if (httpServer.arg("pressureRange") != tmpString) {
-      pressureRange = httpServer.arg("pressureRange").toFloat();
+    if (httpServer.arg(str_pressureRange) != tmpString) {
+      pressureRange = httpServer.arg(str_pressureRange).toFloat();
     }
   }
 }

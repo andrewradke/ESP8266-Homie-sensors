@@ -97,7 +97,7 @@ void sensorMqttCallback(char* topic, byte* payload, unsigned int length) {
   if (tens < 0 || tens > 9 || timer < 0 || timer > 9) {
     logString = F("Timer is not a value from 00 to 90: ");
     logString += String(topic[strlen(topic)-11]);
-    logMessage(app_name_sys, logString, false);
+    logMessage(app_name_mqtt, logString, false);
     return;
   }
   timer += (tens * 10);                // Add the tens into the timer number
@@ -136,7 +136,7 @@ void sensorMqttCallback(char* topic, byte* payload, unsigned int length) {
   if (timerMinute < 0 || timerMinute > 1440) {
     logString = F("Timer is not a valid minute of the day");
     logString += String(topic[strlen(topic)-11]);
-    logMessage(app_name_sys, logString, false);
+    logMessage(app_name_mqtt, logString, false);
     return;
   }
 
@@ -162,7 +162,7 @@ void calcData() {
           if (thisMinute == timers[i][1]) {       // if the minute of the day matches
             logString = F("Timer ");
             logString += String(i+1) + F(" turning relay on for ") + String(timers[i][2]) + F(" seconds");
-            logMessage(app_name_cfg, logString, false);
+            logMessage(app_name_sensors, logString, false);
             relay_state = true;
             digitalWrite(relay_pin, relay_state); // Turn the relay ON
             mqttSend(String("relay/state"),   String(relay_state), false);
@@ -176,7 +176,7 @@ void calcData() {
       relay_state = false;
       digitalWrite(relay_pin, relay_state); // Turn the relay OFF
       logString = F("Turning relay off");
-      logMessage(app_name_cfg, logString, false);
+      logMessage(app_name_sensors, logString, false);
       mqttSend(String("relay/state"),   String(relay_state), false);
 //      mqttSend(String("timers_") + String(i) + String("/state"),   String(relay_state), false);
     }

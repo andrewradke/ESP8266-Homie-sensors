@@ -72,14 +72,14 @@ void printMessage(const String &app_name, const String &message, bool oled) {
 }
 
 void logMessage(const String &app_name, const String &message, bool oled) {
-  printMessage(app_name, logString, oled);
+  printMessage(app_name, message, oled);
 
   if (use_syslog) {
     char appname[10];
     app_name.toCharArray(appname,10);
     syslog.appName(appname);
     // An extra character '<feff>' is appearing in the logs before the logstring
-    syslog.log(LOG_INFO, logString);
+    syslog.log(LOG_INFO, message);
     // The delay is needed to give time for each syslog packet to be sent. Otherwise a few of the later ones can end up being lost
     delay(1);
   }

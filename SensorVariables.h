@@ -338,6 +338,44 @@ uint32_t relayOffTime = 0;              // The *seconds* at which the relay need
 
 
 
+// ************* esp8266-pump-controller *************
+#elif FWTYPE == 14
+
+char fwname[40] =    "esp8266-pump-controller";
+char nodes[100] =    "voltage:volts,pressure:psi,counter:counter,litres:litres,lph:lph,pump:power";
+
+#define PULSE_PIN      12     // WeMos D1 Mini D6
+#define RELAY_PIN      2      // WeMos D1 Mini D4
+#define CONFIG_PIN     13     // WeMos D1 Mini D7
+#define ANALOG         A0
+
+#include <inttypes.h>
+
+float         voltage;
+float         pressure;
+float         pressureRange  = 72.5;
+
+volatile long flow_counter   = 0;     // Measures flow meter pulses
+unsigned long flow_hz        = 0;     // Measures last seconds flow
+unsigned int  l_hour;                 // Calculated litres/hour
+float         litres         = 0;
+float         pulsesPerLitre = 1;     // YF-G1 = 1
+float         flowrate       = 60 / pulsesPerLitre;
+float         litrerate      = 60 * pulsesPerLitre;
+
+int32_t       pressureMin    = 10;    // Minimum pressure for pump to be kept on before it's considered to have lost prime
+int32_t       pressureMax    = 60;    // Maximum pressure for pump to be kept on as a failsafe
+int32_t       pressureOn     = 30;    // Low pressure at which point the pump turns on
+int32_t       pressureOff    = 50;    // High pressure at which point the pump turns off
+int32_t       flowMin        = 1800;  // Minimum flow in lph before turning pump off
+uint32_t      pumpTimer      = 0;     // Start a timer when the pump turns on and monitor flow and pressure after this
+uint8_t       pumpCheckDelay = 2;     // The number of seconds to wait after the pump has turned on before checking flow is okay
+
+bool          pumpState       = false;
+bool          pumpPrevState  = false;
+bool          pumpCutoff     = false;
+
+
 // ************* UNKNOWN SENSOR TYPE *************
 #else
 #error Unknown FWTYPE code
