@@ -70,4 +70,7 @@ String httpSensorConfig() {
   }
 }
 
+void sensorMqttCallback(char* topic, byte* payload, unsigned int length) {}
+void sensorMqttSubs() {}
+
 #endif

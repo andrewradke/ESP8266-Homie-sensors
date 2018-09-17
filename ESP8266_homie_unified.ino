@@ -15,6 +15,8 @@
    11 esp8266-weathervane
    12 esp8266-mq135
    13 esp8266-timer
+   14 esp8266-pump-controller
+   15 esp8266-tli4970
 */
 
 /********************  IMPORTANT NOTE for ADS1115  ********************
@@ -26,8 +28,8 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     14
-#define FWVERSION  "0.9.19j"
+#define FWTYPE     8
+#define FWVERSION  "0.9.19p"
 #define FWPASSWORD "esp8266."
 //#define USESSD1306                // SSD1306 OLED display
 
@@ -615,7 +617,7 @@ void setup() {
   sensorSetup();
 
 
-  mqtt_send_systeminfo();
+//  mqtt_send_systeminfo(); // Send this whenever MQTT connects so that if an IP address changes it gets sent again.
 
   logString = F("Startup complete.");
   logMessage(app_name_sys, logString, true);

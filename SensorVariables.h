@@ -165,6 +165,7 @@ const char switchClosedNoun[] = "closed";
 char fwname[40] =    "esp8266-bme280";
 char nodes[100] =    "temperature:celsius,humidity:percentage,pressure:hpa,pressure-sealevel:hpa";
 #define CONFIG_PIN   13         // WeMos D1 Mini D7
+#define I2C_ADDRESS  0x77       // 0x76 or 0x77
 
 float    temperature  = 1000;
 uint16_t humidity     = 1000;
@@ -344,8 +345,8 @@ uint32_t relayOffTime = 0;              // The *seconds* at which the relay need
 char fwname[40] =    "esp8266-pump-controller";
 char nodes[100] =    "voltage:volts,pressure:psi,counter:counter,litres:litres,lph:lph,pump:power";
 
-#define PULSE_PIN      12     // WeMos D1 Mini D6
-#define RELAY_PIN      2      // WeMos D1 Mini D4
+#define PULSE_PIN      14     // WeMos D1 Mini D5
+#define RELAY_PIN      16     // WeMos D1 Mini D0
 #define CONFIG_PIN     13     // WeMos D1 Mini D7
 #define ANALOG         A0
 
@@ -358,22 +359,60 @@ float         pressureRange  = 72.5;
 volatile long flow_counter   = 0;     // Measures flow meter pulses
 unsigned long flow_hz        = 0;     // Measures last seconds flow
 unsigned int  l_hour;                 // Calculated litres/hour
+unsigned long floopTime      = 0;
 float         litres         = 0;
 float         pulsesPerLitre = 1;     // YF-G1 = 1
 float         flowrate       = 60 / pulsesPerLitre;
 float         litrerate      = 60 * pulsesPerLitre;
 
-int32_t       pressureMin    = 10;    // Minimum pressure for pump to be kept on before it's considered to have lost prime
-int32_t       pressureMax    = 60;    // Maximum pressure for pump to be kept on as a failsafe
+int32_t       cutoffLow      = 10;    // Minimum pressure for pump to be kept on before it's considered to have lost prime
+int32_t       cutoffHigh     = 60;    // Maximum pressure for pump to be kept on as a failsafe
 int32_t       pressureOn     = 30;    // Low pressure at which point the pump turns on
 int32_t       pressureOff    = 50;    // High pressure at which point the pump turns off
 int32_t       flowMin        = 1800;  // Minimum flow in lph before turning pump off
 uint32_t      pumpTimer      = 0;     // Start a timer when the pump turns on and monitor flow and pressure after this
 uint8_t       pumpCheckDelay = 2;     // The number of seconds to wait after the pump has turned on before checking flow is okay
 
-bool          pumpState       = false;
+bool          pumpState      = false;
 bool          pumpPrevState  = false;
 bool          pumpCutoff     = false;
+
+
+
+// ************* esp8266-tli4970 *************
+#elif FWTYPE == 15
+
+char fwname[40] =    "esp8266-tli4970";
+#define PIN_TLI_CS   15     // WeMos D1 Mini D8
+#define PIN_TLI_DIO  12     // WeMos D1 Mini D6
+#define PIN_TLI_SCK  14     // WeMos D1 Mini D5
+#define PIN_TLI_OCD   2     // WeMos D1 Mini D4
+#define CONFIG_PIN   13     // WeMos D1 Mini D7
+char nodes[100] =    "current:amps";
+#include <Tli4970.h>              // https://github.com/Infineon/TLI4970-D050T4-Current-Sensor
+Tli4970 Tli4970CurrentSensor = Tli4970();
+float         current       = 0;
+uint32_t      readings      = 0;
+uint16_t      tli4970Errors = 0;
+uint32_t      sLoopTime     = 0;
+uint32_t      dLoopTime     = 0;
+bool          acLoad        = false;
+
+
+
+// ************* esp8266-pressure_depth *************
+#elif FWTYPE == 16
+
+char fwname[40] =    "esp8266-pressure_depth";
+#define CONFIG_PIN   13         // WeMos D1 Mini D7
+char nodes[100] =    "voltage:volts,pressure:psi,depth:metres";
+#define ANALOG       A0
+float         voltage;
+float         pressure;
+float         depth;
+float         pressureRange = 15; // 15 psi is a good default pressure for reading most tank depths
+float         depthOffset   = 0;  // Allow readings to be moved up or down depnding on the level the sensor is sitting in the water
+
 
 
 // ************* UNKNOWN SENSOR TYPE *************

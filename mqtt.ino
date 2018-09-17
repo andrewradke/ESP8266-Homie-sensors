@@ -87,6 +87,8 @@ void mqttConnect() {
       mqttClient.subscribe(subTopic);
       sensorMqttSubs();  // Any extra subscriptions that a sensor may want
 
+      mqtt_send_systeminfo();
+
     } else {
       logString = F("Failed to connect to MQTT, ");
       logString += mqtt_rc_states[mqttClient.state() + 4];    // The return codes start from -4 so we have to add four to get the correct array position

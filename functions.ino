@@ -25,9 +25,9 @@ void printMessage(const String &app_name, const String &message, bool oled) {
   Serial.println(message);
 #ifdef USESSD1306
   if (oled) {
-    message = String(app_name) + ": " + message;
+    tmpString = String(app_name) + ": " + message;
     display.setTextSize(1);
-    while ( message.length() ) {
+    while ( tmpString.length() ) {
       if ( displayLine >= ROWS ) {    // Move everything up one line.
         display.clearDisplay();
         displayLine = ROWS - 1;
@@ -43,22 +43,22 @@ void printMessage(const String &app_name, const String &message, bool oled) {
         }
       }
 
-      if ( message.length() <= COLS ) {
-        message.toCharArray(displayArray[displayLine], message.length()+1);
-        message = "";
+      if ( tmpString.length() <= COLS ) {
+        tmpString.toCharArray(displayArray[displayLine], tmpString.length()+1);
+        tmpString = "";
       } else {
         bool foundBreak = false;
         for (byte x=COLS; x>0; x--) {
-          if ( message.charAt(x-1) == ' ' or message.charAt(x-1) == '-' ) {
+          if ( tmpString.charAt(x-1) == ' ' or tmpString.charAt(x-1) == '-' ) {
             foundBreak = true;
-            message.toCharArray(displayArray[displayLine], x+1);    // include this character on this line
-            message.remove(0, x);
+            tmpString.toCharArray(displayArray[displayLine], x+1);    // include this character on this line
+            tmpString.remove(0, x);
             break;
           }
         }
         if ( ! foundBreak ) {
-          message.toCharArray(displayArray[displayLine], COLS+1);    // one more character or the null terminator will swallow it
-          message.remove(0, COLS);
+          tmpString.toCharArray(displayArray[displayLine], COLS+1);    // one more character or the null terminator will swallow it
+          tmpString.remove(0, COLS);
         }
       }
       display.setCursor(0, displayLine*8);

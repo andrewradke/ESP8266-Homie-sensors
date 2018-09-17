@@ -1,7 +1,7 @@
 #if FWTYPE == 8      // esp8266-bme280
 
 void sensorSetup() {
-  bme280Status = bme.begin(0x76);
+  bme280Status = bme.begin(I2C_ADDRESS);
   logString = "BME280 ";
   if (bme280Status) {
     // The following are the recommended values from shapter 3.5 of the BME280 datasheet with
@@ -13,7 +13,7 @@ void sensorSetup() {
                     Adafruit_BME280::SAMPLING_X1, // humidity
                     Adafruit_BME280::FILTER_OFF   );
   } else {
-    logString = logString + " NOT";
+    logString = logString + "NOT ";
   }
   logString = logString + "found";
   mqttLog(app_name_sensors, logString);
@@ -80,7 +80,7 @@ void sendData() {
 
     temperature2 = bme.readTemperature();
     humidity2    = bme.readHumidity();
-    humidity2    = 255;    // Permanently treat BME280 humidity as bad
+//    humidity2    = 255;    // Permanently treat BME280 humidity as bad
     pressure2    = bme.readPressure() / 100.0;
 //  The following equation is from https://www.sandhurstweather.org.uk/barometric.pdf
     sealevel2    = pressure2 / exp(-elevation/((temperature2 + 273.15)*29.263));
@@ -172,7 +172,7 @@ void sendData() {
   }
 
   if ( (temperature != 1000) && (humidity != 1000) ) {
-    dewpoint = 5351/(5351/(temperature + 273.15) - log(humidity/100)) - 273.15;
+    dewpoint = 5351/(5351/(temperature + 273.15) - log(humidity/100.0)) - 273.15;
     mqttSend(String("dewpoint/celsius"),      String(dewpoint), false);
   } else {
     mqttSend(String("dewpoint/celsius"),      str_NaN,          false);

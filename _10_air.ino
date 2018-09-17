@@ -261,7 +261,7 @@ void sendData() {
   }
 
   if ( (temperature != 1000) && (humidity != 1000) ) {
-    dewpoint = 5351/(5351/(temperature + 273.15) - log(humidity/100)) - 273.15;
+    dewpoint = 5351/(5351/(temperature + 273.15) - log(humidity/100.0)) - 273.15;
     mqttSend(String("dewpoint/celsius"),      String(dewpoint), false);
   } else {
     mqttSend(String("dewpoint/celsius"),      str_NaN,          false);

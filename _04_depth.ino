@@ -31,19 +31,20 @@ bool sensorRunAction(const String &key, const String &value) {
 
 void calcData() {
   uS = sonar.ping_median(readings);                          // Send readings pings, get ping time in microseconds (uS).
-  distance = (uS / US_ROUNDTRIP_CM) + 0.5;                   // Adding 0.5 will make sure it is rounded to the nearest integer
+  distance = (uS / US_ROUNDTRIP_CM);                         // Calculate the distance in cm
+  distance /= 100;                                           // Convert from cm to metres
   depth    = maxdepth - distance;
 }
 
 void sendData() {
   if ( uS != 0 ) {
-    mqttSend(String("distance/cm"), String(distance), false);
-    mqttSend(String("depth/cm"),    String(depth),    false);
+    mqttSend(String("distance/m"), String(distance), false);
+    mqttSend(String("depth/m"),    String(depth),    false);
   } else {
     logString = F("ERROR: No valid distance returned");
     mqttLog(app_name_sensors, logString);
-    mqttSend(String("distance/cm"), str_NaN, false);
-    mqttSend(String("depth/cm"),    str_NaN, false);
+    mqttSend(String("distance/m"), str_NaN, false);
+    mqttSend(String("depth/m"),    str_NaN, false);
     mqttTime = currentTime - (1000 * (mqtt_interval - 1 ) ); // only wait 1 second before trying again when measurement failed
   }
 }
@@ -52,7 +53,7 @@ String httpSensorData() {
   String httpData = tableStart;
   httpData += trStart + F("Distance:") + tdBreak;
   if ( uS != 0 ) {
-    httpData += String(distance) + " cm";
+    httpData += String(distance) + " m";
   } else {
     httpData += "-";
   }
@@ -60,7 +61,7 @@ String httpSensorData() {
 
   httpData += trStart + F("Depth:") + tdBreak;
   if ( uS != 0 ) {
-    httpData += String(depth) + " cm";
+    httpData += String(depth) + " m";
   } else {
     httpData += "-";
   }
@@ -72,7 +73,7 @@ String httpSensorData() {
 
 String httpSensorSetup() {
   String httpData;
-  httpData += trStart + F("Max depth (cm):") + tdBreak + htmlInput("text",     "maxdepth", String(maxdepth)) + trEnd;
+  httpData += trStart + F("Max depth (m):") + tdBreak + htmlInput("text",     "maxdepth", String(maxdepth)) + trEnd;
   return httpData;
 }
 

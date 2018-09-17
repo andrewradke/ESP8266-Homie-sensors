@@ -4,8 +4,8 @@
 
 const char str_pressureRange[]  = "pressureRange";
 const char str_pulsesPerLitre[] = "pulsesPerLitre";
-const char str_pressureMin[]    = "pressureMin";
-const char str_pressureMax[]    = "pressureMax";
+const char str_cutoffLow[]      = "cutoffLow";
+const char str_cutoffHigh[]     = "cutoffHigh";
 const char str_pressureOn[]     = "pressureOn";
 const char str_pressureOff[]    = "pressureOff";
 const char str_flowMin[]        = "flowMin";
@@ -38,8 +38,8 @@ void sensorSetup() {
 void  printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + str_pressureRange),  String(pressureRange), true);
   mqttSend(String(cfgStr + str_pulsesPerLitre), String(pulsesPerLitre), true);
-  mqttSend(String(cfgStr + str_pressureMin),    String(pressureMin), true);
-  mqttSend(String(cfgStr + str_pressureMax),    String(pressureMax), true);
+  mqttSend(String(cfgStr + str_cutoffLow),      String(cutoffLow), true);
+  mqttSend(String(cfgStr + str_cutoffHigh),     String(cutoffHigh), true);
   mqttSend(String(cfgStr + str_pressureOn),     String(pressureOn), true);
   mqttSend(String(cfgStr + str_pressureOff),    String(pressureOff), true);
   mqttSend(String(cfgStr + str_flowMin),        String(flowMin), true);
@@ -53,11 +53,11 @@ void sensorImportJSON(JsonObject& json) {
   if (json[str_pulsesPerLitre].is<float>()) {
     pulsesPerLitre = json[str_pulsesPerLitre];
   }
-  if (json[str_pressureMin].is<float>()) {
-    pressureMin = json[str_pressureMin];
+  if (json[str_cutoffLow].is<float>()) {
+    cutoffLow = json[str_cutoffLow];
   }
-  if (json[str_pressureMax].is<float>()) {
-    pressureMax = json[str_pressureMax];
+  if (json[str_cutoffHigh].is<float>()) {
+    cutoffHigh = json[str_cutoffHigh];
   }
   if (json[str_pressureOn].is<float>()) {
     pressureOn = json[str_pressureOn];
@@ -76,8 +76,8 @@ void sensorImportJSON(JsonObject& json) {
 void sensorExportJSON(JsonObject& json) {
   json[str_pressureRange]  = pressureRange;
   json[str_pulsesPerLitre] = pulsesPerLitre;
-  json[str_pressureMin]    = pressureMin;
-  json[str_pressureMax]    = pressureMax;
+  json[str_cutoffLow]      = cutoffLow;
+  json[str_cutoffHigh]     = cutoffHigh;
   json[str_pressureOn]     = pressureOn;
   json[str_pressureOff]    = pressureOff;
   json[str_flowMin]        = flowMin;
@@ -89,10 +89,10 @@ bool sensorUpdateConfig(const String &key, const String &value) {
     pressureRange = value.toFloat();
   } else if ( key == str_pulsesPerLitre ) {
     pulsesPerLitre = value.toFloat();
-  } else if ( key == str_pressureMin ) {
-    pressureMin = value.toInt();
-  } else if ( key == str_pressureMax ) {
-    pressureMax = value.toInt();
+  } else if ( key == str_cutoffLow ) {
+    cutoffLow = value.toInt();
+  } else if ( key == str_cutoffHigh ) {
+    cutoffHigh = value.toInt();
   } else if ( key == str_pressureOn ) {
     pressureOn = value.toInt();
   } else if ( key == str_pressureOff ) {
@@ -113,57 +113,106 @@ bool sensorRunAction(const String &key, const String &value) {
 
 void calcData() {
   // Every second, get the current anolog reading and calculate and print litres/hour
-  if ( currentTime >= (cloopTime + 1000) ) {
-#ifdef USEI2CADC
-    voltage = i2cADC.calcMillivolts() / 1000.0;
-#else
-    voltage = analogRead(A0);
-    // 0.004887585533 gives 4.75V
-    // 0.005144826877 should give 5V
-    voltage *= 0.005144826877;   // Convert 1023 to 5V
-#endif
-    pressure = (voltage - 0.5) / 4 * pressureRange;
-
-    cloopTime = currentTime;                      // Updates cloopTime
+  if ( currentTime >= (floopTime + 1000) ) {
+    floopTime = currentTime;                      // Updates floopTime
     flow_hz = flow_counter - flow_hz;
     // Pulse frequency (Hz) = 7.5 Q, Q is flow rate in L/min. (Results in +/- 3% range)
     l_hour = flow_hz * flowrate;                  // Pulse frequency x 60 min / PULSENUM = flow rate in L/hour
     flow_hz = flow_counter;                       // Reset counter
-    litres = flow_counter / litrerate;            // get the total litres so far
+    litres = flow_counter / litrerate;            // get the total litres so far    
+
+#ifdef USESSD1306
+    display.clearDisplay();
+    char text[7];
+    dtostrf(pressure, 6, 1, text);
+    display.setCursor(0, 0);
+    display.setTextSize(3);
+    display.print(text);
+    display.setCursor(103, 15);
+    display.setTextSize(1);
+    display.print(" psi");
 
     if (pumpCutoff) {
-      // Check for pump cutoff reset
+      display.setCursor(0, 27);
+      display.setTextSize(3);
+      display.print("CUTOFF");
     } else {
-      if ( (pumpState) && ( (millis() / 1000) - pumpTimer > pumpCheckDelay ) && ( pressure < pressureMin ) ) {     // Pump pressure too low. Cutoff
-        logString = String(str_Pump_) + String(str_pumpCutoff) + String(str_duePressure) + "< " + String(pressureMin);
-        logMessage(app_name_sensors, logString, false);
-        pumpCutoff = true;
-        pumpControl(false);
-      } else if (pumpState && pressure > pressureMax ) {                                                           // Pump pressure too high. Cutoff
-        logString = String(str_Pump_) + String(str_pumpCutoff) + String(str_duePressure) + "> " + String(pressureMax);
-        logMessage(app_name_sensors, logString, false);
-        pumpCutoff = true;
-        pumpControl(false);
-  
-      } else if ( (pumpState) && ( (millis() / 1000) - pumpTimer > pumpCheckDelay ) && ( l_hour < flowMin ) ) {    // Pump is on but flow rate is too low. Cutoff
-        logString = String(str_Pump_) + String(str_pumpOff) + String(str_dueFlow) + "< " + String(flowMin);
-        logMessage(app_name_sensors, logString, false);
-        pumpControl(false);
+      dtostrf(l_hour, 6, 0, text);
+      display.setCursor(0, 27);
+      display.setTextSize(3);
+      display.print(text);
+      display.setCursor(103, 42);
+      display.setTextSize(1);
+      display.print(" L/h");
 
-      } else if ( (pumpState) && (pressure >= pressureOff) ) {
-        logString = String(str_Pump_) + String(str_pumpOff) + String(str_duePressure) + "> " + String(pressureOff);
+      if (pumpState) {
+        display.setCursor(0, 47);
+        display.setTextSize(2);
+        display.print(str_Pump_);
+        display.print(str_pumpOn);
+      }
+    }
+
+    display.display();
+    prevDisplay = millis();
+#endif
+
+    if ( (pumpState) && ( (millis() / 1000) - pumpTimer < pumpCheckDelay ) ) {     // If we are in the pumpCheckDelay period send data every second
+      sendData();
+      mqttTime = currentTime;                      // Updates mqttTime
+    }
+
+
+  }
+  if ( currentTime >= (cloopTime + 50) ) {
+    voltage = analogRead(A0);
+    // 0.004887585533 gives 4.75V
+    // 0.005144826877 should give 5V
+    voltage *= 0.005144826877;   // Convert 1023 to 5V
+    pressure = (voltage - 0.5) / 4 * pressureRange;
+
+    cloopTime = currentTime;                      // Updates cloopTime
+
+    if (pumpCutoff) {
+      // Check for pump cutoff reset, don't bother with interrupts or debouncing
+      if ( digitalRead(CONFIG_PIN) == LOW ) {
+        logString = String(str_Pump_) + String(str_pumpCutoff) + " reset";
         logMessage(app_name_sensors, logString, false);
-        pumpControl(false);
-      } else if ( (! pumpState) && ( pressure >= pressureMin) && (pressure <= pressureOn) ) {
+        pumpCutoff = false;
+        pumpControl(true);
+      }
+    } else {
+
+      if ( (! pumpState) && (pressure <= pressureOn) ) {                                                                // If the pressure is low enough and the pump isn't running turn on even if it's below the cutoff pressure (we'll cutoff soon if it doesn't increase)
         logString = String(str_Pump_) + String(str_pumpOn) + String(str_duePressure) + "< " + String(pressureOn);
         logMessage(app_name_sensors, logString, false);
         pumpControl(true);
+      } else if ( (pumpState) && ( (millis() / 1000) - pumpTimer > pumpCheckDelay ) && ( pressure < cutoffLow ) ) {     // Pump pressure too low. Cutoff if pumpCheckDelay exceeded
+        logString = String(str_Pump_) + String(str_pumpCutoff) + String(str_duePressure) + "< " + String(cutoffLow);
+        logMessage(app_name_sensors, logString, false);
+        pumpCutoff = true;
+        pumpControl(false);
+      } else if (pumpState && (pressure > cutoffHigh) ) {                                                               // Pump pressure too high. Cutoff immediately, no delay
+        logString = String(str_Pump_) + String(str_pumpCutoff) + String(str_duePressure) + "> " + String(cutoffHigh);
+        logMessage(app_name_sensors, logString, false);
+        pumpCutoff = true;
+        pumpControl(false);
+      } else if ( (pumpState) && ( (millis() / 1000) - pumpTimer > pumpCheckDelay ) && ( l_hour < flowMin ) ) {         // Pump is on but flow rate is too low. Turn off if pumpCheckDelay exceeded
+        logString = String(str_Pump_) + String(str_pumpOff) + String(str_dueFlow) + "< " + String(flowMin);
+        logMessage(app_name_sensors, logString, false);
+        pumpControl(false);
+      } else if ( (pumpState) && (pressure >= pressureOff) ) {                                                          // Pump is on but pressure is high enough to turn off.
+        logString = String(str_Pump_) + String(str_pumpOff) + String(str_duePressure) + "> " + String(pressureOff);
+        logMessage(app_name_sensors, logString, false);
+        pumpControl(false);
       }
   
       if ( pumpState != pumpPrevState ) {           // Send the state *immediately* if it has changed, it can be sent again later without problems
         mqttSend(String(str_pumpPower), String(pumpState), false);  
         pumpPrevState = pumpState;
         pumpTimer = millis()/1000;
+        sendData();
+        mqttTime = currentTime;                      // Updates mqttTime
       }
     }
   }
@@ -198,11 +247,11 @@ String httpSensorData() {
 //  httpData += trEnd;
 
   httpData += trStart + F("Flow rate:") + tdBreak;
-  httpData += String(l_hour) + " lph";
+  httpData += String(l_hour) + " L/h";
   httpData += trEnd;
 
   httpData += trStart + F("Total litres:") + tdBreak;
-  httpData += String(litres) + " l";
+  httpData += String(litres) + " L";
   httpData += trEnd;
 
   httpData += trStart + F("Pump:") + tdBreak;
@@ -230,12 +279,12 @@ String httpSensorSetup() {
   httpData += trStart + F("Pressure range:")               + tdBreak + htmlInput(str_text, str_pressureRange,  String(pressureRange))  + trEnd;
   httpData += trStart + F("Pulses/litre:")                 + tdBreak + htmlInput(str_text, str_pulsesPerLitre, String(pulsesPerLitre)) + trEnd;
   httpData += trStart + F("<b>Pressures:</b>") + tdBreak + trEnd;
-  httpData += trStart + F("Cutout minimum:")               + tdBreak + htmlInput(str_text, str_pressureMin,    String(pressureMin))    + trEnd;
-  httpData += trStart + F("Cutout maximum:")               + tdBreak + htmlInput(str_text, str_pressureMax,    String(pressureMax))    + trEnd;
-  httpData += trStart + F("Turn on:")                      + tdBreak + htmlInput(str_text, str_pressureOn,     String(pressureOn))     + trEnd;
-  httpData += trStart + F("Turn off:")                     + tdBreak + htmlInput(str_text, str_pressureOff,    String(pressureOff))    + trEnd;
-  httpData += trStart + F("Cutout flow - minimum (lph):")  + tdBreak + htmlInput(str_text, str_flowMin,        String(flowMin))        + trEnd;
-  httpData += trStart + F("Startup flow check delay (s):") + tdBreak + htmlInput(str_text, str_pumpCheckDelay, String(pumpCheckDelay)) + trEnd;
+  httpData += trStart + F("Cutout minimum:")               + tdBreak + htmlInput(str_text, str_cutoffLow,      String(cutoffLow))    + trEnd;
+  httpData += trStart + F("Cutout maximum:")               + tdBreak + htmlInput(str_text, str_cutoffHigh,     String(cutoffHigh))    + trEnd;
+  httpData += trStart + F("Pressure on:")                  + tdBreak + htmlInput(str_text, str_pressureOn,     String(pressureOn))     + trEnd;
+  httpData += trStart + F("Pressure off:")                 + tdBreak + htmlInput(str_text, str_pressureOff,    String(pressureOff))    + trEnd;
+  httpData += trStart + F("Cutout flow - minimum (L/h):")  + tdBreak + htmlInput(str_text, str_flowMin,        String(flowMin))        + trEnd;
+  httpData += trStart + F("Startup check delay (s):")      + tdBreak + htmlInput(str_text, str_pumpCheckDelay, String(pumpCheckDelay)) + trEnd;
   return httpData;
 }
 
@@ -252,16 +301,16 @@ String httpSensorConfig() {
       pulsesPerLitre = httpServer.arg(str_pulsesPerLitre).toFloat();
     }
   }
-  if (httpServer.hasArg(str_pressureMin)) {
-    tmpString = String(pressureMin);
-    if (httpServer.arg(str_pressureMin) != tmpString) {
-      pressureMin = httpServer.arg(str_pressureMin).toInt();
+  if (httpServer.hasArg(str_cutoffLow)) {
+    tmpString = String(cutoffLow);
+    if (httpServer.arg(str_cutoffLow) != tmpString) {
+      cutoffLow = httpServer.arg(str_cutoffLow).toInt();
     }
   }
-  if (httpServer.hasArg(str_pressureMax)) {
-    tmpString = String(pressureMax);
-    if (httpServer.arg(str_pressureMax) != tmpString) {
-      pressureMax = httpServer.arg(str_pressureMax).toInt();
+  if (httpServer.hasArg(str_cutoffHigh)) {
+    tmpString = String(cutoffHigh);
+    if (httpServer.arg(str_cutoffHigh) != tmpString) {
+      cutoffHigh = httpServer.arg(str_cutoffHigh).toInt();
     }
   }
   if (httpServer.hasArg(str_pressureOn)) {
