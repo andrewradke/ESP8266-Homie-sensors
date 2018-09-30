@@ -11,12 +11,13 @@ const char str_pressureOff[]    = "pressureOff";
 const char str_flowMin[]        = "flowMin";
 const char str_pumpCheckDelay[] = "pumpCheckDelay";
 
-const char str_pumpPower[]      = "pump/power";
-const char str_voltageVolts[]   = "voltage/volts";
-const char str_pressurePsi[]    = "pressure/psi";
-const char str_counterCounter[] = "counter/counter";
-const char str_litresCounter[]  = "litres/counter";
-const char str_lphLph[]         = "lph/lph";
+const char str_pump_Power[]      = "pump/power";
+const char str_pump_Cutoff[]     = "cutoff/bool";
+const char str_voltage_Volts[]   = "voltage/volts";
+const char str_pressure_Psi[]    = "pressure/psi";
+const char str_counter_Counter[] = "counter/counter";
+const char str_litres_Counter[]  = "litres/counter";
+const char str_lph_Lph[]         = "lph/lph";
 
 const char str_pumpOn[]         = "on";
 const char str_pumpOff[]        = "off";
@@ -208,7 +209,7 @@ void calcData() {
       }
   
       if ( pumpState != pumpPrevState ) {           // Send the state *immediately* if it has changed, it can be sent again later without problems
-        mqttSend(String(str_pumpPower), String(pumpState), false);  
+        mqttSend(String(str_pump_Power), String(pumpState), false);  
         pumpPrevState = pumpState;
         pumpTimer = millis()/1000;
         sendData();
@@ -219,12 +220,13 @@ void calcData() {
 }
 
 void sendData() {
-  mqttSend(String(str_voltageVolts),   String(voltage),      false);
-  mqttSend(String(str_pressurePsi),    String(pressure),     false);
-  mqttSend(String(str_counterCounter), String(flow_counter), false);
-  mqttSend(String(str_litresCounter),  String(litres),       false);
-  mqttSend(String(str_lphLph),         String(l_hour),       false);
-  mqttSend(String(str_pumpPower),      String(pumpState),    false);
+//  mqttSend(String(str_voltage_Volts),   String(voltage),      false);
+  mqttSend(String(str_pressure_Psi),    String(pressure),     false);
+//  mqttSend(String(str_counter_Counter), String(flow_counter), false);
+  mqttSend(String(str_litres_Counter),  String(litres),       false);
+  mqttSend(String(str_lph_Lph),         String(l_hour),       false);
+  mqttSend(String(str_pump_Power),      String(pumpState),    false);
+  mqttSend(String(str_pump_Cutoff),     String(pumpCutoff),   false);
 }
 
 void flow () {                     // Interrupt function
@@ -401,7 +403,7 @@ void pumpControl(bool newState) {
       logMessage(app_name_sensors, logString, false);
     }
   }
-  mqttSend(String(str_pumpPower), String(pumpState), false);
+  mqttSend(String(str_pump_Power), String(pumpState), false);
 }
 
 void sensorMqttSubs() {

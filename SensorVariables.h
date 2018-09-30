@@ -163,7 +163,7 @@ const char switchClosedNoun[] = "closed";
 #elif FWTYPE == 8
 
 char fwname[40] =    "esp8266-bme280";
-char nodes[100] =    "temperature:celsius,humidity:percentage,pressure:hpa,pressure-sealevel:hpa";
+char nodes[100] =    "temperature:celsius,humidity:percentage,dewpoint:celsius,pressure:hpa,pressure-sealevel:hpa";
 #define CONFIG_PIN   13         // WeMos D1 Mini D7
 #define I2C_ADDRESS  0x77       // 0x76 or 0x77
 
@@ -196,7 +196,7 @@ int      bme280ErrorP = 0;
 #elif FWTYPE == 9
 
 char fwname[40] =    "esp8266-sht31";
-char nodes[100] =    "temperature:celsius,humidity:percentage";
+char nodes[100] =    "temperature:celsius,humidity:percentage,dewpoint:celsius";
 #define CONFIG_PIN   13         // WeMos D1 Mini D7
 
 float    temperature  = 1000;
@@ -343,7 +343,7 @@ uint32_t relayOffTime = 0;              // The *seconds* at which the relay need
 #elif FWTYPE == 14
 
 char fwname[40] =    "esp8266-pump-controller";
-char nodes[100] =    "voltage:volts,pressure:psi,counter:counter,litres:litres,lph:lph,pump:power";
+char nodes[100] =    "pressure:psi,litres:litres,lph:lph,pump:power,cutoff:bool";
 
 #define PULSE_PIN      14     // WeMos D1 Mini D5
 #define RELAY_PIN      16     // WeMos D1 Mini D0

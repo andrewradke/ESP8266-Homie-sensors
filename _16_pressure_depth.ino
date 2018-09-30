@@ -58,7 +58,7 @@ void sendData() {
     mqttLog(app_name_sensors, logString);
   } else {
     pressure = (voltage - 0.5) / 4 * pressureRange;
-    depth    = pressure / 1.417;                      // 1.417psi/metre
+    depth    = pressure / 1.4579;                     // 1.4579psi/metre
     depth    += depthOffset;                          // Allow readings to be moved up or down depnding on the level the sensor is sitting in the water
     mqttSend(String(str_depthMetre),     String(depth),        false);
     mqttSend(String(str_voltageVolts),   String(voltage),      false);

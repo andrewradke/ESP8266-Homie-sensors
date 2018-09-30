@@ -17,6 +17,7 @@
    13 esp8266-timer
    14 esp8266-pump-controller
    15 esp8266-tli4970
+   16 esp8266-pressure-depth
 */
 
 /********************  IMPORTANT NOTE for ADS1115  ********************
@@ -28,10 +29,10 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     8
-#define FWVERSION  "0.9.19p"
+#define FWTYPE     14
+#define FWVERSION  "0.9.19q"
 #define FWPASSWORD "esp8266."
-//#define USESSD1306                // SSD1306 OLED display
+#define USESSD1306                // SSD1306 OLED display
 
 
 //#define DEBUG
