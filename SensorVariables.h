@@ -189,6 +189,7 @@ bool     bme280Error  = 0;
 int      bme280ErrorT = 0;
 int      bme280ErrorH = 0;
 int      bme280ErrorP = 0;
+bool     bme280_100Hokay = true;
 
 
 

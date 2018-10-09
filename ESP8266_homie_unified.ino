@@ -29,8 +29,8 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     14
-#define FWVERSION  "0.9.19q"
+#define FWTYPE     8
+#define FWVERSION  "0.9.19r"
 #define FWPASSWORD "esp8266."
 #define USESSD1306                // SSD1306 OLED display
 

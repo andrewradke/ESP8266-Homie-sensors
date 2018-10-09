@@ -1,5 +1,9 @@
 #if FWTYPE == 8      // esp8266-bme280
 
+const char str_elevation[]       = "elevation";
+const char str_bme280_100Hokay[] = "bme280_100Hokay";
+
+
 void sensorSetup() {
   bme280Status = bme.begin(I2C_ADDRESS);
   logString = "BME280 ";
@@ -20,22 +24,36 @@ void sensorSetup() {
 }
 
 void  printSensorConfig(const String &cfgStr) {
-  mqttSend(String(cfgStr + "elevation"), String(elevation), true);
+  mqttSend(String(cfgStr + str_elevation),       String(elevation),       true);
+  mqttSend(String(cfgStr + str_bme280_100Hokay), String(bme280_100Hokay), true);
 }
 
 void sensorImportJSON(JsonObject& json) {
-  if (json["elevation"].is<float>()) {
-    elevation = json["elevation"];
+  if (json[str_elevation].is<float>()) {
+    elevation = json[str_elevation];
+  }
+  if (json[str_bme280_100Hokay].is<bool>()) {
+    bme280_100Hokay = json[str_bme280_100Hokay];
   }
 }
 
 void sensorExportJSON(JsonObject& json) {
-  json["elevation"] = elevation;
+  json[str_elevation]       = elevation;
+  json[str_bme280_100Hokay] = bme280_100Hokay;
 }
 
 bool sensorUpdateConfig(const String &key, const String &value) {
-  if ( key == "elevation" ) {
+  if ( key == str_elevation ) {
     elevation = value.toFloat();
+  } else if ( key == str_bme280_100Hokay ) {
+    if ( value.equalsIgnoreCase("true") or value.equalsIgnoreCase("yes") or value == "1" ) {
+      bme280_100Hokay = true;
+    } else if ( value.equalsIgnoreCase("false") or value.equalsIgnoreCase("no") or value == "0" ) {
+      bme280_100Hokay = false;
+    } else {
+      logString = String(F("Unrecognised value for bme280_100Hokay: ")) + value;
+      mqttLog(app_name_sensors, logString);      
+    }
   } else {
     return false;
   }
@@ -80,7 +98,6 @@ void sendData() {
 
     temperature2 = bme.readTemperature();
     humidity2    = bme.readHumidity();
-//    humidity2    = 255;    // Permanently treat BME280 humidity as bad
     pressure2    = bme.readPressure() / 100.0;
 //  The following equation is from https://www.sandhurstweather.org.uk/barometric.pdf
     sealevel2    = pressure2 / exp(-elevation/((temperature2 + 273.15)*29.263));
@@ -102,7 +119,7 @@ void sendData() {
     } else {  // Bad temperature reading
       bme280ErrorT++;
       if (bme280ErrorT == error_count_log) {
-        logString = "BME280 temperature error: " + String(temperature2) + "C";
+        logString = "BME280 temperature error: " + String(temperature2) + " C";
         mqttLog(app_name_sensors, logString);
       }
     }
@@ -110,8 +127,8 @@ void sendData() {
 
 
     // Start humidity
-    // 100% humidity means the humidity sensor has gotten wet and is no longer useful
-    if ( humidity2 > 0 && humidity2 < 100) {
+    // 100% humidity can mean the humidity sensor has gotten wet and is no longer useful
+    if ( humidity2 > 0 && ( bme280_100Hokay || humidity2 < 100 ) ) {
 
       humidity = humidity2;
 
@@ -125,7 +142,7 @@ void sendData() {
     } else {
       bme280ErrorH++;
       if (bme280ErrorH == error_count_log) {
-        logString = "BME280 humidity error: " + String(humidity2) + "%";
+        logString = "BME280 humidity error: " + String(humidity2) + " %";
         mqttLog(app_name_sensors, logString);
       }
     }
@@ -149,7 +166,7 @@ void sendData() {
     } else {  // Bad pressure reading
       bme280ErrorP++;
       if (bme280ErrorP == error_count_log) {
-        logString = "BME280 pressure error: " + String(sealevel2) + "hpa";
+        logString = "BME280 pressure error: " + String(sealevel2) + " hpa";
         mqttLog(app_name_sensors, logString);
       }
     }
@@ -237,17 +254,26 @@ String httpSensorData() {
 
 String httpSensorSetup() {
   String httpData;
-  httpData += trStart + "Elevation (m):" + tdBreak + htmlInput("text", "elevation", String(elevation)) + trEnd;
+  httpData += trStart + F("Elevation (m):")      + tdBreak + htmlInput("text", str_elevation, String(elevation)) + trEnd;
+  httpData += trStart + F("100% humidity okay?") + tdBreak + htmlCheckbox(str_bme280_100Hokay, bme280_100Hokay)  + trEnd;
   return httpData;
 }
 
 String httpSensorConfig() {
-  if (httpServer.hasArg("elevation")) {
+  if (httpServer.hasArg(str_elevation)) {
     tmpString = String(elevation);
-    if (httpServer.arg("elevation") != tmpString) {
-      elevation = httpServer.arg("elevation").toFloat();
+    if (httpServer.arg(str_elevation) != tmpString) {
+      elevation = httpServer.arg(str_elevation).toFloat();
     }
   }
+  if (httpServer.hasArg(str_bme280_100Hokay)) {
+    if (httpServer.arg(str_bme280_100Hokay) == str_on) {
+      bme280_100Hokay = true;
+    } else {
+      bme280_100Hokay = false;
+    }
+  }
+
 }
 
 void sensorMqttCallback(char* topic, byte* payload, unsigned int length) {}
