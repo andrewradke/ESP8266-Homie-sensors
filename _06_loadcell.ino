@@ -74,8 +74,8 @@ String httpSensorData() {
 
 String httpSensorSetup() {
   String httpData;
-  httpData += trStart + "offset:" + tdBreak + htmlInput("text",     "offset", String(offset)) + trEnd;
-  httpData += trStart + "scale:"  + tdBreak + htmlInput("text",     "scale",  String(scale))  + trEnd;
+  httpData += trStart + "offset:" + tdBreak + htmlInput(str_text,     "offset", String(offset)) + trEnd;
+  httpData += trStart + "scale:"  + tdBreak + htmlInput(str_text,     "scale",  String(scale))  + trEnd;
   return httpData;
 }
 

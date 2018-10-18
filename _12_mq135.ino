@@ -64,7 +64,7 @@ String httpSensorData() {
 
 String httpSensorSetup() {
   String httpData;
-  httpData += trStart + F("MQ135 RO:") + tdBreak + htmlInput("text", "mq135_ro", String(mq135_ro)) + F("current reading: ") + String(mq135_getro(val, MQ135_DEFAULTPPM)) + trEnd;
+  httpData += trStart + F("MQ135 RO:") + tdBreak + htmlInput(str_text, "mq135_ro", String(mq135_ro)) + F("current reading: ") + String(mq135_getro(val, MQ135_DEFAULTPPM)) + trEnd;
   return httpData;
 }
 

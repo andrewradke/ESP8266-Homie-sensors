@@ -72,7 +72,7 @@ String htmlHeader() {
     for (byte i = 0; i < MENU_COUNT; i++){
       String tmpString  = FPSTR(HTTP_NAV_LI);
       if (httpServer.uri() == http_page_urls[i]) {
-        tmpString.replace("{c}", " class='active'");
+        tmpString.replace("{c}", F(" class='active'"));
         tmpString.replace("{l}", http_page_names[i]);
       } else {
         if ( (inConfigAP) && (http_page_urls[i] == "/logout") ) {
@@ -994,7 +994,7 @@ void handleWifiSave() {
 
   if (_ssid != "" && _psk != "") {
     httpData = FPSTR(HTTP_HEAD);
-    httpData.replace("{v}", "Credentials Saved");
+    httpData.replace("{v}", F("Credentials Saved"));
     httpData += FPSTR(HTTP_SCRIPT);
     httpData += FPSTR(HTTP_STYLE);
     httpData += FPSTR(HTTP_HEAD_END);

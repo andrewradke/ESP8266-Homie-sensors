@@ -73,7 +73,7 @@ String httpSensorData() {
 
 String httpSensorSetup() {
   String httpData;
-  httpData += trStart + "Pulses per litre:" + tdBreak + htmlInput("text",     "pulsesPerLitre", String(pulsesPerLitre)) + trEnd;
+  httpData += trStart + "Pulses per litre:" + tdBreak + htmlInput(str_text,     "pulsesPerLitre", String(pulsesPerLitre)) + trEnd;
   return httpData;
 }
 

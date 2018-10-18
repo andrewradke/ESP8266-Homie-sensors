@@ -107,7 +107,7 @@ String httpSensorSetup() {
   String httpData;
   httpData += trStart + "Pressure ranges:" + tdBreak + trEnd;
   for (byte i = 0; i < 4; i = i + 1) {
-    httpData += trStart + String(i+1) + ":" + tdBreak + htmlInput("text", "pressure" + String(i), String(pressureRanges[i])) + trEnd;
+    httpData += trStart + String(i+1) + ":" + tdBreak + htmlInput(str_text, "pressure" + String(i), String(pressureRanges[i])) + trEnd;
   }
   return httpData;
 }

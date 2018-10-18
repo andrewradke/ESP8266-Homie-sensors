@@ -1,5 +1,22 @@
 #if FWTYPE == 11      // esp8266-weathervane
 
+const char DIR_ARROW[] PROGMEM = " &nbsp; <span style='transform:rotate({v}deg);position:absolute;color:blue;font-weight:bold;'>&darr;</span>";
+
+const char str_kphPerPulse[]    = "kphPerPulse";
+const char str_mmPerPulse[]     = "mmPerPulse";
+
+const char str_kph[]            = " kph";
+const char str_mm[]             = " mm";
+const char str_html_deg[]       = "&deg;";
+
+const char str_rain_Mm[]        = "rain/mm";
+const char str_rain_Counter[]   = "rain_counter/counter";
+const char str_wind_Direction[] = "wind_direction/degrees";
+const char str_gust_Direction[] = "gust_direction/degrees";
+const char str_wind_Speed[]     = "wind_speed/kph";
+const char str_gust_Speed[]     = "gust_speed/kph";
+
+
 void sensorSetup() {
   pinMode(RAINGAUGE_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(RAINGAUGE_PIN),  rain, RISING);  // Setup Interrupt
@@ -9,28 +26,28 @@ void sensorSetup() {
 }
 
 void  printSensorConfig(const String &cfgStr) {
-  mqttSend(String(cfgStr + "kphPerPulse"), String(kphPerPulse), true);
-  mqttSend(String(cfgStr + "mmPerPulse"),  String(mmPerPulse),  true);
+  mqttSend(String(cfgStr + str_kphPerPulse), String(kphPerPulse), true);
+  mqttSend(String(cfgStr + str_mmPerPulse),  String(mmPerPulse),  true);
 }
 
 void sensorImportJSON(JsonObject& json) {
-  if (json["kphPerPulse"].is<float>()) {
-    kphPerPulse     = json["kphPerPulse"];
+  if (json[str_kphPerPulse].is<float>()) {
+    kphPerPulse     = json[str_kphPerPulse];
   }
-  if (json["mmPerPulse"].is<float>()) {
-    mmPerPulse      = json["mmPerPulse"];
+  if (json[str_mmPerPulse].is<float>()) {
+    mmPerPulse      = json[str_mmPerPulse];
   }
 }
 
 void sensorExportJSON(JsonObject& json) {
-  json["kphPerPulse"] = kphPerPulse;
-  json["mmPerPulse"]  = mmPerPulse;
+  json[str_kphPerPulse] = kphPerPulse;
+  json[str_mmPerPulse]  = mmPerPulse;
 }
 
 bool sensorUpdateConfig(const String &key, const String &value) {
-  if ( key == "kphPerPulse" ) {
+  if ( key == str_kphPerPulse ) {
     kphPerPulse = value.toFloat();
-  } else if ( key == "mmPerPulse" ) {
+  } else if ( key == str_mmPerPulse ) {
     mmPerPulse  = value.toFloat();
   } else {
     return false;
@@ -86,7 +103,7 @@ void calcData() {
       dir_reading = 12;
     } else {                          // ERROR - shorted to 5V
       dir_reading = 17;
-      logString = ("ERROR: Wind vane shorted to 5V.");
+      logString = F("ERROR: Wind vane shorted to 5V.");
       mqttLog(app_name_sensors, logString);
     }
     wind_dirs[wind_array_pos]   = dir_reading;
@@ -127,7 +144,7 @@ void calcData() {
 #ifdef USEALLGUSTS
       // Find the maximum and minimum wind speeds from the previous 60 seconds
       if (
-        ( (wind_array_pos >= 59) && (i > (wind_array_pos - 59)) ) ||
+        ( (wind_array_pos >= 59) && (i > (wind_array_pos - 59)) && (i <= wind_array_pos) ) ||
         ( (wind_array_pos < 59) && (i <= wind_array_pos) ) ||
         ( (wind_array_pos < 59) && (i >= (readings - 59 + wind_array_pos)) )
         ) {
@@ -167,7 +184,7 @@ void calcData() {
         // We've got a gust to report
         gust_speed = max_speed * kphPerPulse;
         gust_dir   = max_dir * 22.5;
-        logString = "Wind gust: " + String(gust_speed) + " kph, " + String(gust_dir) + " degrees";
+        logString = String(F("Wind gust: ") + String(gust_speed) + + str_kph + ", " + String(gust_dir) + F(" degrees");
         mqttLog(app_name_sensors, logString);
       }
     }
@@ -184,17 +201,17 @@ void calcData() {
 
 void sendData() {
   rain_mm = rain_counter * mmPerPulse;
-  mqttSend(String("rain/mm"),                    String(rain_mm),      false);
-  mqttSend(String("rain_counter/counter"),       String(rain_counter), false);
+  mqttSend(String(str_rain_Mm),          String(rain_mm),      false);
+  mqttSend(String(str_rain_Counter),     String(rain_counter), false);
   if (dir_reading <= 15) {                // No errors reported
-    mqttSend(String("wind_direction/degrees"),   String(wind_dir),     false);
-    mqttSend(String("gust_direction/degrees"),   String(gust_dir),     false);
+    mqttSend(String(str_wind_Direction), String(wind_dir),     false);
+    mqttSend(String(str_gust_Direction), String(gust_dir),     false);
   } else {
-    mqttSend(String("wind_direction/degrees"),   str_NaN,              false);
-    mqttSend(String("gust_direction/degrees"),   str_NaN,              false);
+    mqttSend(String(str_wind_Direction), str_NaN,              false);
+    mqttSend(String(str_gust_Direction), str_NaN,              false);
   }
-  mqttSend(String("wind_speed/kph"),             String(wind_speed),   false);
-  mqttSend(String("gust_speed/kph"),             String(gust_speed),   false);
+  mqttSend(String(str_wind_Speed),       String(wind_speed),   false);
+  mqttSend(String(str_gust_Speed),       String(gust_speed),   false);
 }
 
 void rain () {                     // Interrupt function
@@ -213,60 +230,65 @@ void wind () {                     // Interrupt function
 String httpSensorData() {
   String httpData = tableStart;
 
-  httpData += trStart + "Rain:" + tdBreak;
-  httpData += String(rain_mm) + " mm";
+  httpData += trStart + F("Rain:") + tdBreak;
+  httpData += String(rain_mm) + str_mm;
   httpData += trEnd;
 
-  httpData += trStart + "Rain counter:" + tdBreak;
+  httpData += trStart + F("Rain counter:") + tdBreak;
   httpData += String(rain_counter);
   httpData += trEnd;
 
-  httpData += trStart + "Wind direction:" + tdBreak;
+  httpData += trStart + F("Wind direction:") + tdBreak;
   if (dir_reading <= 15) {
-    httpData += String(wind_dir) + " deg";
+    httpData += String(wind_dir) + str_html_deg;
+    tmpString = FPSTR(DIR_ARROW);
+    tmpString.replace("{v}", String(wind_dir));
+    httpData += tmpString;
   } else {
     httpData += "-";
   }
   httpData += trEnd;
 
-  httpData += trStart + "Wind speed:" + tdBreak;
-  httpData += String(wind_speed) + " kph";
+  httpData += trStart + F("Wind speed:") + tdBreak;
+  httpData += String(wind_speed) + str_kph;
   httpData += trEnd;
 
-  httpData += trStart + "Gust direction:" + tdBreak;
+  httpData += trStart + F("Gust direction:") + tdBreak;
   if (dir_reading <= 15) {
-    httpData += String(gust_dir) + " deg";
+    httpData += String(gust_dir) + str_html_deg;
+    tmpString = FPSTR(DIR_ARROW);
+    tmpString.replace("{v}", String(gust_dir));
+    httpData += tmpString;
   } else {
     httpData += "-";
   }
   httpData += trEnd;
 
-  httpData += trStart + "Gust speed:" + tdBreak;
-  httpData += String(gust_speed) + " kph";
+  httpData += trStart + F("Gust speed:") + tdBreak;
+  httpData += String(gust_speed) + str_kph;
   httpData += trEnd;
 
-  httpData += tableEnd;
   return httpData;
 }
 
 String httpSensorSetup() {
   String httpData;
-  httpData += trStart + "Wind KPH per pulse:" + tdBreak + htmlInput("text",     "kphPerPulse", String(kphPerPulse)) + trEnd;
-  httpData += trStart + "mm rain per pulse:"  + tdBreak + htmlInput("text",     "mmPerPulse",  String(mmPerPulse))  + trEnd;
+  httpData += trStart + F("Wind KPH per pulse:") + tdBreak + htmlInput(str_text, str_kphPerPulse, String(kphPerPulse)) + trEnd;
+  httpData += trStart + F("mm rain per pulse:")  + tdBreak + htmlInput(str_text, str_mmPerPulse,  String(mmPerPulse))  + trEnd;
   return httpData;
 }
 
 String httpSensorConfig() {
-  if (httpServer.hasArg("kphPerPulse")) {
+  if (httpServer.hasArg(str_kphPerPulse)) {
     tmpString = String(kphPerPulse);
-    if (httpServer.arg("kphPerPulse") != tmpString) {
-      kphPerPulse = httpServer.arg("kphPerPulse").toFloat();
+    if (httpServer.arg(str_kphPerPulse) != tmpString) {
+      kphPerPulse = httpServer.arg(str_kphPerPulse).toFloat();
     }
   }
-  if (httpServer.hasArg("mmPerPulse")) {
+  if (httpServer.hasArg(str_mmPerPulse)) {
     tmpString = String(mmPerPulse);
-    if (httpServer.arg("mmPerPulse") != tmpString) {
-      mmPerPulse = httpServer.arg("mmPerPulse").toFloat();
+    if (httpServer.arg(str_mmPerPulse) != tmpString) {
+      mmPerPulse = httpServer.arg(str_mmPerPulse).toFloat();
     }
   }
 }

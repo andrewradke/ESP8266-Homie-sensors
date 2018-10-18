@@ -1,16 +1,17 @@
 #if FWTYPE == 9      // esp8266-sht31
 
+const char str_humidity100Okay[] = "humidity100Okay";
+
+
 void sensorSetup() {
-  sht31Status = sht31.begin(0x44);   // Set to 0x45 for alternate i2c addr
-  logString = "SHT-31 initialised";
-  mqttLog(app_name_sensors, logString);
+  sensorStatus = sht31.begin(0x44);   // Set to 0x45 for alternate i2c addr
   // The library always returns true for begin() so it's not much point checking the returned value
-  logString = "SHT-31 ";
+  logString = F("SHT-31 ");
   uint16_t sht31State = sht31.readStatus();
   if (sht31State == 65535) {          // returns 65535 if no sensor (no I2C device at all?) found
-    logString   = logString + "NOT ";
-    sht31Error  = true;
-    sht31Status = false;
+    logString    = logString + F("NOT ");
+    sensorError  = true;
+    sensorStatus = false;
   }
   logString = logString + "found";
   mqttLog(app_name_sensors, logString);
@@ -21,15 +22,38 @@ void sensorSetup() {
 */
 }
 
-void  printSensorConfig(const String &cfgStr) {}
-void sensorImportJSON(JsonObject& json) {}
-void sensorExportJSON(JsonObject& json) {}
-bool sensorUpdateConfig(const String &key, const String &value) {
-  return false;
+void  printSensorConfig(const String &cfgStr) {
+  mqttSend(String(cfgStr + str_humidity100Okay), String(humidity100Okay), true);
 }
+
+void sensorImportJSON(JsonObject& json) {
+  if (json[str_humidity100Okay].is<bool>()) {
+    humidity100Okay = json[str_humidity100Okay];
+  }
+}
+
+void sensorExportJSON(JsonObject& json) {
+  json[str_humidity100Okay] = humidity100Okay;
+}
+bool sensorUpdateConfig(const String &key, const String &value) {
+  if ( key == str_humidity100Okay ) {
+    if ( value.equalsIgnoreCase("true") or value.equalsIgnoreCase("yes") or value == "1" ) {
+      humidity100Okay = true;
+    } else if ( value.equalsIgnoreCase("false") or value.equalsIgnoreCase("no") or value == "0" ) {
+      humidity100Okay = false;
+    } else {
+      logString = String(F("Unrecognised value for humidity100Okay: ")) + value;
+      mqttLog(app_name_sensors, logString);      
+    }
+  } else {
+    return false;
+  }
+}
+
 bool sensorRunAction(const String &key, const String &value) {
   return false;
 }
+
 void calcData() {}
 
 void sendData() {
@@ -38,65 +62,68 @@ void sendData() {
   dewpoint    = 1000;
 
   // Start SHT-31
-  if (! sht31Status) {
+  if (! sensorStatus) {
     logString = "Retrying SHT-31";
     mqttLog(app_name_sensors, logString);
-    sht31Status  = sht31.begin();
+
+    sensorStatus  = sht31.begin();
     uint16_t sht31State = sht31.readStatus();
     if (sht31State != 65535) {          // returns 65535 if no sensor (no I2C device at all?) found
       logString = "SHT-31 found";
-      sht31Error = false;
-      sht31Status = true;
+      sensorError = false;
+      sensorStatus = true;
       mqttLog(app_name_sensors, logString);
     } else {
-      sht31Status = false;
+      sensorStatus = false;
     }
+
   } else {
 
-    temperature1 = sht31.readTemperature();
-    humidity1    = sht31.readHumidity();
+    readTemperature = sht31.readTemperature();
+    readHumidity    = sht31.readHumidity();
 
 
     // Start temperature
     // The lowest recorded temperature is -88C and the highest is 58C so if it's outside this then it's a false reading
-    if ( temperature1 > -100 && temperature1 < 65) {
+    if ( readTemperature > -100 && readTemperature < 65) {
 
-      temperature = temperature1;
+      temperature = readTemperature;
 
-      if (sht31ErrorT) {
-        if (sht31ErrorT >= error_count_log) {
-          logString = "SHT-31 temperature recovered: " + String(temperature1) + "C";
+      if (sensorErrorT) {
+        if (sensorErrorT >= error_count_log) {
+          logString = "SHT-31 temperature recovered: " + String(readTemperature) + "C";
           mqttLog(app_name_sensors, logString);
         }
-        sht31ErrorT = 0;
+        sensorErrorT = 0;
       }
     } else {  // Bad temperature reading
-      sht31ErrorT++;
-      if (sht31ErrorT == error_count_log) {
-        logString = "SHT-31 temperature error: " + String(temperature1) + "C";
+      sensorErrorT++;
+      if (sensorErrorT == error_count_log) {
+        logString = "SHT-31 temperature error: " + String(readTemperature) + " C";
         mqttLog(app_name_sensors, logString);
       }
     }
     // End temperature
 
+
     // Start humidity
-    // 100% humidity means the humidity sensor has gotten wet and is no longer useful
-    if ( humidity1 > 0 && humidity1 < 100) {
+    // 100% humidity can mean the humidity sensor has gotten wet and is no longer useful
+    if ( readHumidity > 0 && ( ( humidity100Okay && readHumidity == 100 ) || readHumidity < 100 ) ) {
 
-      humidity = humidity1;
+      humidity = readHumidity;
 
-      if (sht31ErrorH) {
-        if (sht31ErrorH >= error_count_log) {
-          logString = "SHT-31 humidity recovered: " + String(humidity1) + "%";
+      if (sensorErrorH) {
+        if (sensorErrorH >= error_count_log) {
+          logString = "SHT-31 humidity recovered: " + String(readHumidity) + "%";
           mqttLog(app_name_sensors, logString);
         }
-        sht31ErrorH = 0;
+        sensorErrorH = 0;
       }
 
     } else {  // Bad humidity reading
-      sht31ErrorH++;
-      if (sht31ErrorH == error_count_log) {
-        logString = "SHT-31 humidity error: " + String(humidity1) + "%";
+      sensorErrorH++;
+      if (sensorErrorH == error_count_log) {
+        logString = "SHT-31 humidity error: " + String(readHumidity) + " %";
         mqttLog(app_name_sensors, logString);
       }
     }
@@ -104,6 +131,7 @@ void sendData() {
 
   }
   // End SHT-31
+
 
   if (temperature != 1000) {
     mqttSend(String("temperature/celsius"),   String(temperature), false);
@@ -158,11 +186,18 @@ String httpSensorData() {
 
 String httpSensorSetup() {
   String httpData;
-  httpData += trStart + "No config items." + tdBreak + trEnd;
+  httpData += trStart + F("100% humidity okay?") + tdBreak + htmlCheckbox(str_humidity100Okay, humidity100Okay)  + trEnd;
   return httpData;
 }
 
 String httpSensorConfig() {
+  if (httpServer.hasArg(str_humidity100Okay)) {
+    if (httpServer.arg(str_humidity100Okay) == str_on) {
+      humidity100Okay = true;
+    } else {
+      humidity100Okay = false;
+    }
+  }
 }
 
 void sensorMqttCallback(char* topic, byte* payload, unsigned int length) {}

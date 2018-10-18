@@ -326,7 +326,7 @@ String httpSensorData() {
 
 String httpSensorSetup() {
   String httpData;
-  httpData += trStart + "Elevation (m):" + tdBreak + htmlInput("text", "elevation", String(elevation)) + trEnd;
+  httpData += trStart + "Elevation (m):" + tdBreak + htmlInput(str_text, "elevation", String(elevation)) + trEnd;
   return httpData;
 }
 

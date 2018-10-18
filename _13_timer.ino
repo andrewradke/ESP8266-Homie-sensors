@@ -200,7 +200,7 @@ String httpSensorData() {
 
 String httpSensorSetup() {
   String httpData;
-  httpData += trStart + F("Relay pin:") + tdBreak + htmlInput("text", "relay_pin", String(relay_pin)) + trEnd;
+  httpData += trStart + F("Relay pin:") + tdBreak + htmlInput(str_text, "relay_pin", String(relay_pin)) + trEnd;
   return httpData;
 }
 

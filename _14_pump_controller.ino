@@ -36,7 +36,7 @@ void sensorSetup() {
   digitalWrite(RELAY_PIN, pumpState);                                      // Set the initial state of the relay to off
 }
 
-void  printSensorConfig(const String &cfgStr) {
+void printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + str_pressureRange),  String(pressureRange), true);
   mqttSend(String(cfgStr + str_pulsesPerLitre), String(pulsesPerLitre), true);
   mqttSend(String(cfgStr + str_cutoffLow),      String(cutoffLow), true);

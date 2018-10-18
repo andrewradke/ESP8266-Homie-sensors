@@ -73,7 +73,7 @@ String httpSensorData() {
 
 String httpSensorSetup() {
   String httpData;
-  httpData += trStart + F("Max depth (m):") + tdBreak + htmlInput("text",     "maxdepth", String(maxdepth)) + trEnd;
+  httpData += trStart + F("Max depth (m):") + tdBreak + htmlInput(str_text,     "maxdepth", String(maxdepth)) + trEnd;
   return httpData;
 }
 

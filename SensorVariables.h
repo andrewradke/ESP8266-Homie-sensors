@@ -180,16 +180,16 @@ float    elevation    = 0;
 // SDO is connected to GND so address is 0x76 instead of 0x77
 // #define BME280_ADDRESS  (0x76) This needs to be changed in the library
 Adafruit_BME280 bme; // I2C
-float    temperature2 = 1000;
-uint16_t humidity2    = 1000;
-float    pressure2    = 0;
-float    sealevel2    = 0;
-bool     bme280Status = 0;
-bool     bme280Error  = 0;
-int      bme280ErrorT = 0;
-int      bme280ErrorH = 0;
-int      bme280ErrorP = 0;
-bool     bme280_100Hokay = true;
+float    readTemperature = 1000;
+uint16_t readHumidity    = 1000;
+float    readPressure    = 0;
+float    readSeaLevel    = 0;
+bool     sensorStatus = 0;
+bool     sensorError  = 0;
+int      sensorErrorT = 0;
+int      sensorErrorH = 0;
+int      sensorErrorP = 0;
+bool     humidity100Okay = true;
 
 
 
@@ -209,12 +209,13 @@ float    dewpoint     = 1000;
 
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
-float    temperature1 = 1000;
-float    humidity1    = 1000;
-bool     sht31Status  = 0;
-bool     sht31Error   = 0;
-int      sht31ErrorT  = 0;
-int      sht31ErrorH  = 0;
+float    readTemperature = 1000;
+uint16_t readHumidity    = 1000;
+bool     sensorStatus = 0;
+bool     sensorError  = 0;
+int      sensorErrorT = 0;
+int      sensorErrorH = 0;
+bool     humidity100Okay = true;
 
 
 
@@ -386,8 +387,8 @@ bool          pumpCutoff     = false;
 char fwname[40] =    "esp8266-tli4970";
 #define PIN_TLI_CS   15     // WeMos D1 Mini D8
 #define PIN_TLI_DIO  12     // WeMos D1 Mini D6
-#define PIN_TLI_SCK  14     // WeMos D1 Mini D5
-#define PIN_TLI_OCD   2     // WeMos D1 Mini D4
+#define PIN_TLI_SCK   0     // WeMos D1 Mini D5
+#define PIN_TLI_OCD 255     // WeMos D1 Mini D4
 #define CONFIG_PIN   13     // WeMos D1 Mini D7
 char nodes[100] =    "current:amps";
 #include <Tli4970.h>              // https://github.com/Infineon/TLI4970-D050T4-Current-Sensor
