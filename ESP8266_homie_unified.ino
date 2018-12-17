@@ -18,6 +18,7 @@
    14 esp8266-pump-controller
    15 esp8266-tli4970
    16 esp8266-pressure-depth
+   17 esp8266-relay
 */
 
 /********************  IMPORTANT NOTE for ADS1115  ********************
@@ -30,13 +31,13 @@
 
 
 #define FWTYPE     11
-#define FWVERSION  "0.9.19s"
+#define FWVERSION  "0.9.19u"
 #define FWPASSWORD "esp8266."
-#define USESSD1306                // SSD1306 OLED display
+//#define USESSD1306                // SSD1306 OLED display
 
 
 //#define DEBUG
-#define SERIALSPEED 74880
+#define SERIALSPEED 115200
 
 #include <ESP8266WiFi.h>          // ESP8266 Core WiFi Library
 
@@ -87,7 +88,7 @@ char     host_name[21]     = "";
 char     syslog_server[41];
 uint16_t loglevel          = LOG_NOTICE;
 WiFiUDP  udpClient;
-Syslog   syslog(udpClient, SYSLOG_PROTO_IETF);
+Syslog   syslog(udpClient, SYSLOG_PROTO_BSD);
 
 
 #ifdef USESSD1306
@@ -319,9 +320,8 @@ void setup() {
 
     while ( digitalRead(CONFIG_PIN) == LOW )
       yield();
-    uint16_t config_length = millis();
 
-    if (config_length >= 10000) {
+    if (millis() >= 10000) {
       logString = F("Config pin pressed for  more than 10 seconds. Performing factory default reset.");
       printMessage(app_name_cfg, logString, true);
 
@@ -341,6 +341,9 @@ void setup() {
         delay(500);
       }
       delay(1000);
+
+      logString = F("Rebooting.");
+      printMessage(app_name_cfg, logString, true);
       //reboot and try again, or maybe put it to deep sleep
       ESP.restart();
       delay(5000);
@@ -363,7 +366,7 @@ void setup() {
     delay(500); // Without delay the IP address may be blank
 #ifdef DEBUG
     dmesg();
-    Serial.print(F("AP"));
+    Serial.print(F("AP "));
     Serial.print(str_cfg_ip_address);
     Serial.print(F(": "));
     Serial.println(WiFi.softAPIP());
@@ -399,6 +402,9 @@ void setup() {
     }
     inConfigAP     = false;
   } else {
+    logString = String(F("Connecting to '")) + String(WiFi.SSID()) + "'";
+    printMessage(app_name_wifi, logString, true);
+
     WiFi.begin();
   }
 

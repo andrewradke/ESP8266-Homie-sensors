@@ -271,6 +271,7 @@ char fwname[40] =    "esp8266-weathervane";
 
 float kphPerPulse = 2.4;             // kph per pulse per second
 float mmPerPulse  = 0.2794;          // mm per pulse
+uint16_t secPerGust = 1;             // How many seconds to average a gust over
 
 #define RAINGAUGE_PIN  12            // pin tied to the pulse output of the rain gauge
 #define ANEMOMETER_PIN 14            // pin tied to the pulse output of the anemometer
@@ -414,6 +415,19 @@ float         pressure;
 float         depth;
 float         pressureRange = 15; // 15 psi is a good default pressure for reading most tank depths
 float         depthOffset   = 0;  // Allow readings to be moved up or down depnding on the level the sensor is sitting in the water
+
+
+
+// ************* esp8266-pump-controller *************
+#elif FWTYPE == 17
+
+char fwname[40] =    "esp8266-relay";
+char nodes[100] =    "relay:power";
+
+#define RELAY_PIN   5     // WeMos D1 Mini D1
+#define CONFIG_PIN 13     // WeMos D1 Mini D7
+
+bool          relayState      = false;
 
 
 

@@ -4,6 +4,7 @@ const char DIR_ARROW[] PROGMEM = " &nbsp; <span style='transform:rotate({v}deg);
 
 const char str_kphPerPulse[]    = "kphPerPulse";
 const char str_mmPerPulse[]     = "mmPerPulse";
+const char str_secPerGust[]     = "secPerGust";
 
 const char str_kph[]            = " kph";
 const char str_mm[]             = " mm";
@@ -28,6 +29,7 @@ void sensorSetup() {
 void  printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + str_kphPerPulse), String(kphPerPulse), true);
   mqttSend(String(cfgStr + str_mmPerPulse),  String(mmPerPulse),  true);
+  mqttSend(String(cfgStr + str_secPerGust),  String(secPerGust),  true);
 }
 
 void sensorImportJSON(JsonObject& json) {
@@ -37,11 +39,15 @@ void sensorImportJSON(JsonObject& json) {
   if (json[str_mmPerPulse].is<float>()) {
     mmPerPulse      = json[str_mmPerPulse];
   }
+  if (json[str_secPerGust].is<int>()) {
+    secPerGust      = json[str_secPerGust];
+  }
 }
 
 void sensorExportJSON(JsonObject& json) {
   json[str_kphPerPulse] = kphPerPulse;
   json[str_mmPerPulse]  = mmPerPulse;
+  json[str_secPerGust]  = secPerGust;
 }
 
 bool sensorUpdateConfig(const String &key, const String &value) {
@@ -49,6 +55,8 @@ bool sensorUpdateConfig(const String &key, const String &value) {
     kphPerPulse = value.toFloat();
   } else if ( key == str_mmPerPulse ) {
     mmPerPulse  = value.toFloat();
+  } else if ( key == str_secPerGust ) {
+    secPerGust  = value.toInt();
   } else {
     return false;
   }
@@ -130,6 +138,7 @@ void calcData() {
     uint32_t sum_speed = 0;
     uint8_t  min_speed = wind_speeds[wind_array_pos];
     uint8_t  max_speed = 0;
+    uint32_t sum_gust  = 0;
     uint8_t  max_dir   = 0;
     uint32_t sum_dirs  = 0;
     uint16_t readings  = WIND_SECS;
@@ -151,6 +160,16 @@ void calcData() {
         if (wind_speeds[i] > max_speed) {
           max_speed = wind_speeds[i];
           max_dir   = wind_dirs[i];
+          if ( secPerGust > 1 ) {
+            sum_gust  = 0;
+            for (uint16_t j=0; j<secPerGust; j++) {
+              uint16_t k = i+j;
+              if ( k >= readings ) {
+                k -= readings;     // Wrap back around to the top end of the array
+              }
+              sum_gust += wind_speeds[k];
+            }
+          }
         }
       }
 #else
@@ -158,6 +177,16 @@ void calcData() {
       if (wind_speeds[i] > max_speed) {
         max_speed = wind_speeds[i];
         max_dir   = wind_dirs[i];
+        if ( secPerGust > 1 ) {
+          sum_gust  = 0;
+          for (uint16_t j=0; j<secPerGust; j++) {
+            uint16_t k = i+j;
+            if ( k >= readings ) {
+              k -= readings;     // Wrap back around to the top end of the array
+            }
+            sum_gust += wind_speeds[k];
+          }
+        }
       }
       if (wind_speeds[i] < min_speed) {
         min_speed = wind_speeds[i];
@@ -165,6 +194,11 @@ void calcData() {
 #endif
 
     }
+
+    if ( secPerGust > 1 ) {
+      max_speed = sum_gust / secPerGust;
+    }
+
     wind_speed = (sum_speed / (float) readings) * kphPerPulse;  // Calculated to kph
     wind_dir   = (sum_dirs  / (float) readings) * 22.5;         // Each position on the wind vane is 22.5 degrees
 
@@ -275,6 +309,7 @@ String httpSensorSetup() {
   String httpData;
   httpData += trStart + F("Wind KPH per pulse:") + tdBreak + htmlInput(str_text, str_kphPerPulse, String(kphPerPulse)) + trEnd;
   httpData += trStart + F("mm rain per pulse:")  + tdBreak + htmlInput(str_text, str_mmPerPulse,  String(mmPerPulse))  + trEnd;
+  httpData += trStart + F("Average gust over this many seconds:")  + tdBreak + htmlInput(str_text, str_secPerGust,  String(secPerGust))  + trEnd;
   return httpData;
 }
 
@@ -289,6 +324,12 @@ String httpSensorConfig() {
     tmpString = String(mmPerPulse);
     if (httpServer.arg(str_mmPerPulse) != tmpString) {
       mmPerPulse = httpServer.arg(str_mmPerPulse).toFloat();
+    }
+  }
+  if (httpServer.hasArg(str_secPerGust)) {
+    tmpString = String(secPerGust);
+    if (httpServer.arg(str_secPerGust) != tmpString) {
+      secPerGust = httpServer.arg(str_secPerGust).toInt();
     }
   }
 }

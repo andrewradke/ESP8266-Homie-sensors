@@ -49,9 +49,7 @@ void calcData() {
 
 void sendData() {
   voltage = analogRead(A0);
-  // 0.004887585533 gives 4.75V
-  // 0.005144826877 should give 5V
-  voltage *= 0.005144826877;   // Convert 1023 to 5V
+  voltage *= .004887586;   // Convert 1023 to 5V
 
   if ( voltage > 4.95 ) {
     logString = ("ERROR: Sensor possibly shorted to 5V.");
