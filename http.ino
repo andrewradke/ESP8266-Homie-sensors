@@ -45,10 +45,16 @@ void httpSetup() {
   httpServer.on("/fwlink",         handleRoot);  // Microsoft captive portal. Maybe not needed. Might be handled by notFound handler. HTTP only
   httpServer.on(http_page_urls[4], handlePassword );
   httpServer.on(http_page_urls[5], HTTP_GET,  handleCACert);
-  httpServer.on(http_page_urls[5], HTTP_POST, [](){ send200Http(""); },     handleCACertUpload);
+  httpServer.on(http_page_urls[5], HTTP_POST, []() {
+    send200Http("");
+  },     handleCACertUpload);
   httpServer.on(http_page_urls[6], HTTP_GET,  handleHTTPSCerts);
-  httpServer.on("/httpscert",      HTTP_POST, [](){ send200Http(""); },     handleHTTPSCertUpload);
-  httpServer.on("/httpskey",       HTTP_POST, [](){ send200Http(""); },     handleHTTPSKeyUpload);
+  httpServer.on("/httpscert",      HTTP_POST, []() {
+    send200Http("");
+  },     handleHTTPSCertUpload);
+  httpServer.on("/httpskey",       HTTP_POST, []() {
+    send200Http("");
+  },     handleHTTPSKeyUpload);
   httpServer.on(http_page_urls[7], HTTP_GET,  handleFirmware);
   httpServer.on(http_page_urls[7], HTTP_POST, handleFirmwareUploadComplete, handleFirmwareUpload);
   httpServer.on(http_page_urls[8], handleReboot );
@@ -69,7 +75,7 @@ String htmlHeader() {
 
   if (httpServer.uri() != login_url) {
     httpHeader += FPSTR(HTTP_NAV_START);
-    for (byte i = 0; i < MENU_COUNT; i++){
+    for (byte i = 0; i < MENU_COUNT; i++) {
       String tmpString  = FPSTR(HTTP_NAV_LI);
       if (httpServer.uri() == http_page_urls[i]) {
         tmpString.replace("{c}", F(" class='active'"));
@@ -85,7 +91,7 @@ String htmlHeader() {
       httpHeader += tmpString;
     }
     httpHeader += FPSTR(HTTP_NAV_END);
-  
+
     if (rebootRequired) {
       httpHeader += F("<p><b>Reboot required to use new settings.</b></p>");
     }
@@ -117,10 +123,10 @@ String htmlRadio(const String &inputName, const String &inputValue, const bool i
 }
 
 void sendLocationHeader(const String &loc) {
-  httpServer.sendHeader(F("Location"),loc);         // Redirect the client to loc
+  httpServer.sendHeader(F("Location"), loc);        // Redirect the client to loc
 }
 void sendCacheControlHeader() {
-  httpServer.sendHeader(F("Cache-Control"),F("no-cache"));
+  httpServer.sendHeader(F("Cache-Control"), F("no-cache"));
 }
 void sendCacheControlHeader(uint16_t len) {
   httpServer.sendHeader(F("Content-Length"), String(len));
@@ -137,8 +143,8 @@ void send500HttpUploadFailed() {
 
 void gencookie() {
   sessioncookie = "";
-  for( uint8_t i = 0; i < 32; i++)
-    sessioncookie += anchars[random(0, anchars.length())]; // Using random chars from anchars string generate 32-bit cookie 
+  for ( uint8_t i = 0; i < 32; i++)
+    sessioncookie += anchars[random(0, anchars.length())]; // Using random chars from anchars string generate 32-bit cookie
 }
 
 bool is_authenticated() {
@@ -204,7 +210,7 @@ void handleLogin() {
   httpData += htmlBR;
   httpData += F("<button type='submit' name='submit'>login</button></center></form></body></html>");
 
-  if (httpServer.hasHeader("Cookie")) {   
+  if (httpServer.hasHeader("Cookie")) {
     String cookie = httpServer.header("Cookie"); // Copy the Cookie header to this buffer
   }
 
@@ -215,7 +221,7 @@ void handleLogin() {
       // if above values are good, send 'Cookie' header with variable c, with format 'c=sessioncookie'
       sendLocationHeader(http_page_urls[0]);  // "/"
       sendCacheControlHeader();
-      httpServer.sendHeader("Set-Cookie","c=" + sessioncookie);
+      httpServer.sendHeader("Set-Cookie", "c=" + sessioncookie);
       httpServer.send(301);
       trycount = 0;                                      // With good headers in mind, reset the trycount buffer
       httpLoggedin = true;
@@ -232,7 +238,7 @@ void handleLogin() {
       httpData += String(F(" tries before system temporarily locks out."));
       logincld = millis();                               // Reset the logincld timer, since we still have available tries
     }
-    
+
     if (trycount == 3) {                                 // If too many bad tries
       httpData += String(F("Too many invalid login requests, you can try again in "));
       if (lock) {
@@ -256,7 +262,7 @@ void handleLogout() {
     return;
 
   //Set 'c=0', it users header, effectively deleting it's header
-  httpServer.sendHeader("Set-Cookie","c=0");
+  httpServer.sendHeader("Set-Cookie", "c=0");
   sendLocationHeader(login_url);
   sendCacheControlHeader();
   httpServer.send(301);
@@ -279,11 +285,9 @@ void handleRoot() {
   httpData += htmlBR;
 
   /// send uptime and signal
-  unsigned long uptime = millis();
-  uptime = uptime / 1000;
   int signal = WiFi.RSSI();
   httpData += tableStart;
-  httpData += trStart + F("Uptime:") + tdBreak + String(uptime) + " s" + trEnd;
+  httpData += trStart + F("Uptime:") + tdBreak + uptimeString() + trEnd;
   httpData += trStart + F("Signal:") + tdBreak + String(signal) + " dB" + trEnd;
   httpData += trStart + F("MQTT:") + tdBreak;
   if (mqttClient.connected()) {
@@ -328,11 +332,11 @@ void handleSystem() {
   httpData += trStart + str_nbsp + tdBreak + trEnd;
 
   httpData += trStart + F("Flash size:") + tdBreak;
-  httpData += String(ESP.getFlashChipRealSize()/1048576.0) + " MB";
+  httpData += String(ESP.getFlashChipRealSize() / 1048576.0) + " MB";
   httpData += trEnd;
 
   httpData += trStart + F("Flash size config:") + tdBreak;
-  httpData += String(ESP.getFlashChipSize()/1048576.0) + " MB";
+  httpData += String(ESP.getFlashChipSize() / 1048576.0) + " MB";
   httpData += trEnd;
 
   httpData += trStart + F("Program size:") + tdBreak;
@@ -373,9 +377,7 @@ void handleSystem() {
   httpData += trStart + str_nbsp + tdBreak + trEnd;
 
   /// send uptime and signal
-  unsigned long uptime = millis();
-  uptime = uptime / 1000;
-  httpData += trStart + F("Uptime:") + tdBreak + String(uptime) + " s" + trEnd;
+  httpData += trStart + F("Uptime:") + tdBreak + uptimeString() + trEnd;
 
   httpData += trStart + str_nbsp + tdBreak + trEnd;
 
@@ -896,7 +898,7 @@ void handleWifi() {
     }
     httpData += trEnd;
     httpData += tableEnd;
-  
+
     httpData += htmlBR;
   }
   if (inConfigAP) {
@@ -919,9 +921,9 @@ void handleWifi() {
     for (int i = 0; i < n; i++) {
       indices[i] = i;
     }
-  
+
     // RSSI SORT
-  
+
     // old sort
     for (int i = 0; i < n; i++) {
       for (int j = i + 1; j < n; j++) {
@@ -969,7 +971,7 @@ void handleWifi() {
 
   httpData += FPSTR(HTTP_END);
 
-//  httpServer.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  //  httpServer.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   sendCacheControlHeader();     // Does this need to send "no-cache, no-store, must-revalidate"?
   httpServer.sendHeader("Pragma", "no-cache");
   httpServer.sendHeader("Expires", "-1");
@@ -1004,7 +1006,7 @@ void handleWifiSave() {
 
     sprintf_P( buf, HTTP_META_REFRESH, 10);  // Refresh the page after 10 seconds
     httpData += String(buf);
-    
+
     connectNewWifi = true; //signal ready to connect/reset
   } else {
     httpData = htmlHeader();
@@ -1059,7 +1061,7 @@ void handleFirmware() {
 
   httpData += F("<table style='border:2px solid red;margin:1em;'>");
   httpData += trStart + F("Flash size config:") + tdBreak;
-  httpData += String(ESP.getFlashChipSize()/1048576.0) + " MB";
+  httpData += String(ESP.getFlashChipSize() / 1048576.0) + " MB";
   httpData += trEnd;
   FSInfo fs_info;
   SPIFFS.info(fs_info);
@@ -1098,7 +1100,7 @@ void handleFirmwareUploadComplete() {
     httpData.replace("{v}", str_firmware_update + F("failed."));
 
     httpData += String(F("<pre>")) + firmwareUpdateError + F("</pre>");
-  
+
     httpData += FPSTR(HTTP_END);
     httpServer.sendContent(httpData);
     httpServer.client().stop(); // Stop is needed because we sent no content length
@@ -1161,7 +1163,7 @@ void handleFirmwareUpload() {
     Serial.print(str_dot);
     httpServer.sendContent("_");
 
-    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize){
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
       Update.printError(Serial);
       StreamString str;
       Update.printError(str);
@@ -1188,7 +1190,7 @@ void handleFirmwareUpload() {
       logMessage(app_name_sys, logString, false);
     }
     Serial.setDebugOutput(false);
-  } else if(upload.status == UPLOAD_FILE_ABORTED) {
+  } else if (upload.status == UPLOAD_FILE_ABORTED) {
     Update.end();
     firmwareUpdateError = F("Update was aborted");
     logString = str_firmware_update + firmwareUpdateError;
@@ -1395,4 +1397,44 @@ void handleHTTPSKeyUpload() {
     }
     logMessage(app_name_http, logString, false);
   }
+}
+
+String uptimeString() {
+  unsigned long uptime = millis();
+  String uptimeStr;
+
+  uptime = uptime / 1000;
+
+  uint16_t uptime_day = uptime / 86400;
+  uptime = uptime % 86400;
+  uint16_t uptime_hour = uptime / 3600;
+  uptime = uptime % 3600;
+  uint16_t uptime_minute = uptime / 60;
+  uptime = uptime % 60;
+  uint16_t uptime_second = uptime;
+  bool uptime_comma = false;
+
+  if (uptime_day) {
+    uptimeStr += String(uptime_day) + F(" days");
+    uptime_comma = true;
+  }
+  if (uptime_hour) {
+    if (uptime_comma)
+      uptimeStr += str_comma;
+    uptimeStr += String(uptime_hour) + F(" hours");
+    uptime_comma = true;
+  }
+  if (uptime_minute) {
+    if (uptime_comma)
+      uptimeStr += str_comma;
+    uptimeStr += String(uptime_minute) + F(" minutes");
+    uptime_comma = true;
+  }
+  if (uptime_second) {
+    if (uptime_comma)
+      uptimeStr += str_comma;
+    uptimeStr += String(uptime_second) + F(" seconds");
+  }
+
+  return uptimeStr;
 }

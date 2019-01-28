@@ -3,7 +3,7 @@
 const char str_acLoad[]  = "acLoad";
 
 void sensorSetup() {
-  Tli4970CurrentSensor.begin(SPI, PIN_TLI_CS, PIN_TLI_OCD, PIN_TLI_DIO);
+  Tli4970CurrentSensor.begin(SPI, PIN_TLI_CS, PIN_TLI_DIO);
 }
 
 

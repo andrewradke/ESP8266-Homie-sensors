@@ -30,11 +30,12 @@
 // Much of the HTTP authentication code is based on brzi's work published at https://www.hackster.io/brzi/esp8266-advanced-login-security-748560
 
 
-#define FWTYPE     11
-#define FWVERSION  "0.9.19u"
+#define FWTYPE     14
+#define FWVERSION  "0.9.19v"
 #define FWPASSWORD "esp8266."
-//#define USESSD1306                // SSD1306 OLED display
+#define USESSD1306                // SSD1306 OLED display
 
+//#define USETLI4970                // Does the sensor board include a TLi4970 current sensor
 
 //#define DEBUG
 #define SERIALSPEED 115200
@@ -99,10 +100,11 @@ Syslog   syslog(udpClient, SYSLOG_PROTO_BSD);
 Adafruit_SSD1306 display(OLED_RESET);
 #define COLS 20
 #define ROWS 8
-uint32_t prevDisplay = 0;
+uint32_t prevDisplay   = 0;
 char     displayArray[ROWS][COLS+1]; // y postion first in array as we are dealing with lines of text then position on line
-uint8_t  displayLine = 0;
-uint16_t displaySleep = 30;       // Seconds before the display goes to sleep
+uint8_t  displayLine   = 0;
+uint16_t displaySleep  = 30;         // Seconds before the display goes to sleep
+bool     displayActive = true;
 #endif
 
 
@@ -190,6 +192,14 @@ String HTTPScertfilename = "/httpscert.der";
 String HTTPSkeyfilename  = "/httpskey.der";
 bool   ca_cert_okay      = false;
 //bool   https_okay        = false;
+
+
+int buttonState;                     // the current reading from the config button
+int lastButtonState = LOW;           // the previous reading from the config button
+
+uint32_t lastDebounceTime   = 0;     // the last time the output pin was toggled
+uint32_t debounceDelay      = 50;    // the debounce time; increase as needed for your button
+bool     buttonStateChanged = false; // 
 
 
 ////////////////////////////////////// setup ///////////////////////////////////////
@@ -285,7 +295,7 @@ void setup() {
 #endif
 
 
-  if ( digitalRead(CONFIG_PIN) == HIGH ) {  // If the config pin IS grounded then skip this
+  if ( digitalRead(CONFIG_PIN) == HIGH ) {  // If the config pin is NOT pressed then skip this
     // Back off for between 0 and 1 seconds before starting Wifi
     // This reduces the sudden current draw when too many sensors start at once or lots of data packets at exactly the same time
     long startupDelay = random(1000);
@@ -309,7 +319,7 @@ void setup() {
 
   // is configuration portal requested?
   if ( ( digitalRead(CONFIG_PIN) == LOW ) || (WiFi.SSID() == "") || (! configLoaded) ) {
-    if ( digitalRead(CONFIG_PIN) == LOW )
+    if ( digitalRead(CONFIG_PIN) == LOW ) // if it's the config pin that's put us here
       logString = F("Config PIN pressed.");
     if (WiFi.SSID() == "")
       logString = F("No saved SSID.");
@@ -666,6 +676,32 @@ void setup() {
 ////////////////////////////////////// main loop ///////////////////////////////////////
 
 void loop() {
+  buttonStateChanged = false;
+  // Check the button first
+  int reading = digitalRead(CONFIG_PIN);
+
+  // If the switch changed, due to noise or pressing:
+  if (reading != lastButtonState) {
+    // reset the debouncing timer
+    lastDebounceTime = millis();
+  }
+
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    // whatever the reading is at, it's been there for longer than the debounce
+    // delay, so take it as the actual current state:
+
+    // if the button state has changed:
+    if (reading != buttonState) {
+      buttonState = reading;
+      buttonStateChanged = true;
+
+//      if (buttonState == LOW) {
+//        oled_offtime = (millis()/1000) + cfg.oled_timeout;  // Set
+//      }
+    }
+  }
+  lastButtonState = reading;
+  // buttonState can now be used elsewhere
 
   httpServer.handleClient();
 //  if (https_okay)
@@ -689,26 +725,7 @@ void loop() {
     gencookie();
     tempign = millis();
     // if there is no activity from loged on user, generate a new cookie. This is more secure than adding expiry to the cookie header
-  } 
-
-#ifdef USESSD1306
-  if ( digitalRead(CONFIG_PIN) == LOW ) {
-    if ( millis() > (prevDisplay + (displaySleep * 1000) ) ) {  // if the display is sleeping redraw it.
-      display.setTextSize(1);
-      display.clearDisplay();
-      for (byte y=0; y<(ROWS-1); y++) {
-        display.setCursor(0, y*8);
-        display.print(displayArray[y]);
-      }
-      display.display();
-    }
-    prevDisplay = millis();
   }
-  if ( millis() > (prevDisplay + (displaySleep * 1000) ) ) {
-    display.clearDisplay();
-    display.display();
-  }
-#endif
 
 
   bool reconnected = false;
@@ -765,6 +782,28 @@ void loop() {
     int signal = WiFi.RSSI();
     mqttSend(String("$signal"), String(signal), true);
   }
+
+
+#ifdef USESSD1306
+  if (buttonStateChanged && buttonState == LOW) {
+    if ( millis() > (prevDisplay + (displaySleep * 1000) ) ) {  // if the display is sleeping redraw it.
+      display.setTextSize(1);
+      display.clearDisplay();
+      for (byte y=0; y<(ROWS-1); y++) {
+        display.setCursor(0, y*8);
+        display.print(displayArray[y]);
+      }
+      display.display();
+    }
+    prevDisplay = millis();
+    displayActive = true;
+  }
+  if ( displayActive && millis() > (prevDisplay + (displaySleep * 1000) ) ) {
+    display.clearDisplay();
+    display.display();
+    displayActive = false;
+  }
+#endif
 
 
   ////////////////////////////////////// check the watchdog ///////////////////////////////////////

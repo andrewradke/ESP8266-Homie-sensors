@@ -83,6 +83,7 @@ const String str_static     = "Static";
 const String str_dhcp       = "DHCP";
 const String str_space      = " ";
 const String str_dot        = ".";
+const String str_comma      = ", ";
 const String str_colon      = ": ";
 const String str_ipv4       = "IPv4";
 const String str_NaN        = "nan";

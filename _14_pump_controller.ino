@@ -26,6 +26,9 @@ const char str_Pump_[]          = "Pump ";
 const char str_duePressure[]    = " due to pressure ";
 const char str_dueFlow[]        = " due to flow ";
 
+#ifdef USETLI4970
+const char str_acLoad[]  = "acLoad";
+#endif
 
 void sensorSetup() {
   pinMode(PULSE_PIN, INPUT_PULLUP);
@@ -34,6 +37,10 @@ void sensorSetup() {
 
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, pumpState);                                      // Set the initial state of the relay to off
+
+#ifdef USETLI4970
+  Tli4970CurrentSensor.begin(SPI, PIN_TLI_CS, PIN_TLI_OCD, PIN_TLI_DIO);
+#endif
 }
 
 void printSensorConfig(const String &cfgStr) {
@@ -45,6 +52,10 @@ void printSensorConfig(const String &cfgStr) {
   mqttSend(String(cfgStr + str_pressureOff),    String(pressureOff), true);
   mqttSend(String(cfgStr + str_flowMin),        String(flowMin), true);
   mqttSend(String(cfgStr + str_pumpCheckDelay), String(pumpCheckDelay), true);
+
+#ifdef USETLI4970
+  mqttSend(String(cfgStr + str_acLoad), String(acLoad), true);  
+#endif
 }
 
 void sensorImportJSON(JsonObject& json) {
@@ -72,6 +83,12 @@ void sensorImportJSON(JsonObject& json) {
   if (json[str_pumpCheckDelay].is<int>()) {
     pumpCheckDelay = json[str_pumpCheckDelay];
   }
+
+#ifdef USETLI4970
+  if (json[str_acLoad].is<bool>()) {
+    acLoad = json[str_acLoad];
+  }
+#endif
 }
 
 void sensorExportJSON(JsonObject& json) {
@@ -83,6 +100,10 @@ void sensorExportJSON(JsonObject& json) {
   json[str_pressureOff]    = pressureOff;
   json[str_flowMin]        = flowMin;
   json[str_pumpCheckDelay] = pumpCheckDelay;
+
+#ifdef USETLI4970
+  json[str_acLoad] = acLoad;
+#endif
 }
 
 bool sensorUpdateConfig(const String &key, const String &value) {
@@ -102,6 +123,19 @@ bool sensorUpdateConfig(const String &key, const String &value) {
     flowMin = value.toInt();
   } else if ( key == str_pumpCheckDelay ) {
     pumpCheckDelay = value.toInt();
+
+#ifdef USETLI4970
+  } else if ( key == str_acLoad ) {
+    if ( value.equalsIgnoreCase("true") or value.equalsIgnoreCase("yes") or value == "1" ) {
+      acLoad = true;
+    } else if ( value.equalsIgnoreCase("false") or value.equalsIgnoreCase("no") or value == "0" ) {
+      acLoad = false;
+    } else {
+      logString = String(F("Unrecognised value for acLoad: ")) + value;
+      mqttLog(app_name_sensors, logString);      
+    }
+#endif
+
   } else {
     return false;
   }
@@ -113,6 +147,62 @@ bool sensorRunAction(const String &key, const String &value) {
 }
 
 void calcData() {
+#ifdef USESSD1306
+  if (buttonStateChanged && buttonState == LOW) {
+    // If the display isn't active we want to turn on the display but not process any further button state change code
+    // Marking the display as active here means the main loop won't draw the display log later in the main loop
+    if (! displayActive) {
+      buttonStateChanged = false;
+    }
+    prevDisplay = millis();
+    displayActive = true;
+  }
+#endif
+
+#ifdef USESSD1306
+  if (displayActive) {
+#endif
+    if (pumpCutoff) {
+      // If the button has been pressed while the display is active then reset the pump cutoff
+      if ( buttonStateChanged && buttonState == LOW ) {
+        logString = String(str_Pump_) + String(str_pumpCutoff) + " reset";
+        logMessage(app_name_sensors, logString, false);
+        pumpCutoff = false;
+        pumpControl(true);
+      }
+    }
+#ifdef USESSD1306
+  }
+#endif
+
+#ifdef USETLI4970
+  if ( currentTime > (sLoopTime) ) {              // Check current every ms
+    sLoopTime = currentTime;                      // Updates sLoopTime
+    if (Tli4970CurrentSensor.readOut()) {
+      tli4970Errors++;
+      if (tli4970Errors == error_count_log) {
+        logString = "Tli4970 error";
+        mqttLog(app_name_sensors, logString);
+      }
+  
+    } else {
+      float thisCurrent = Tli4970CurrentSensor.getCurrent();
+      if ( acLoad && thisCurrent < 0 )
+        thisCurrent *= -1;
+      current += thisCurrent;
+      readings++;
+  
+      if (tli4970Errors) {
+        if (tli4970Errors >= error_count_log) {
+          logString = "Tli4970 recovered";
+          mqttLog(app_name_sensors, logString);
+        }
+        tli4970Errors = 0;
+      }
+    }
+  }
+#endif
+
   // Every second, get the current anolog reading and calculate and print litres/hour
   if ( currentTime >= (floopTime + 1000) ) {
     floopTime = currentTime;                      // Updates floopTime
@@ -123,39 +213,59 @@ void calcData() {
     litres = flow_counter / litrerate;            // get the total litres so far    
 
 #ifdef USESSD1306
-    display.clearDisplay();
-    char text[7];
-    dtostrf(pressure, 6, 1, text);
-    display.setCursor(0, 0);
-    display.setTextSize(3);
-    display.print(text);
-    display.setCursor(103, 15);
-    display.setTextSize(1);
-    display.print(" psi");
 
-    if (pumpCutoff) {
-      display.setCursor(0, 27);
-      display.setTextSize(3);
-      display.print("CUTOFF");
-    } else {
-      dtostrf(l_hour, 6, 0, text);
-      display.setCursor(0, 27);
+    if ( displayActive ) {
+      display.clearDisplay();
+      char text[7];
+      dtostrf(pressure, 6, 1, text);
+      display.setCursor(0, 0);
       display.setTextSize(3);
       display.print(text);
-      display.setCursor(103, 42);
+      display.setCursor(103, 15);
       display.setTextSize(1);
-      display.print(" L/h");
+      display.print(" psi");
 
-      if (pumpState) {
-        display.setCursor(0, 47);
-        display.setTextSize(2);
-        display.print(str_Pump_);
-        display.print(str_pumpOn);
+      if (pumpCutoff) {
+        display.setCursor(0, 27);
+        display.setTextSize(3);
+        display.print("CUTOFF");
+      } else {
+        dtostrf(l_hour, 6, 0, text);
+        display.setCursor(0, 27);
+        display.setTextSize(3);
+        display.print(text);
+        display.setCursor(103, 42);
+        display.setTextSize(1);
+        display.print(" L/h");
+
+        if (pumpState) {
+          display.setCursor(0, 47);
+          display.setTextSize(2);
+          display.print(str_Pump_);
+          display.print(str_pumpOn);
+        }
       }
+
+#ifdef USETLI4970
+      float amps = current/readings;
+      byte places = 1;
+      if (amps < 1)
+        places = 3;
+      else if (amps < 10)
+        places = 2;
+      dtostrf(amps, 6, places, text);
+      display.setCursor(0, 16);
+      display.setTextSize(3);
+      display.print(text);
+      display.setCursor(115, 23);
+      display.setTextSize(2);
+      display.print("A");
+#endif
+
+      display.display();
     }
 
-    display.display();
-    prevDisplay = millis();
+
 #endif
 
     if ( (pumpState) && ( (millis() / 1000) - pumpTimer < pumpCheckDelay ) ) {     // If we are in the pumpCheckDelay period send data every second
@@ -174,16 +284,7 @@ void calcData() {
 
     cloopTime = currentTime;                      // Updates cloopTime
 
-    if (pumpCutoff) {
-      // Check for pump cutoff reset, don't bother with interrupts or debouncing
-      if ( digitalRead(CONFIG_PIN) == LOW ) {
-        logString = String(str_Pump_) + String(str_pumpCutoff) + " reset";
-        logMessage(app_name_sensors, logString, false);
-        pumpCutoff = false;
-        pumpControl(true);
-      }
-    } else {
-
+    if (! pumpCutoff) {
       if ( (! pumpState) && (pressure <= pressureOn) ) {                                                                // If the pressure is low enough and the pump isn't running turn on even if it's below the cutoff pressure (we'll cutoff soon if it doesn't increase)
         logString = String(str_Pump_) + String(str_pumpOn) + String(str_duePressure) + "< " + String(pressureOn);
         logMessage(app_name_sensors, logString, false);
@@ -227,6 +328,27 @@ void sendData() {
   mqttSend(String(str_lph_Lph),         String(l_hour),       false);
   mqttSend(String(str_pump_Power),      String(pumpState),    false);
   mqttSend(String(str_pump_Cutoff),     String(pumpCutoff),   false);
+
+#ifdef USETLI4970
+  char text[7];
+  float amps = current/readings;
+  byte places = 1;
+//  current /= readings;      // Return the average of the current readings since the last time data was sent
+#ifdef DEBUG
+  Serial.print("readings: ");
+  Serial.print(readings);
+  Serial.print(", current: ");
+  Serial.println(current);
+#endif
+  if (amps < 1)
+    places = 3;
+  else if (amps < 10)
+    places = 2;
+  dtostrf(amps, 6, places, text);
+  mqttSend(String("current/amps"),   String(text), false);
+  current  = 0;
+  readings = 0;
+#endif
 }
 
 void flow () {                     // Interrupt function
@@ -272,6 +394,12 @@ String httpSensorData() {
   }
   httpData += trEnd;
 
+#ifdef USETLI4970
+  httpData += trStart + "Current:" + tdBreak;
+  httpData += String(current/readings) + " amps";
+  httpData += trEnd;
+#endif
+
   httpData += tableEnd;
   return httpData;
 }
@@ -287,6 +415,14 @@ String httpSensorSetup() {
   httpData += trStart + F("Pressure off:")                 + tdBreak + htmlInput(str_text, str_pressureOff,    String(pressureOff))    + trEnd;
   httpData += trStart + F("Cutout flow - minimum (L/h):")  + tdBreak + htmlInput(str_text, str_flowMin,        String(flowMin))        + trEnd;
   httpData += trStart + F("Startup check delay (s):")      + tdBreak + htmlInput(str_text, str_pumpCheckDelay, String(pumpCheckDelay)) + trEnd;
+
+#ifdef USETLI4970
+  httpData += trStart + F("Load type:")                 + tdBreak;
+  httpData += htmlRadio(str_acLoad, str_false,         (! acLoad)) + F("DC");
+  httpData += htmlRadio(str_acLoad, str_true,          acLoad)     + F("AC");
+  httpData += trEnd;
+#endif
+
   return httpData;
 }
 
@@ -339,6 +475,17 @@ String httpSensorConfig() {
       pumpCheckDelay = httpServer.arg(str_pumpCheckDelay).toInt();
     }
   }
+
+#ifdef USETLI4970
+  if (httpServer.hasArg(str_acLoad)) {
+    if (httpServer.arg(str_acLoad) == str_true) {
+      acLoad = true;
+    } else {
+      acLoad = false;
+    }
+  }
+#endif
+
 }
 
 void sensorMqttCallback(char* topic, byte* payload, unsigned int length) {

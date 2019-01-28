@@ -346,7 +346,12 @@ uint32_t relayOffTime = 0;              // The *seconds* at which the relay need
 #elif FWTYPE == 14
 
 char fwname[40] =    "esp8266-pump-controller";
+
+#ifdef USETLI4970
+char nodes[100] =    "pressure:psi,litres:litres,lph:lph,pump:power,cutoff:bool,current:amps";
+#else
 char nodes[100] =    "pressure:psi,litres:litres,lph:lph,pump:power,cutoff:bool";
+#endif
 
 #define PULSE_PIN      14     // WeMos D1 Mini D5
 #define RELAY_PIN      16     // WeMos D1 Mini D0
@@ -380,6 +385,20 @@ bool          pumpState      = false;
 bool          pumpPrevState  = false;
 bool          pumpCutoff     = false;
 
+#ifdef USETLI4970
+#define PIN_TLI_CS   15     // WeMos D1 Mini D8
+#define PIN_TLI_DIO  12     // WeMos D1 Mini D6
+#define PIN_TLI_SCK   0     // WeMos D1 Mini D5
+#define PIN_TLI_OCD 255     // WeMos D1 Mini D4
+#include <Tli4970.h>              // https://github.com/Infineon/TLI4970-D050T4-Current-Sensor
+Tli4970 Tli4970CurrentSensor = Tli4970();
+float         current       = 0;
+uint32_t      readings      = 0;
+uint16_t      tli4970Errors = 0;
+uint32_t      sLoopTime     = 0;
+uint32_t      dLoopTime     = 0;
+bool          acLoad        = false;
+#endif
 
 
 // ************* esp8266-tli4970 *************
